@@ -67,7 +67,8 @@ describe("PepeCollectionFactory", function () {
       // Check event was emitted
       const event = receipt!.logs.find(
         (log) =>
-          log.topics[0] === ethers.id("CollectionCreated(address,address)")
+          log.topics[0] ===
+          ethers.id("CollectionCreated(address,address,string,string)")
       );
       expect(event).to.not.be.undefined;
 

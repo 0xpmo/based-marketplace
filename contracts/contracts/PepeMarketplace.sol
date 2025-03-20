@@ -134,6 +134,14 @@ contract PepeMarketplace is Ownable, ReentrancyGuard {
             }
         }
 
+        // Transfer market fee to the owner
+        if (marketFeeAmount > 0) {
+            (bool ownerTransferSuccess, ) = payable(owner()).call{
+                value: marketFeeAmount
+            }("");
+            require(ownerTransferSuccess, "Failed to send market fee to owner");
+        }
+
         // Refund excess payment to buyer
         if (msg.value > listing.price) {
             (bool refundSuccess, ) = payable(msg.sender).call{

@@ -18,15 +18,20 @@ export default buildModule("PepeMarketplace", (m) => {
     m.getAccount(0),
   ]);
 
-  // Create a sample collection (executed but not returned)
-  m.staticCall(factory, "createCollection", [
-    "Pepe Originals",
-    "PEPE",
-    "ipfs://QmSampleCollectionURI",
-    ethers.parseEther("0.05"), // 0.05 ETH mint price
-    100, // Max supply
-    500, // 5% royalty
-  ]);
+  // Create a sample collection
+  m.call(
+    factory,
+    "createCollection",
+    [
+      "Pepe Originals",
+      "PEPE",
+      "ipfs://QmSampleCollectionURI",
+      ethers.parseEther("0.05"), // 0.05 ETH mint price
+      100, // Max supply
+      500, // 5% royalty
+    ],
+    { value: DEFAULT_FEE }
+  );
 
   return { factory, marketplace };
 });
