@@ -27,7 +27,7 @@ export default function PepeButton({
 }: PepeButtonProps) {
   // Base classes
   const baseClasses =
-    "relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-pepe-500 focus:ring-offset-2";
+    "relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2";
 
   // Size classes
   const sizeClasses = {
@@ -39,11 +39,11 @@ export default function PepeButton({
   // Variant classes
   const variantClasses = {
     primary:
-      "bg-pepe-500 hover:bg-pepe-600 text-white shadow-lg shadow-pepe-500/20",
+      "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20",
     secondary:
-      "bg-pepe-200 hover:bg-pepe-300 text-pepe-800 shadow-lg shadow-pepe-200/20",
-    outline: "border-2 border-pepe-500 text-pepe-500 hover:bg-pepe-50",
-    ghost: "text-pepe-600 hover:bg-pepe-50",
+      "bg-green-200 hover:bg-green-300 text-green-800 shadow-lg shadow-green-200/20",
+    outline: "border-2 border-green-500 text-green-500 hover:bg-green-50",
+    ghost: "text-green-600 hover:bg-green-50",
   };
 
   // Disabled classes

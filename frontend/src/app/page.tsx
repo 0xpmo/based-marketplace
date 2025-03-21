@@ -37,7 +37,7 @@ export default function Home() {
       <PepeConfetti trigger={showConfetti} />
 
       {/* Hero section */}
-      <section className="relative w-full bg-pepe-pattern pt-12 pb-24 px-4 overflow-hidden">
+      <section className="relative w-full bg-hero-pattern pt-12 pb-24 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-background/90 to-background/70 backdrop-blur-sm" />
 
         <div className="max-w-7xl mx-auto relative z-10">
@@ -49,12 +49,12 @@ export default function Home() {
               className="text-center md:text-left"
             >
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-pepe-300 to-pepe-500 bg-clip-text text-transparent">
-                  Pepe NFT Marketplace
+                <span className="bg-gradient-to-r from-green-300 to-green-500 bg-clip-text text-transparent">
+                  Pepe&apos;s Favorite Marketplace
                 </span>
               </h1>
               <p className="text-lg md:text-xl text-gray-300 mb-8">
-                Discover, collect, and trade unique Pepe NFTs on the Based AI
+                Discover, collect, and trade unique NFTs on the Based AI
                 blockchain. Join the most exciting NFT marketplace in the crypto
                 space!
               </p>
@@ -79,7 +79,7 @@ export default function Home() {
               className="hidden md:block relative h-80 w-full"
             >
               <Image
-                src="/images/pepe-hero.png"
+                src="/pepe-hero.jpg"
                 alt="Pepe NFT Showcase"
                 fill
                 className="object-contain"
@@ -143,10 +143,10 @@ export default function Home() {
               whileHover={{ y: -5 }}
               className="bg-background p-6 rounded-lg shadow-lg border border-border"
             >
-              <div className="h-12 w-12 bg-pepe-500/20 flex items-center justify-center rounded-lg mb-4">
+              <div className="h-12 w-12 bg-green-500/20 flex items-center justify-center rounded-lg mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-pepe-500"
+                  className="h-6 w-6 text-green-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -170,10 +170,10 @@ export default function Home() {
               whileHover={{ y: -5 }}
               className="bg-background p-6 rounded-lg shadow-lg border border-border"
             >
-              <div className="h-12 w-12 bg-pepe-500/20 flex items-center justify-center rounded-lg mb-4">
+              <div className="h-12 w-12 bg-green-500/20 flex items-center justify-center rounded-lg mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-pepe-500"
+                  className="h-6 w-6 text-green-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -197,10 +197,10 @@ export default function Home() {
               whileHover={{ y: -5 }}
               className="bg-background p-6 rounded-lg shadow-lg border border-border"
             >
-              <div className="h-12 w-12 bg-pepe-500/20 flex items-center justify-center rounded-lg mb-4">
+              <div className="h-12 w-12 bg-green-500/20 flex items-center justify-center rounded-lg mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-pepe-500"
+                  className="h-6 w-6 text-green-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -215,7 +215,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Creator Royalties</h3>
               <p className="text-gray-400">
-                Creators earn royalties on secondary sales, supporting the Pepe
+                Creators earn royalties on secondary sales, supporting the
                 artist community.
               </p>
             </motion.div>
@@ -224,14 +224,14 @@ export default function Home() {
       </section>
 
       {/* CTA section */}
-      <section className="py-16 px-4 bg-gradient-to-r from-pepe-900/80 to-pepe-700/80">
+      <section className="py-16 px-4 bg-gradient-to-r from-green-900/80 to-green-700/80">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">
-            Ready to hop into the NFT revolution?
+            Ready to join the NFT revolution?
           </h2>
           <p className="text-lg text-gray-200 mb-8 max-w-2xl mx-auto">
             Join thousands of collectors and creators on the Based AI
-            blockchain&apos;s premier Pepe-themed NFT marketplace.
+            blockchain&apos;s premier NFT marketplace.
           </p>
           <Link href="/explore">
             <PepeButton variant="primary" size="lg">

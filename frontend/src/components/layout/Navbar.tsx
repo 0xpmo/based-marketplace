@@ -34,7 +34,7 @@ export default function Navbar() {
             <Link href="/" className="flex items-center">
               <div className="relative h-10 w-10 mr-2">
                 <Image
-                  src="/images/pepe-logo.png"
+                  src="/pepecoin-logo.jpg"
                   alt="Pepe NFT Marketplace"
                   width={40}
                   height={40}

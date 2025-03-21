@@ -5,7 +5,7 @@ import { getDefaultConfig } from "connectkit";
 
 // Define the Based AI chain
 export const basedAIChain = defineChain({
-  id: 32323, // Replace with the actual chain ID
+  id: 32323,
   name: "Based AI",
   nativeCurrency: {
     decimals: 18,
@@ -13,12 +13,12 @@ export const basedAIChain = defineChain({
     symbol: "BASED",
   },
   rpcUrls: {
-    default: { http: ["https://mainnet.basedaibridge.com/rpc/"] }, // Replace with actual RPC
+    default: { http: ["https://mainnet.basedaibridge.com/rpc/"] },
   },
   blockExplorers: {
     default: {
       name: "Based AI Explorer",
-      url: "https://explorer.getbased.ai", // Replace with actual explorer
+      url: "https://explorer.getbased.ai",
     },
   },
 });

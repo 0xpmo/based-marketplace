@@ -12,19 +12,19 @@ export default function Footer() {
             <Link href="/" className="flex items-center">
               <div className="relative h-10 w-10 mr-2">
                 <Image
-                  src="/images/pepe-logo.png"
+                  src="/pepecoin-logo.jpg"
                   alt="Pepe NFT Marketplace"
                   width={40}
                   height={40}
                 />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-pepe-300 to-pepe-500 bg-clip-text text-transparent">
-                Pepe NFT Market
+              <span className="text-xl font-bold bg-gradient-to-r from-green-300 to-green-500 bg-clip-text text-transparent">
+                NFT Market
               </span>
             </Link>
             <p className="mt-4 text-sm text-gray-400">
               The premier NFT marketplace on the Based AI blockchain, featuring
-              Pepe-themed digital collectibles.
+              unique digital collectibles.
             </p>
           </div>
 
@@ -37,7 +37,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/explore"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Explore
                 </Link>
@@ -45,7 +45,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/create"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Create
                 </Link>
@@ -53,7 +53,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/my-nfts"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   My NFTs
                 </Link>
@@ -68,14 +68,17 @@ export default function Footer() {
             </h3>
             <ul className="mt-4 space-y-2">
               <li>
-                <Link href="/faq" className="text-gray-400 hover:text-pepe-400">
+                <Link
+                  href="/faq"
+                  className="text-gray-400 hover:text-green-400"
+                >
                   FAQ
                 </Link>
               </li>
               <li>
                 <Link
                   href="/about"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   About
                 </Link>
@@ -85,7 +88,7 @@ export default function Footer() {
                   href="https://basedai.blockchain"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Based AI Blockchain
                 </a>
@@ -104,7 +107,7 @@ export default function Footer() {
                   href="https://twitter.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Twitter
                 </a>
@@ -114,7 +117,7 @@ export default function Footer() {
                   href="https://discord.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Discord
                 </a>
@@ -124,7 +127,7 @@ export default function Footer() {
                   href="https://telegram.org"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-pepe-400"
+                  className="text-gray-400 hover:text-green-400"
                 >
                   Telegram
                 </a>
@@ -135,14 +138,17 @@ export default function Footer() {
 
         <div className="mt-8 border-t border-border pt-8 flex flex-col md:flex-row justify-between">
           <p className="text-base text-gray-400">
-            &copy; {new Date().getFullYear()} Pepe NFT Marketplace. All rights
+            &copy; {new Date().getFullYear()} NFT Marketplace. All rights
             reserved.
           </p>
           <div className="mt-4 md:mt-0 flex space-x-6">
-            <Link href="/terms" className="text-gray-400 hover:text-pepe-400">
+            <Link href="/terms" className="text-gray-400 hover:text-green-400">
               Terms
             </Link>
-            <Link href="/privacy" className="text-gray-400 hover:text-pepe-400">
+            <Link
+              href="/privacy"
+              className="text-gray-400 hover:text-green-400"
+            >
               Privacy
             </Link>
           </div>

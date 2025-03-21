@@ -11,12 +11,14 @@
   "description": "",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-ignition": "^0.15.10",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.13.10",
     "chai": "^4.5.0",
+    "ethers": "^6.13.5",
     "hardhat": "^2.22.19",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
