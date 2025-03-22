@@ -1,6 +1,5 @@
 // frontend/src/config/web3.ts
 import { createConfig, http } from "wagmi";
-import { getDefaultConfig } from "connectkit";
 import { getActiveChain } from "./chains";
 
 // Get the active chain based on environment
@@ -10,17 +9,13 @@ const activeChain = getActiveChain();
 export const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
 export const MARKETPLACE_ADDRESS = process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS;
 
-// Create ConnectKit config
-export const wagmiConfig = createConfig(
-  getDefaultConfig({
-    chains: [activeChain],
-    transports: {
-      [activeChain.id]: http(),
-    },
-    appName: "NFT Marketplace",
-    walletConnectProjectId:
-      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
-  })
-);
+// Create wagmi config
+export const wagmiConfig = createConfig({
+  chains: [activeChain],
+  transports: {
+    // Use explicit typing for the transport configuration
+    [activeChain.id]: http(),
+  } as Record<number, ReturnType<typeof http>>,
+});
 
 export const chains = [activeChain];
