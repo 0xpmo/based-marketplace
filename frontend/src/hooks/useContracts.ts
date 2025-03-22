@@ -22,60 +22,94 @@ export function useCollections() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log("Factory address:", FACTORY_ADDRESS);
+
   // Read collections from factory
-  const { data: collectionAddresses } = useReadContract({
+  const { data: collectionAddresses, error: contractError } = useReadContract({
     address: FACTORY_ADDRESS as `0x${string}`,
     abi: FactoryABI.abi,
     functionName: "getCollections",
   });
 
+  // Debug logs
+  useEffect(() => {
+    console.log("Factory Address:", FACTORY_ADDRESS);
+    console.log("Contract Error:", contractError);
+    console.log("Collection Addresses:", collectionAddresses);
+  }, [collectionAddresses, contractError]);
+
   const fetchCollectionDetails = useCallback(async () => {
-    if (!collectionAddresses) return;
+    if (!collectionAddresses) {
+      console.log("No collection addresses found");
+      setCollections([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     try {
       const collectionsData: Collection[] = [];
 
       for (const address of collectionAddresses as string[]) {
-        // Fetch basic collection details
-        const name = await readCollectionProperty(address, "name");
-        const symbol = await readCollectionProperty(address, "symbol");
-        const collectionURI = await readCollectionProperty(
-          address,
-          "collectionURI"
-        );
-        const mintPrice = await readCollectionProperty(address, "mintPrice");
-        const maxSupply = await readCollectionProperty(address, "maxSupply");
-        const totalMinted = await readCollectionProperty(
-          address,
-          "totalMinted"
-        );
-        const royaltyFee = await readCollectionProperty(address, "royaltyFee");
-        const owner = await readCollectionProperty(address, "owner");
-
-        // Fetch metadata from IPFS
-        let metadata = undefined;
         try {
-          metadata = await fetchFromIPFS(collectionURI as string);
+          // Fetch basic collection details
+          const name = await readCollectionProperty(address, "name");
+          const symbol = await readCollectionProperty(address, "symbol");
+          const collectionURI = await readCollectionProperty(
+            address,
+            "collectionURI"
+          );
+          const mintPrice = await readCollectionProperty(address, "mintPrice");
+          const maxSupply = await readCollectionProperty(address, "maxSupply");
+          const totalMinted = await readCollectionProperty(
+            address,
+            "totalMinted"
+          );
+          const royaltyFee = await readCollectionProperty(
+            address,
+            "royaltyFee"
+          );
+          const owner = await readCollectionProperty(address, "owner");
+
+          // Fetch metadata from IPFS
+          let metadata = undefined;
+          try {
+            metadata = await fetchFromIPFS(collectionURI as string);
+          } catch (err) {
+            console.error(
+              `Failed to fetch metadata for collection ${address}`,
+              err
+            );
+          }
+
+          // Format values with type checking
+          const formattedMintPrice = mintPrice
+            ? formatEther(BigInt(mintPrice.toString()))
+            : "0";
+          const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
+          const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
+          const formattedRoyaltyFee = royaltyFee ? Number(royaltyFee) : 0;
+
+          collectionsData.push({
+            address,
+            name: name as string,
+            symbol: symbol as string,
+            collectionURI: collectionURI as string,
+            mintPrice: formattedMintPrice,
+            maxSupply: formattedMaxSupply,
+            totalMinted: formattedTotalMinted,
+            royaltyFee: formattedRoyaltyFee,
+            owner: owner as string,
+            metadata,
+          });
         } catch (err) {
           console.error(
-            `Failed to fetch metadata for collection ${address}`,
+            `Error fetching details for collection ${address}:`,
             err
           );
+          // Continue with next collection instead of failing completely
+          continue;
         }
-
-        collectionsData.push({
-          address,
-          name: name as string,
-          symbol: symbol as string,
-          collectionURI: collectionURI as string,
-          mintPrice: formatEther(mintPrice as bigint),
-          maxSupply: Number(maxSupply),
-          totalMinted: Number(totalMinted),
-          royaltyFee: Number(royaltyFee),
-          owner: owner as string,
-          metadata,
-        });
       }
 
       setCollections(collectionsData);
@@ -238,10 +272,34 @@ async function readCollectionProperty(
   property: string
 ) {
   try {
-    const result = await fetch(
+    const response = await fetch(
       `/api/contracts/readCollection?address=${collectionAddress}&property=${property}`
     );
-    const data = await result.json();
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: `HTTP error ${response.status}` }));
+      console.error(`API Error (${response.status}):`, errorData);
+      throw new Error(
+        errorData.details ||
+          errorData.error ||
+          `API returned ${response.status}`
+      );
+    }
+
+    const data = await response.json().catch(() => {
+      throw new Error("Failed to parse API response as JSON");
+    });
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    if (data.result === undefined) {
+      throw new Error(`No result returned for property ${property}`);
+    }
+
     return data.result;
   } catch (err) {
     console.error(

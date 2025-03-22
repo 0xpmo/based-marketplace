@@ -1,5 +1,6 @@
 // frontend/src/services/ipfs.ts
 import axios from "axios";
+import { CollectionMetadata } from "@/types/contracts";
 
 interface PinataResponse {
   IpfsHash: string;
@@ -86,13 +87,44 @@ export function getIPFSGatewayURL(ipfsURI: string): string {
 }
 
 // Function to fetch metadata from IPFS
-export async function fetchFromIPFS<T>(ipfsURI: string): Promise<T> {
+export async function fetchFromIPFS(
+  uri: string
+): Promise<CollectionMetadata | undefined> {
   try {
-    const gatewayURL = getIPFSGatewayURL(ipfsURI);
-    const response = await axios.get<T>(gatewayURL);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching from IPFS:", error);
-    throw new Error("Failed to fetch from IPFS");
+    // Remove ipfs:// prefix if present
+    const cid = uri.replace("ipfs://", "");
+
+    // Try multiple IPFS gateways
+    const gateways = [
+      `https://ipfs.io/ipfs/${cid}`,
+      `https://gateway.pinata.cloud/ipfs/${cid}`,
+      `https://cloudflare-ipfs.com/ipfs/${cid}`,
+    ];
+
+    // Try each gateway until one works
+    for (const gateway of gateways) {
+      try {
+        const response = await fetch(gateway);
+        if (!response.ok) continue;
+
+        const data = await response.json();
+
+        // Validate required fields
+        if (!data.name || !data.description || !data.image) {
+          console.warn("Missing required metadata fields:", data);
+          continue;
+        }
+
+        return data as CollectionMetadata;
+      } catch (err) {
+        console.warn(`Failed to fetch from gateway ${gateway}:`, err);
+        continue;
+      }
+    }
+
+    throw new Error("Failed to fetch from all IPFS gateways");
+  } catch (err) {
+    console.error("Error fetching from IPFS:", err);
+    return undefined;
   }
 }

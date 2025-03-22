@@ -16,13 +16,11 @@ export interface CollectionMetadata {
   name: string;
   description: string;
   image: string;
-  banner?: string;
-  externalLink?: string;
-  category?: string;
-  attributes?: {
+  external_url?: string;
+  attributes?: Array<{
     trait_type: string;
-    value: string;
-  }[];
+    value: string | number;
+  }>;
 }
 
 export interface NFTItem {
