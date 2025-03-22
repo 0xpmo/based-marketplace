@@ -1,6 +1,5 @@
 // frontend/src/services/ipfs.ts
 import axios from "axios";
-import fs from "fs";
 
 interface PinataResponse {
   IpfsHash: string;
@@ -25,10 +24,10 @@ const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY;
 const pinataEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const pinataJSONEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
-// Using more reliable IPFS gateways
-const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
-const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
-const BACKUP_GATEWAY = "https://ipfs.io/ipfs/";
+// These are no longer used since we're using our server-side proxy
+// const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
+// const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+// const BACKUP_GATEWAY = "https://ipfs.io/ipfs/";
 
 /**
  * Converts an IPFS URI to a gateway URL
@@ -38,20 +37,48 @@ const BACKUP_GATEWAY = "https://ipfs.io/ipfs/";
 export function getIPFSGatewayURL(uri: string): string {
   if (!uri) return "/images/placeholder-nft.svg";
 
-  // If already a HTTP URL, return as is
+  // If already a HTTP URL, return as is (except if it's an IPFS gateway that might have CORS issues)
   if (uri.startsWith("http")) {
+    // Check if this is already an IPFS gateway URL that might have CORS issues
+    const ipfsGatewayPatterns = [
+      "ipfs.io/ipfs/",
+      "cloudflare-ipfs.com/ipfs/",
+      "gateway.pinata.cloud/ipfs/",
+      "gateway.ipfs.io/ipfs/",
+    ];
+
+    // If it's not an IPFS gateway URL, return as is
+    if (!ipfsGatewayPatterns.some((pattern) => uri.includes(pattern))) {
+      return uri;
+    }
+
+    // Otherwise, extract the CID and use our proxy
+    for (const pattern of ipfsGatewayPatterns) {
+      const index = uri.indexOf(pattern);
+      if (index !== -1) {
+        // Extract the CID after the pattern
+        const cid = uri.substring(index + pattern.length);
+        return `/api/ipfs?cid=${encodeURIComponent(cid)}`;
+      }
+    }
+
+    // If we couldn't extract a CID but it's a gateway URL, return as is
     return uri;
   }
 
-  // If IPFS URI (ipfs://...), convert to gateway URL
+  // Extract CID from IPFS URI
+  let cid = "";
+
+  // If IPFS URI (ipfs://...), extract the CID
   if (uri.startsWith("ipfs://")) {
-    const cid = uri.substring(7);
-    return `${IPFS_GATEWAY}${cid}`;
+    cid = uri.substring(7);
+    return `/api/ipfs?cid=${encodeURIComponent(cid)}`;
   }
 
   // If it's a CID directly, add the gateway
   if (uri.match(/^[a-zA-Z0-9]{46}$/) || uri.match(/^Qm[a-zA-Z0-9]{44}$/)) {
-    return `${IPFS_GATEWAY}${uri}`;
+    cid = uri;
+    return `/api/ipfs?cid=${encodeURIComponent(cid)}`;
   }
 
   // Try to handle potential relative paths or other edge cases
@@ -119,34 +146,24 @@ export async function uploadMetadataToIPFS(
  * @param uri IPFS URI or HTTP URL
  * @returns Parsed JSON data
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchFromIPFS(uri: string): Promise<any> {
-  const gatewayUrl = getIPFSGatewayURL(uri);
-
+export async function fetchFromIPFS(
+  uri: string
+): Promise<Record<string, unknown>> {
   try {
-    const response = await fetch(gatewayUrl);
+    // Use our server-side proxy to avoid CORS issues
+    const proxyUrl = `/api/ipfs/metadata?uri=${encodeURIComponent(uri)}`;
 
-    if (!response.ok) {
-      // Try alternate gateway if first one fails
-      const alternateUrl = gatewayUrl.replace(IPFS_GATEWAY, PINATA_GATEWAY);
-      const alternateResponse = await fetch(alternateUrl);
-
-      if (!alternateResponse.ok) {
-        // Try backup gateway as last resort
-        const backupUrl = gatewayUrl.replace(IPFS_GATEWAY, BACKUP_GATEWAY);
-        const backupResponse = await fetch(backupUrl);
-
-        if (!backupResponse.ok) {
-          throw new Error(`Failed to fetch from IPFS: ${response.statusText}`);
-        }
-
-        return await backupResponse.json();
+    try {
+      const response = await fetch(proxyUrl);
+      if (response.ok) {
+        return await response.json();
+      } else {
+        throw new Error(`Proxy error: ${response.status}`);
       }
-
-      return await alternateResponse.json();
+    } catch (error) {
+      console.error("Error fetching from metadata proxy:", error);
+      throw error;
     }
-
-    return await response.json();
   } catch (error) {
     console.error("Error fetching from IPFS:", error);
     throw error;
@@ -155,20 +172,18 @@ export async function fetchFromIPFS(uri: string): Promise<any> {
 
 /**
  * Uploads file or JSON data to IPFS
- * @param data File path or JSON string
+ * @param data File object or JSON string
  * @returns IPFS URI
  */
-export async function uploadToIPFS(data: string): Promise<string> {
+export async function uploadToIPFS(data: string | File): Promise<string> {
   try {
-    // Check if this is a file path or JSON string
-    const isFilePath = data.startsWith("/") || data.includes("\\");
+    // Check if this is a File object or JSON string
+    const isFile = data instanceof File;
 
-    if (isFilePath) {
+    if (isFile) {
       // Handle file upload
-      const fileData = fs.readFileSync(data);
       const formData = new FormData();
-      const blob = new Blob([fileData]);
-      formData.append("file", blob);
+      formData.append("file", data);
 
       const response = await axios.post<PinataResponse>(
         pinataEndpoint,
@@ -187,7 +202,7 @@ export async function uploadToIPFS(data: string): Promise<string> {
       // Handle JSON upload
       try {
         // Parse to validate it's JSON
-        const metadata = JSON.parse(data);
+        const metadata = JSON.parse(data as string);
         const response = await axios.post<PinataResponse>(
           pinataJSONEndpoint,
           metadata,

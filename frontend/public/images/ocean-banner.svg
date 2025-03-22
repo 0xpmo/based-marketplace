@@ -1,52 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">
-  <!-- Sky gradient -->
+<svg width="1200" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with ocean gradient -->
   <defs>
-    <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#082f49" />
-      <stop offset="100%" stop-color="#0c4a6e" />
+    <linearGradient id="oceanGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0c4a6e" />
+      <stop offset="100%" stop-color="#082f49" />
     </linearGradient>
   </defs>
+  <rect width="1200" height="400" fill="url(#oceanGradient)" />
+
+  <!-- Decorative dots -->
+  <g fill="#ffffff" opacity="0.05">
+    <circle cx="100" cy="80" r="3" />
+    <circle cx="150" cy="120" r="2" />
+    <circle cx="200" cy="60" r="4" />
+    <circle cx="250" cy="100" r="2" />
+    <circle cx="300" cy="70" r="3" />
+    <circle cx="350" cy="110" r="2" />
+    <circle cx="400" cy="50" r="3" />
+    <circle cx="450" cy="90" r="2" />
+    <circle cx="500" cy="60" r="4" />
+    <circle cx="550" cy="100" r="2" />
+    <circle cx="600" cy="80" r="3" />
+    <circle cx="650" cy="120" r="2" />
+    <circle cx="700" cy="60" r="3" />
+    <circle cx="750" cy="100" r="2" />
+    <circle cx="800" cy="70" r="4" />
+    <circle cx="850" cy="110" r="2" />
+    <circle cx="900" cy="50" r="3" />
+    <circle cx="950" cy="90" r="2" />
+    <circle cx="1000" cy="60" r="3" />
+    <circle cx="1050" cy="100" r="2" />
+    <circle cx="1100" cy="80" r="4" />
+    <circle cx="1150" cy="120" r="2" />
+  </g>
+
+  <!-- Deep ocean wave layers -->
+  <path d="M0,320 C200,290 400,350 600,300 C800,250 1000,320 1200,280 L1200,400 L0,400 Z" fill="#075985" opacity="0.7" />
+  <path d="M0,340 C150,310 350,380 550,330 C750,280 950,350 1200,300 L1200,400 L0,400 Z" fill="#0284c7" opacity="0.6" />
+  <path d="M0,360 C180,330 420,390 600,350 C780,310 960,370 1200,320 L1200,400 L0,400 Z" fill="#0ea5e9" opacity="0.5" />
+  <path d="M0,380 C200,360 400,400 600,375 C800,350 1000,390 1200,360 L1200,400 L0,400 Z" fill="#38bdf8" opacity="0.4" />
+
+  <!-- BasedSea branding -->
+  <text x="1150" y="380" font-family="Arial" font-size="12" fill="#fff" opacity="0.5" text-anchor="end">BasedSea Marketplace</text>
+
+  <!-- Decorative bubbles -->
+  <circle cx="200" cy="280" r="12" fill="#38bdf8" opacity="0.2" />
+  <circle cx="300" cy="320" r="8" fill="#0ea5e9" opacity="0.2" />
+  <circle cx="500" cy="300" r="15" fill="#0284c7" opacity="0.2" />
+  <circle cx="700" cy="350" r="10" fill="#38bdf8" opacity="0.2" />
+  <circle cx="900" cy="280" r="8" fill="#0ea5e9" opacity="0.2" />
+  <circle cx="1100" cy="320" r="12" fill="#0284c7" opacity="0.2" />
   
-  <!-- Background -->
-  <rect width="1200" height="400" fill="url(#skyGradient)" />
-  
-  <!-- Sun -->
-  <circle cx="900" cy="100" r="60" fill="#fbbf24" opacity="0.7" />
-  <circle cx="900" cy="100" r="40" fill="#fcd34d" opacity="0.8" />
-  
-  <!-- Distant waves -->
-  <path 
-    d="M0,200 C100,180 200,220 300,200 C400,180 500,220 600,200 C700,180 800,220 900,200 C1000,180 1100,220 1200,200 L1200,400 L0,400 Z" 
-    fill="#0284c7" 
-    opacity="0.4"
-  />
-  
-  <!-- Middle waves -->
-  <path 
-    d="M0,250 C100,230 200,270 300,250 C400,230 500,270 600,250 C700,230 800,270 900,250 C1000,230 1100,270 1200,250 L1200,400 L0,400 Z" 
-    fill="#0369a1" 
-    opacity="0.6"
-  />
-  
-  <!-- Front waves -->
-  <path 
-    d="M0,300 C100,280 200,320 300,300 C400,280 500,320 600,300 C700,280 800,320 900,300 C1000,280 1100,320 1200,300 L1200,400 L0,400 Z" 
-    fill="#075985" 
-    opacity="0.8"
-  />
-  
-  <!-- Surface waves -->
-  <path 
-    d="M0,350 C100,330 200,370 300,350 C400,330 500,370 600,350 C700,330 800,370 900,350 C1000,330 1100,370 1200,350 L1200,400 L0,400 Z" 
-    fill="#0c4a6e" 
-  />
-  
-  <!-- Bubbles -->
-  <circle cx="200" cy="280" r="5" fill="white" opacity="0.4" />
-  <circle cx="500" cy="310" r="3" fill="white" opacity="0.3" />
-  <circle cx="800" cy="290" r="4" fill="white" opacity="0.5" />
-  <circle cx="1100" cy="320" r="6" fill="white" opacity="0.2" />
-  <circle cx="350" cy="270" r="3" fill="white" opacity="0.3" />
-  <circle cx="650" cy="300" r="5" fill="white" opacity="0.4" />
-  <circle cx="950" cy="280" r="4" fill="white" opacity="0.2" />
+  <!-- Light reflections -->
+  <path d="M100,50 Q150,100 200,50 T300,50 T400,50 T500,50" stroke="#ffffff" stroke-width="1" fill="none" opacity="0.1" />
+  <path d="M600,40 Q650,90 700,40 T800,40 T900,40 T1000,40" stroke="#ffffff" stroke-width="1" fill="none" opacity="0.1" />
 </svg> 

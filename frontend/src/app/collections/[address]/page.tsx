@@ -25,6 +25,17 @@ export default function CollectionDetailsPage() {
   const [sortOption, setSortOption] = useState("newest");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [filterForSale, setFilterForSale] = useState(false);
+  const [bannerImageUrl, setBannerImageUrl] = useState<string>(
+    "/images/ocean-banner.svg"
+  );
+  const [collectionImageUrl, setCollectionImageUrl] = useState<string>(
+    "/images/placeholder-collection.svg"
+  );
+  const [bannerError, setBannerError] = useState(false);
+  const [collectionImageError, setCollectionImageError] = useState(false);
+  const [isBannerLoading, setIsBannerLoading] = useState(true);
+  const [isCollectionImageLoading, setIsCollectionImageLoading] =
+    useState(true);
 
   // Find collection from all collections
   useEffect(() => {
@@ -37,6 +48,53 @@ export default function CollectionDetailsPage() {
       }
     }
   }, [collections, address]);
+
+  // Set collection image with error handling
+  useEffect(() => {
+    if (collection?.metadata?.image && !collectionImageError) {
+      try {
+        const url = getIPFSGatewayURL(collection.metadata.image);
+        setCollectionImageUrl(url);
+        setIsCollectionImageLoading(true);
+      } catch (err) {
+        console.error("Error parsing collection image URL:", err);
+        setCollectionImageError(true);
+        setCollectionImageUrl("/images/placeholder-collection.svg");
+        setIsCollectionImageLoading(false);
+      }
+    } else {
+      setCollectionImageUrl("/images/placeholder-collection.svg");
+      setIsCollectionImageLoading(false);
+    }
+  }, [collection?.metadata?.image, collectionImageError]);
+
+  // Set banner image with error handling
+  useEffect(() => {
+    if (
+      (collection?.metadata?.banner_image || collection?.metadata?.image) &&
+      !bannerError
+    ) {
+      try {
+        const url = getIPFSGatewayURL(
+          collection.metadata?.banner_image || collection.metadata?.image
+        );
+        setBannerImageUrl(url);
+        setIsBannerLoading(true);
+      } catch (err) {
+        console.error("Error parsing banner image URL:", err);
+        setBannerError(true);
+        setBannerImageUrl("/images/ocean-banner.svg");
+        setIsBannerLoading(false);
+      }
+    } else {
+      setBannerImageUrl("/images/ocean-banner.svg");
+      setIsBannerLoading(false);
+    }
+  }, [
+    collection?.metadata?.banner_image,
+    collection?.metadata?.image,
+    bannerError,
+  ]);
 
   // Fetch NFT data
   useEffect(() => {
@@ -189,17 +247,6 @@ export default function CollectionDetailsPage() {
     );
   }
 
-  const imageUrl = collection.metadata?.image
-    ? getIPFSGatewayURL(collection.metadata.image)
-    : "/images/placeholder-nft.svg";
-
-  const headerImageUrl =
-    collection.metadata?.banner_image || collection.metadata?.image
-      ? getIPFSGatewayURL(
-          collection.metadata?.banner_image || collection.metadata?.image
-        )
-      : "/images/ocean-banner.svg";
-
   const mintedPercent =
     collection.totalMinted && collection.maxSupply
       ? (Number(collection.totalMinted) / Number(collection.maxSupply)) * 100
@@ -210,12 +257,23 @@ export default function CollectionDetailsPage() {
       {/* Banner Image with Ocean Overlay */}
       <div className="w-full h-56 sm:h-64 md:h-72 lg:h-80 xl:h-96 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-950/90 z-10" />
+        {isBannerLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-900/70 z-5">
+            <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
         <Image
-          src={headerImageUrl}
-          alt={collection.name}
+          src={bannerImageUrl}
+          alt={collection?.name || "Collection banner"}
           fill
           className="object-cover scale-105"
           priority
+          onError={() => {
+            setBannerError(true);
+            setBannerImageUrl("/images/ocean-banner.svg");
+            setIsBannerLoading(false);
+          }}
+          onLoad={() => setIsBannerLoading(false)}
         />
         <div className="absolute inset-0 bg-blue-950/30 z-5" />
 
@@ -262,12 +320,23 @@ export default function CollectionDetailsPage() {
             transition={{ delay: 0.2 }}
             className="relative w-40 h-40 md:w-48 md:h-48 rounded-2xl overflow-hidden border-4 border-blue-900 shadow-2xl shadow-blue-900/50"
           >
+            {isCollectionImageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-blue-900/70 z-10">
+                <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
             <Image
-              src={imageUrl}
-              alt={collection.name}
+              src={collectionImageUrl}
+              alt={collection?.name || "Collection"}
               fill
               className="object-cover"
               priority
+              onError={() => {
+                setCollectionImageError(true);
+                setCollectionImageUrl("/images/placeholder-collection.svg");
+                setIsCollectionImageLoading(false);
+              }}
+              onLoad={() => setIsCollectionImageLoading(false)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-blue-900/40 to-transparent"></div>
           </motion.div>

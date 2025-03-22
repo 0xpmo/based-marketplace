@@ -15,21 +15,30 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   // Progress percentage
   const progress = maxSupply > 0 ? (totalMinted / maxSupply) * 100 : 0;
 
   useEffect(() => {
-    if (metadata?.image) {
+    if (metadata?.image && !imageError) {
       try {
         const url = getIPFSGatewayURL(metadata.image);
         setImageUrl(url);
+        setIsImageLoading(true);
+        setImageError(false);
       } catch (error) {
         console.error("Error getting image URL:", error);
         setImageUrl("/images/placeholder-collection.svg");
+        setIsImageLoading(false);
+        setImageError(true);
       }
+    } else {
+      setImageUrl("/images/placeholder-collection.svg");
+      setIsImageLoading(false);
     }
-  }, [metadata?.image]);
+  }, [metadata?.image, imageError]);
 
   return (
     <motion.div
@@ -39,15 +48,23 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
       <Link href={`/collections/${address}`} className="block">
         <div className="relative h-48 w-full overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-950/60 z-10"></div>
+          {isImageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-20">
+              <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
           <Image
             src={imageUrl}
             alt={name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-110"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            onError={(e) => {
-              e.currentTarget.src = "/images/placeholder-collection.svg";
+            onError={() => {
+              setImageError(true);
+              setImageUrl("/images/placeholder-collection.svg");
+              setIsImageLoading(false);
             }}
+            onLoad={() => setIsImageLoading(false)}
           />
         </div>
 

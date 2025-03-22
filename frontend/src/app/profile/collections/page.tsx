@@ -113,31 +113,48 @@ function CollectionCard({ collection }: CollectionCardProps) {
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    if (collection.metadata?.image) {
+    if (collection.metadata?.image && !imageError) {
       try {
         const url = getIPFSGatewayURL(collection.metadata.image);
         setImageUrl(url);
+        setIsImageLoading(true);
+        setImageError(false);
       } catch (error) {
         console.error("Error getting image URL:", error);
         setImageUrl("/images/placeholder-collection.svg");
+        setIsImageLoading(false);
+        setImageError(true);
       }
+    } else {
+      setImageUrl("/images/placeholder-collection.svg");
+      setIsImageLoading(false);
     }
-  }, [collection.metadata?.image]);
+  }, [collection.metadata?.image, imageError]);
 
   return (
     <Link href={`/collections/${collection.address}/edit`}>
       <div className="bg-gradient-to-b from-blue-900/60 to-blue-950/80 border border-blue-800/50 rounded-xl overflow-hidden hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-900/30 transition-all duration-300">
         <div className="h-40 relative group">
+          {isImageLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-20">
+              <div className="w-8 h-8 border-3 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
           <Image
             src={imageUrl}
             alt={collection.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-110"
-            onError={(e) => {
-              e.currentTarget.src = "/images/placeholder-collection.svg";
+            onError={() => {
+              setImageError(true);
+              setImageUrl("/images/placeholder-collection.svg");
+              setIsImageLoading(false);
             }}
+            onLoad={() => setIsImageLoading(false)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 to-transparent opacity-70"></div>
         </div>

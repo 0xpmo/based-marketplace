@@ -17,6 +17,7 @@ export default function NFTCard({ nft }: NFTCardProps) {
   const [imageUrl, setImageUrl] = useState<string>(
     "/images/placeholder-nft.svg"
   );
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   // Set image URL with error handling
   useEffect(() => {
@@ -24,12 +25,17 @@ export default function NFTCard({ nft }: NFTCardProps) {
       try {
         const url = getIPFSGatewayURL(nft.metadata.image);
         setImageUrl(url);
+        setImageError(false);
+        setIsImageLoading(true);
       } catch (err) {
         console.error("Error parsing image URL:", err);
         setImageError(true);
+        setImageUrl("/images/placeholder-nft.svg");
+        setIsImageLoading(false);
       }
     } else {
       setImageUrl("/images/placeholder-nft.svg");
+      setIsImageLoading(false);
     }
   }, [nft?.metadata?.image, imageError]);
 
@@ -79,12 +85,22 @@ export default function NFTCard({ nft }: NFTCardProps) {
     >
       {/* Image Container */}
       <div className="aspect-square relative overflow-hidden">
+        {isImageLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-10">
+            <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
         <Image
           src={imageUrl}
           alt={nft.metadata?.name || `NFT #${nft.tokenId}`}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={() => setImageUrl("/images/placeholder-nft.svg")}
+          onError={() => {
+            setImageError(true);
+            setImageUrl("/images/placeholder-nft.svg");
+            setIsImageLoading(false);
+          }}
+          onLoad={() => setIsImageLoading(false)}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           priority
         />
