@@ -25,8 +25,29 @@ const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY;
 const pinataEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const pinataJSONEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
+/**
+ * Converts an IPFS URI to a gateway URL or returns the original URL if not IPFS
+ * @param uri IPFS URI or other URL
+ * @returns Gateway URL or original URL if not IPFS
+ */
+export function getIPFSGatewayURL(uri: string): string {
+  // If it's already using our proxy, return as is
+  if (uri.startsWith("/api/ipfs/proxy")) {
+    return uri;
+  }
+
+  // If it's an IPFS URI, convert to use our proxy
+  if (uri.startsWith("ipfs://")) {
+    const hash = uri.replace(/^ipfs:\/\//, "");
+    return `/api/ipfs/proxy?hash=${encodeURIComponent(hash)}`;
+  }
+
+  // Return the original URI if not IPFS
+  return uri;
+}
+
 // Function to upload image to IPFS
-export async function uploadImageToIPFS(file: File): Promise<string> {
+export async function uploadImageToIPFS(file: File | Blob): Promise<string> {
   try {
     const formData = new FormData();
     formData.append("file", file);
@@ -74,57 +95,64 @@ export async function uploadMetadataToIPFS(
   }
 }
 
-// Function to get IPFS URL for gateway access
-export function getIPFSGatewayURL(ipfsURI: string): string {
-  if (!ipfsURI) return "";
-
-  // Replace ipfs:// with the gateway URL
-  if (ipfsURI.startsWith("ipfs://")) {
-    return `https://gateway.pinata.cloud/ipfs/${ipfsURI.slice(7)}`;
-  }
-
-  return ipfsURI;
-}
-
-// Function to fetch metadata from IPFS
+/**
+ * Fetches metadata from IPFS using our proxy API
+ * @param uri IPFS URI
+ * @returns Metadata object or undefined if fetch fails
+ */
 export async function fetchFromIPFS(
   uri: string
 ): Promise<CollectionMetadata | undefined> {
   try {
     // Remove ipfs:// prefix if present
-    const cid = uri.replace("ipfs://", "");
+    const hash = uri.replace(/^ipfs:\/\//, "");
 
-    // Try multiple IPFS gateways
-    const gateways = [
-      `https://ipfs.io/ipfs/${cid}`,
-      `https://gateway.pinata.cloud/ipfs/${cid}`,
-      `https://cloudflare-ipfs.com/ipfs/${cid}`,
-    ];
+    // Use our proxy API route
+    const response = await fetch(
+      `/api/ipfs/proxy?hash=${encodeURIComponent(hash)}`
+    );
 
-    // Try each gateway until one works
-    for (const gateway of gateways) {
-      try {
-        const response = await fetch(gateway);
-        if (!response.ok) continue;
-
-        const data = await response.json();
-
-        // Validate required fields
-        if (!data.name || !data.description || !data.image) {
-          console.warn("Missing required metadata fields:", data);
-          continue;
-        }
-
-        return data as CollectionMetadata;
-      } catch (err) {
-        console.warn(`Failed to fetch from gateway ${gateway}:`, err);
-        continue;
-      }
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: `HTTP error ${response.status}` }));
+      console.error("Failed to fetch from IPFS proxy:", error);
+      return undefined;
     }
 
-    throw new Error("Failed to fetch from all IPFS gateways");
-  } catch (err) {
-    console.error("Error fetching from IPFS:", err);
+    const data = (await response.json()) as {
+      name: string;
+      description: string;
+      image: string;
+      external_url?: string;
+      attributes?: Array<{
+        trait_type: string;
+        value: string | number;
+      }>;
+    };
+
+    // Validate required fields
+    if (!data.name || !data.description || !data.image) {
+      console.warn("Invalid metadata format:", data);
+      return undefined;
+    }
+
+    // Convert image IPFS URI to use our proxy if it's an IPFS URI
+    if (data.image.startsWith("ipfs://")) {
+      const imageHash = data.image.replace(/^ipfs:\/\//, "");
+      data.image = `/api/ipfs/proxy?hash=${encodeURIComponent(imageHash)}`;
+    }
+
+    // Return data in the format expected by CollectionMetadata
+    return {
+      name: data.name,
+      description: data.description,
+      image: data.image,
+      external_url: data.external_url,
+      attributes: data.attributes,
+    };
+  } catch (error) {
+    console.error("Error fetching from IPFS:", error);
     return undefined;
   }
 }

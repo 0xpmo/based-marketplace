@@ -48,7 +48,7 @@ describe("PepeMarketplace Ignition Deployment", function () {
     expect(await sampleCollection.name()).to.equal("Pepe Originals");
     expect(await sampleCollection.symbol()).to.equal("PEPE");
     expect(await sampleCollection.collectionURI()).to.equal(
-      "ipfs://QmSampleCollectionURI"
+      "ipfs://QmQ4Uo5UkJEYLBTJk8tjrn29e6T9Cc1W3qZpcK1amt4xyi"
     );
     expect(await sampleCollection.mintPrice()).to.equal(
       ethers.parseEther("0.05")

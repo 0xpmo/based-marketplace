@@ -25,7 +25,7 @@ export default buildModule("PepeMarketplace", (m) => {
     [
       "Pepe Originals",
       "PEPE",
-      "ipfs://QmSampleCollectionURI",
+      "ipfs://QmQ4Uo5UkJEYLBTJk8tjrn29e6T9Cc1W3qZpcK1amt4xyi",
       ethers.parseEther("0.05"), // 0.05 ETH mint price
       100, // Max supply
       500, // 5% royalty

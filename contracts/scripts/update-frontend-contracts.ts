@@ -45,8 +45,8 @@ async function main() {
   // Write updated config
   fs.writeFileSync(web3ConfigPath, web3Config);
 
-  // Update the .env file
-  const envPath = path.join(__dirname, "../../frontend/.env");
+  // Update the .env.local file
+  const envPath = path.join(__dirname, "../../frontend/.env.local");
   let envContent = fs.readFileSync(envPath, "utf8");
 
   // Replace addresses in env file
