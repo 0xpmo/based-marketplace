@@ -1,0 +1,45 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#0c4a6e"/>
+  
+  <!-- Sky gradient -->
+  <rect width="400" height="200" fill="url(#sky_gradient)"/>
+  
+  <!-- Sun -->
+  <circle cx="320" cy="80" r="40" fill="#fde047"/>
+  <circle cx="320" cy="80" r="60" fill="#fde047" opacity="0.3"/>
+  
+  <!-- Ocean waves -->
+  <path d="M0,180 C40,150 80,200 120,180 C160,160 200,200 240,180 C280,160 320,200 360,180 L400,180 L400,400 L0,400 Z" fill="#0ea5e9" opacity="0.8"/>
+  <path d="M0,220 C40,190 80,240 120,220 C160,200 200,240 240,220 C280,200 320,240 360,220 L400,220 L400,400 L0,400 Z" fill="#0284c7" opacity="0.9"/>
+  <path d="M0,260 C40,230 80,280 120,260 C160,240 200,280 240,260 C280,240 320,280 360,260 L400,260 L400,400 L0,400 Z" fill="#0369a1"/>
+  
+  <!-- Small fish -->
+  <path d="M50,240 L80,230 L80,250 Z" fill="#f472b6"/>
+  <circle cx="75" cy="240" r="2" fill="#000000"/>
+  
+  <path d="M300,200 L330,190 L330,210 Z" fill="#a3e635"/>
+  <circle cx="325" cy="200" r="2" fill="#000000"/>
+  
+  <path d="M150,300 L180,290 L180,310 Z" fill="#fb923c"/>
+  <circle cx="175" cy="300" r="2" fill="#000000"/>
+  
+  <!-- Bubbles -->
+  <circle cx="100" cy="330" r="5" fill="#ffffff" opacity="0.6"/>
+  <circle cx="120" cy="350" r="3" fill="#ffffff" opacity="0.6"/>
+  <circle cx="90" cy="360" r="4" fill="#ffffff" opacity="0.6"/>
+  
+  <circle cx="250" cy="330" r="5" fill="#ffffff" opacity="0.6"/>
+  <circle cx="270" cy="350" r="3" fill="#ffffff" opacity="0.6"/>
+  <circle cx="240" cy="360" r="4" fill="#ffffff" opacity="0.6"/>
+  
+  <!-- Text -->
+  <text x="200" y="120" font-family="sans-serif" font-size="30" text-anchor="middle" fill="#ffffff">BasedSea NFT</text>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="sky_gradient" x1="0" y1="0" x2="0" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e40af"/>
+    </linearGradient>
+  </defs>
+</svg> 

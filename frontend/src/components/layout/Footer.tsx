@@ -31,12 +31,12 @@ export default function Footer() {
             <Link href="/" className="flex items-center">
               <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
-                  src="/images/basedsea-logo.png"
+                  src="/images/basedsea-logo.svg"
                   alt="BasedSea Marketplace"
                   width={40}
                   height={40}
                   onError={(e) => {
-                    e.currentTarget.src = "/images/wave-icon.png";
+                    e.currentTarget.src = "/images/wave-icon.svg";
                   }}
                 />
                 <div className="absolute inset-0 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"></div>

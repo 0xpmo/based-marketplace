@@ -15,7 +15,7 @@ interface NFTCardProps {
 export default function NFTCard({ nft }: NFTCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>(
-    "/images/placeholder-nft.png"
+    "/images/placeholder-nft.svg"
   );
 
   // Set image URL with error handling
@@ -29,7 +29,7 @@ export default function NFTCard({ nft }: NFTCardProps) {
         setImageError(true);
       }
     } else {
-      setImageUrl("/images/placeholder-nft.png");
+      setImageUrl("/images/placeholder-nft.svg");
     }
   }, [nft?.metadata?.image, imageError]);
 
@@ -84,7 +84,7 @@ export default function NFTCard({ nft }: NFTCardProps) {
           alt={nft.metadata?.name || `NFT #${nft.tokenId}`}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={() => setImageError(true)}
+          onError={() => setImageUrl("/images/placeholder-nft.svg")}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           priority
         />

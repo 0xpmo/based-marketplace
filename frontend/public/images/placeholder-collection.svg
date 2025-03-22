@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#0c4a6e" />
+  
+  <!-- Ocean Effect -->
+  <path 
+    d="M0,100 C50,80 100,120 150,100 C200,80 250,120 300,100 C350,80 400,120 450,100 L450,300 L0,300 Z" 
+    fill="#0284c7" 
+    opacity="0.6"
+  />
+  <path 
+    d="M0,150 C50,130 100,170 150,150 C200,130 250,170 300,150 C350,130 400,170 450,150 L450,300 L0,300 Z" 
+    fill="#0ea5e9" 
+    opacity="0.5"
+  />
+  <path 
+    d="M0,200 C50,180 100,220 150,200 C200,180 250,220 300,200 C350,180 400,220 450,200 L450,300 L0,300 Z" 
+    fill="#38bdf8" 
+    opacity="0.4"
+  />
+  
+  <!-- Cards Grid -->
+  <rect x="80" y="70" width="60" height="80" rx="5" fill="#0369a1" opacity="0.9" />
+  <rect x="170" y="50" width="60" height="80" rx="5" fill="#0369a1" opacity="0.9" />
+  <rect x="260" y="70" width="60" height="80" rx="5" fill="#0369a1" opacity="0.9" />
+  
+  <!-- Collection Title -->
+  <rect x="100" y="180" width="200" height="30" rx="5" fill="#075985" opacity="0.8" />
+  <text 
+    x="200" 
+    y="200" 
+    font-family="Arial, sans-serif" 
+    font-size="16" 
+    font-weight="bold" 
+    fill="white" 
+    text-anchor="middle"
+    dominant-baseline="central"
+  >
+    Collection
+  </text>
+  
+  <!-- BasedSea Branding -->
+  <text 
+    x="200" 
+    y="235" 
+    font-family="Arial, sans-serif" 
+    font-size="12" 
+    fill="#7dd3fc" 
+    text-anchor="middle"
+  >
+    BasedSea Marketplace
+  </text>
+  
+  <!-- Bubbles -->
+  <circle cx="90" cy="150" r="4" fill="white" opacity="0.5" />
+  <circle cx="210" cy="120" r="3" fill="white" opacity="0.4" />
+  <circle cx="320" cy="160" r="5" fill="white" opacity="0.3" />
+  <circle cx="150" cy="100" r="2" fill="white" opacity="0.6" />
+</svg> 

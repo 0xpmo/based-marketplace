@@ -7,6 +7,7 @@ import Image from "next/image";
 import PepeButton from "@/components/ui/PepeButton";
 import { useCollections } from "@/hooks/useContracts";
 import { Collection } from "@/types/contracts";
+import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function ProfileCollectionsPage() {
   const { address, isConnected } = useAccount();
@@ -109,35 +110,50 @@ interface CollectionCardProps {
 function CollectionCard({ collection }: CollectionCardProps) {
   // Determine if collection is public (could be stored in contract or added to the Collection type)
   const isPublic = true; // Placeholder - should come from collection or a property
+  const [imageUrl, setImageUrl] = useState(
+    "/images/placeholder-collection.svg"
+  );
+
+  useEffect(() => {
+    if (collection.metadata?.image) {
+      try {
+        const url = getIPFSGatewayURL(collection.metadata.image);
+        setImageUrl(url);
+      } catch (error) {
+        console.error("Error getting image URL:", error);
+        setImageUrl("/images/placeholder-collection.svg");
+      }
+    }
+  }, [collection.metadata?.image]);
 
   return (
     <Link href={`/collections/${collection.address}/edit`}>
-      <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary transition-colors">
-        <div className="h-40 relative">
-          {collection.metadata?.image ? (
-            <Image
-              src={collection.metadata.image}
-              alt={collection.name}
-              fill
-              className="object-cover"
-            />
-          ) : (
-            <div className="bg-gray-800 h-full w-full flex items-center justify-center">
-              <span className="text-gray-500">No Image</span>
-            </div>
-          )}
+      <div className="bg-gradient-to-b from-blue-900/60 to-blue-950/80 border border-blue-800/50 rounded-xl overflow-hidden hover:border-cyan-400 hover:shadow-lg hover:shadow-cyan-900/30 transition-all duration-300">
+        <div className="h-40 relative group">
+          <Image
+            src={imageUrl}
+            alt={collection.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            onError={(e) => {
+              e.currentTarget.src = "/images/placeholder-collection.svg";
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 to-transparent opacity-70"></div>
         </div>
-        <div className="p-4">
-          <h3 className="text-lg font-bold mb-1 truncate">{collection.name}</h3>
+        <div className="p-4 relative z-10">
+          <h3 className="text-lg font-bold mb-1 truncate text-cyan-100">
+            {collection.name}
+          </h3>
           <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-cyan-200/80">
               {collection.totalMinted} / {collection.maxSupply} minted
             </div>
             <div
               className={`text-xs px-2 py-1 rounded ${
                 isPublic
-                  ? "bg-green-900/50 text-green-400"
-                  : "bg-yellow-900/50 text-yellow-400"
+                  ? "bg-green-900/50 text-green-400 border border-green-700/30"
+                  : "bg-yellow-900/50 text-yellow-400 border border-yellow-700/30"
               }`}
             >
               {isPublic ? "Public" : "Hidden"}

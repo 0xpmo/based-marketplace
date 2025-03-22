@@ -190,7 +190,7 @@ export default function NFTDetailsPage() {
 
   const imageUrl = nft.metadata?.image
     ? getIPFSGatewayURL(nft.metadata.image)
-    : "/images/placeholder-nft.png";
+    : "/images/placeholder-nft.svg";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-950 to-background">
@@ -263,7 +263,9 @@ export default function NFTDetailsPage() {
                   fill
                   className="object-contain transition-transform duration-500 group-hover:scale-105"
                   priority
-                  sizes="(max-width: 768px) 100vw, 60vw"
+                  onError={(e) => {
+                    e.currentTarget.src = "/images/placeholder-nft.svg";
+                  }}
                 />
 
                 {/* Animated wave overlay */}

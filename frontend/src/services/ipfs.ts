@@ -36,7 +36,7 @@ const BACKUP_GATEWAY = "https://ipfs.io/ipfs/";
  * @returns Gateway URL
  */
 export function getIPFSGatewayURL(uri: string): string {
-  if (!uri) return "/images/placeholder-nft.png";
+  if (!uri) return "/images/placeholder-nft.svg";
 
   // If already a HTTP URL, return as is
   if (uri.startsWith("http")) {

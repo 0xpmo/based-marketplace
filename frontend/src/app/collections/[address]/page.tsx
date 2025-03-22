@@ -191,14 +191,14 @@ export default function CollectionDetailsPage() {
 
   const imageUrl = collection.metadata?.image
     ? getIPFSGatewayURL(collection.metadata.image)
-    : "/images/placeholder-collection.png";
+    : "/images/placeholder-nft.svg";
 
   const headerImageUrl =
     collection.metadata?.banner_image || collection.metadata?.image
       ? getIPFSGatewayURL(
           collection.metadata?.banner_image || collection.metadata?.image
         )
-      : "/images/ocean-banner.jpg";
+      : "/images/ocean-banner.svg";
 
   const mintedPercent =
     collection.totalMinted && collection.maxSupply
