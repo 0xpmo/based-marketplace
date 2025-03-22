@@ -1,6 +1,5 @@
 // frontend/src/services/ipfs.ts
 import axios from "axios";
-import { CollectionMetadata } from "@/types/contracts";
 import fs from "fs";
 
 interface PinataResponse {
@@ -26,24 +25,28 @@ const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY;
 const pinataEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const pinataJSONEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
+const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+
 /**
- * Converts an IPFS URI to a gateway URL or returns the original URL if not IPFS
- * @param uri IPFS URI or other URL
- * @returns Gateway URL or original URL if not IPFS
+ * Converts an IPFS URI to a gateway URL
+ * @param uri IPFS URI (ipfs://... or https://...)
+ * @returns Gateway URL
  */
 export function getIPFSGatewayURL(uri: string): string {
-  // If it's already using our proxy, return as is
-  if (uri.startsWith("/api/ipfs/proxy")) {
+  if (!uri) return "";
+
+  // If already a HTTP URL, return as is
+  if (uri.startsWith("http")) {
     return uri;
   }
 
-  // If it's an IPFS URI, convert to use our proxy
+  // If IPFS URI (ipfs://...), convert to gateway URL
   if (uri.startsWith("ipfs://")) {
-    const hash = uri.replace(/^ipfs:\/\//, "");
-    return `/api/ipfs/proxy?hash=${encodeURIComponent(hash)}`;
+    const cid = uri.substring(7);
+    return `${IPFS_GATEWAY}${cid}`;
   }
 
-  // Return the original URI if not IPFS
   return uri;
 }
 
@@ -97,64 +100,33 @@ export async function uploadMetadataToIPFS(
 }
 
 /**
- * Fetches metadata from IPFS using our proxy API
- * @param uri IPFS URI
- * @returns Metadata object or undefined if fetch fails
+ * Fetches metadata from IPFS
+ * @param uri IPFS URI or HTTP URL
+ * @returns Parsed JSON data
  */
-export async function fetchFromIPFS(
-  uri: string
-): Promise<CollectionMetadata | undefined> {
-  try {
-    // Remove ipfs:// prefix if present
-    const hash = uri.replace(/^ipfs:\/\//, "");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchFromIPFS(uri: string): Promise<any> {
+  const gatewayUrl = getIPFSGatewayURL(uri);
 
-    // Use our proxy API route
-    const response = await fetch(
-      `/api/ipfs/proxy?hash=${encodeURIComponent(hash)}`
-    );
+  try {
+    const response = await fetch(gatewayUrl);
 
     if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: `HTTP error ${response.status}` }));
-      console.error("Failed to fetch from IPFS proxy:", error);
-      return undefined;
+      // Try alternate gateway if first one fails
+      const alternateUrl = gatewayUrl.replace(IPFS_GATEWAY, PINATA_GATEWAY);
+      const alternateResponse = await fetch(alternateUrl);
+
+      if (!alternateResponse.ok) {
+        throw new Error(`Failed to fetch from IPFS: ${response.statusText}`);
+      }
+
+      return await alternateResponse.json();
     }
 
-    const data = (await response.json()) as {
-      name: string;
-      description: string;
-      image: string;
-      external_url?: string;
-      attributes?: Array<{
-        trait_type: string;
-        value: string | number;
-      }>;
-    };
-
-    // Validate required fields
-    if (!data.name || !data.description || !data.image) {
-      console.warn("Invalid metadata format:", data);
-      return undefined;
-    }
-
-    // Convert image IPFS URI to use our proxy if it's an IPFS URI
-    if (data.image.startsWith("ipfs://")) {
-      const imageHash = data.image.replace(/^ipfs:\/\//, "");
-      data.image = `/api/ipfs/proxy?hash=${encodeURIComponent(imageHash)}`;
-    }
-
-    // Return data in the format expected by CollectionMetadata
-    return {
-      name: data.name,
-      description: data.description,
-      image: data.image,
-      external_url: data.external_url,
-      attributes: data.attributes,
-    };
+    return await response.json();
   } catch (error) {
     console.error("Error fetching from IPFS:", error);
-    return undefined;
+    throw error;
   }
 }
 

@@ -1,0 +1,4 @@
+name,description,image,trait_type_1,trait_type_2,trait_type_3,trait_type_4,trait_type_5
+"Based Cat #1","A very based cat from the Based Cats collection",https://ipfs.io/ipfs/QmExample1/cat1.png,"Background:Blue","Fur:Orange","Eyes:Green","Accessories:Hat","Rarity:Common"
+"Based Cat #2","A very based cat from the Based Cats collection",https://ipfs.io/ipfs/QmExample2/cat2.png,"Background:Red","Fur:Grey","Eyes:Blue","Accessories:Glasses","Rarity:Uncommon"
+"Based Cat #3","A very based cat from the Based Cats collection",https://ipfs.io/ipfs/QmExample3/cat3.png,"Background:Green","Fur:Black","Eyes:Yellow","Accessories:Chain","Rarity:Rare" 

@@ -64,7 +64,7 @@ export default function Home() {
                     Explore Collections
                   </PepeButton>
                 </Link>
-                <Link href="/create">
+                <Link href="/collections/create">
                   <PepeButton variant="outline" size="lg">
                     Create Collection
                   </PepeButton>
@@ -109,7 +109,7 @@ export default function Home() {
               <p className="text-gray-400 mb-6">
                 Be the first to create a collection!
               </p>
-              <Link href="/create">
+              <Link href="/collections/create">
                 <PepeButton variant="primary">Create Collection</PepeButton>
               </Link>
             </div>

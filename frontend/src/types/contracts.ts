@@ -25,11 +25,22 @@ export interface CollectionMetadata {
 
 export interface NFTItem {
   tokenId: number;
-  tokenURI: string;
   owner: string;
-  collection: string;
-  metadata?: NFTMetadata;
-  listing?: Listing;
+  tokenURI?: string;
+  metadata?: {
+    name?: string;
+    description?: string;
+    image?: string;
+    attributes?: Array<{
+      trait_type: string;
+      value: string | number;
+    }>;
+  };
+  listing?: {
+    price: string;
+    seller: string;
+    active: boolean;
+  };
 }
 
 export interface NFTMetadata {

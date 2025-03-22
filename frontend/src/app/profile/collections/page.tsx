@@ -1,0 +1,150 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import Link from "next/link";
+import Image from "next/image";
+import PepeButton from "@/components/ui/PepeButton";
+import { useCollections } from "@/hooks/useContracts";
+import { Collection } from "@/types/contracts";
+
+export default function ProfileCollectionsPage() {
+  const { address, isConnected } = useAccount();
+  const [activeTab, setActiveTab] = useState<"collections" | "hidden">(
+    "collections"
+  );
+  const { collections, loading: isLoading } = useCollections();
+  const [userCollections, setUserCollections] = useState<Collection[]>([]);
+
+  // Fetch user collections
+  useEffect(() => {
+    if (address) {
+      // Filter collections by creator (owner)
+      setUserCollections(
+        collections.filter((collection) => collection.owner === address)
+      );
+    }
+  }, [address, collections]);
+
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto max-w-5xl py-16 px-4 text-center">
+        <h1 className="text-3xl font-bold mb-8">Your Collections</h1>
+        <div className="bg-card border border-border rounded-xl p-10 shadow-lg">
+          <p className="text-xl mb-6">
+            Please connect your wallet to view your collections
+          </p>
+          <PepeButton variant="primary" className="mx-auto">
+            Connect Wallet
+          </PepeButton>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto max-w-5xl py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Your Collections</h1>
+        <Link href="/collections/create">
+          <PepeButton variant="primary">Create New Collection</PepeButton>
+        </Link>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex border-b border-border mb-6">
+        <button
+          onClick={() => setActiveTab("collections")}
+          className={`py-3 px-6 font-medium ${
+            activeTab === "collections"
+              ? "border-b-2 border-primary text-white"
+              : "text-gray-400"
+          }`}
+        >
+          Collections
+        </button>
+        <button
+          onClick={() => setActiveTab("hidden")}
+          className={`py-3 px-6 font-medium ${
+            activeTab === "hidden"
+              ? "border-b-2 border-primary text-white"
+              : "text-gray-400"
+          }`}
+        >
+          Hidden
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="bg-card border border-border rounded-xl p-10 shadow-lg text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p>Loading your collections...</p>
+        </div>
+      ) : userCollections.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {userCollections.map((collection) => (
+            <CollectionCard key={collection.address} collection={collection} />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-xl p-10 shadow-lg text-center">
+          <p className="text-xl mb-6">
+            You haven&apos;t created any collections yet
+          </p>
+          <Link href="/collections/create">
+            <PepeButton variant="primary">
+              Create Your First Collection
+            </PepeButton>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CollectionCardProps {
+  collection: Collection;
+}
+
+function CollectionCard({ collection }: CollectionCardProps) {
+  // Determine if collection is public (could be stored in contract or added to the Collection type)
+  const isPublic = true; // Placeholder - should come from collection or a property
+
+  return (
+    <Link href={`/collections/${collection.address}/edit`}>
+      <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary transition-colors">
+        <div className="h-40 relative">
+          {collection.metadata?.image ? (
+            <Image
+              src={collection.metadata.image}
+              alt={collection.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="bg-gray-800 h-full w-full flex items-center justify-center">
+              <span className="text-gray-500">No Image</span>
+            </div>
+          )}
+        </div>
+        <div className="p-4">
+          <h3 className="text-lg font-bold mb-1 truncate">{collection.name}</h3>
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-400">
+              {collection.totalMinted} / {collection.maxSupply} minted
+            </div>
+            <div
+              className={`text-xs px-2 py-1 rounded ${
+                isPublic
+                  ? "bg-green-900/50 text-green-400"
+                  : "bg-yellow-900/50 text-yellow-400"
+              }`}
+            >
+              {isPublic ? "Public" : "Hidden"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}

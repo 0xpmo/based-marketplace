@@ -1,24 +1,19 @@
 // frontend/src/components/nfts/NFTCard.tsx
+"use client";
+
+import { FC } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { NFTItem } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
-import PepeButton from "../ui/PepeButton";
 
 interface NFTCardProps {
   nft: NFTItem;
   collectionAddress: string;
 }
 
-export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
-  const { tokenId, metadata, owner, listing } = nft;
-
-  // Default image if none provided
-  const imageUrl = metadata?.image
-    ? getIPFSGatewayURL(metadata.image)
-    : "/images/placeholder-nft.png";
-
+const NftCard: FC<NFTCardProps> = ({ nft, collectionAddress }) => {
   // Format address for display
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(
@@ -26,55 +21,50 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
     )}`;
   };
 
+  // Set default image if none exists
+  const imageUrl = nft.metadata?.image
+    ? getIPFSGatewayURL(nft.metadata.image)
+    : "/images/placeholder-nft.png";
+
   return (
     <motion.div
-      whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className="bg-card rounded-xl overflow-hidden shadow-lg border border-border hover:border-pepe-500 transition-colors"
+      className="group bg-card border border-border rounded-lg overflow-hidden transition hover:border-primary hover:shadow-md"
+      whileHover={{ y: -5 }}
+      transition={{ type: "spring", stiffness: 300 }}
     >
       <Link
-        href={`/collections/${collectionAddress}/${tokenId}`}
+        href={`/collections/${collectionAddress}/${nft.tokenId}`}
         className="block"
       >
-        <div className="relative h-60 w-full">
+        <div className="relative aspect-square w-full bg-muted overflow-hidden">
           <Image
             src={imageUrl}
-            alt={metadata?.name || `NFT #${tokenId}`}
+            alt={nft.metadata?.name || `NFT #${nft.tokenId}`}
             fill
-            className="object-cover"
+            className="object-cover transition group-hover:scale-105 duration-300"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </div>
-
         <div className="p-4">
-          <h3 className="text-lg font-bold text-foreground mb-1">
-            {metadata?.name || `NFT #${tokenId}`}
+          <h3 className="font-bold truncate">
+            {nft.metadata?.name || `NFT #${nft.tokenId}`}
           </h3>
 
-          <p className="text-sm text-gray-400 mb-3">
-            Owned by: {formatAddress(owner)}
-          </p>
+          <div className="flex justify-between items-center mt-2 text-sm">
+            <div className="text-gray-400">{formatAddress(nft.owner)}</div>
 
-          {listing && listing.active ? (
-            <div className="mt-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400">Price</p>
-                <p className="text-lg font-bold text-pepe-400">
-                  {parseFloat(listing.price).toFixed(4)} BAI
-                </p>
+            {nft.listing && nft.listing.active ? (
+              <div className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-medium">
+                {parseFloat(nft.listing.price).toFixed(3)} BAI
               </div>
-              <PepeButton variant="primary" size="sm">
-                Buy Now
-              </PepeButton>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                Not for sale
-              </span>
-            </div>
-          )}
+            ) : (
+              <div className="text-gray-400 text-xs">Not for sale</div>
+            )}
+          </div>
         </div>
       </Link>
     </motion.div>
   );
-}
+};
+
+export default NftCard;
