@@ -1,6 +1,7 @@
 // frontend/src/services/ipfs.ts
 import axios from "axios";
 import { CollectionMetadata } from "@/types/contracts";
+import fs from "fs";
 
 interface PinataResponse {
   IpfsHash: string;
@@ -154,5 +155,64 @@ export async function fetchFromIPFS(
   } catch (error) {
     console.error("Error fetching from IPFS:", error);
     return undefined;
+  }
+}
+
+/**
+ * Uploads file or JSON data to IPFS
+ * @param data File path or JSON string
+ * @returns IPFS URI
+ */
+export async function uploadToIPFS(data: string): Promise<string> {
+  try {
+    // Check if this is a file path or JSON string
+    const isFilePath = data.startsWith("/") || data.includes("\\");
+
+    if (isFilePath) {
+      // Handle file upload
+      const fileData = fs.readFileSync(data);
+      const formData = new FormData();
+      const blob = new Blob([fileData]);
+      formData.append("file", blob);
+
+      const response = await axios.post<PinataResponse>(
+        pinataEndpoint,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            pinata_api_key: pinataApiKey,
+            pinata_secret_api_key: pinataSecretApiKey,
+          },
+        }
+      );
+
+      return `ipfs://${response.data.IpfsHash}`;
+    } else {
+      // Handle JSON upload
+      try {
+        // Parse to validate it's JSON
+        const metadata = JSON.parse(data);
+        const response = await axios.post<PinataResponse>(
+          pinataJSONEndpoint,
+          metadata,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              pinata_api_key: pinataApiKey,
+              pinata_secret_api_key: pinataSecretApiKey,
+            },
+          }
+        );
+
+        return `ipfs://${response.data.IpfsHash}`;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        throw new Error("Invalid JSON data");
+      }
+    }
+  } catch (error) {
+    console.error("Error uploading to IPFS:", error);
+    throw new Error("Failed to upload to IPFS");
   }
 }

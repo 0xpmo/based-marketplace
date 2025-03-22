@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 
-// List of public IPFS gateways to try
+// List of public IPFS gateways to try - removed problematic ones and prioritized the one that works
 const IPFS_GATEWAYS = [
-  "https://ipfs.io/ipfs/",
-  "https://gateway.ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://gateway.pinata.cloud/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/", // Prioritize the one that's working
   "https://dweb.link/ipfs/",
+  "https://ipfs.io/ipfs/",
+  // Removed problematic gateways: gateway.ipfs.io and cloudflare-ipfs.com
 ] as const;
 
 export async function GET(request: Request) {
