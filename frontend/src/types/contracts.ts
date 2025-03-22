@@ -10,13 +10,17 @@ export interface Collection {
   royaltyFee: number;
   owner: string;
   metadata?: CollectionMetadata;
+  mintEnabled?: boolean;
 }
 
 export interface CollectionMetadata {
   name: string;
   description: string;
   image: string;
-  external_url?: string;
+  banner_image?: string;
+  external_link?: string;
+  seller_fee_basis_points?: number;
+  fee_recipient?: string;
   attributes?: Array<{
     trait_type: string;
     value: string | number;
