@@ -29,8 +29,9 @@ export interface CollectionMetadata {
 
 export interface NFTItem {
   tokenId: number;
+  tokenURI: string;
   owner: string;
-  tokenURI?: string;
+  collection: string;
   metadata?: {
     name?: string;
     description?: string;
@@ -39,6 +40,7 @@ export interface NFTItem {
       trait_type: string;
       value: string | number;
     }>;
+    [key: string]: unknown;
   };
   listing?: {
     price: string;

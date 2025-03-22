@@ -2,10 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
+import { motion } from "framer-motion";
 import { NFTItem } from "@/types/contracts";
 import { useCollections } from "@/hooks/useContracts";
 import NFTCard from "@/components/nfts/NftCard";
 import { getIPFSGatewayURL } from "@/services/ipfs";
+import WavesBackground from "@/components/effects/WavesBackground";
+import { CollectionCardSkeleton } from "@/components/ui/LoadingSkeleton";
+import Link from "next/link";
+import PepeButton from "@/components/ui/PepeButton";
 
 export default function MyNFTsPage() {
   const { address } = useAccount();
@@ -101,54 +106,108 @@ export default function MyNFTsPage() {
   }, {} as Record<string, NFTItem[]>);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My NFTs</h1>
+    <main className="min-h-screen flex flex-col">
+      {/* Hero Banner */}
+      <section className="w-full relative">
+        <WavesBackground bubbleCount={8} />
 
-      {!address ? (
-        <div className="bg-card rounded-xl p-8 text-center border border-border">
-          <h2 className="text-xl font-semibold mb-4">Connect Your Wallet</h2>
-          <p className="text-gray-400 mb-4">
-            Connect your wallet to view your NFTs
-          </p>
+        <div className="container mx-auto py-10 px-4 relative z-10">
+          <motion.h1
+            className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent text-center"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            My NFTs
+          </motion.h1>
+          <motion.p
+            className="text-xl text-cyan-100 mb-6 text-center max-w-2xl mx-auto"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            View your valuable collection of NFTs from the BasedSea marketplace
+          </motion.p>
         </div>
-      ) : loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pepe-500 mx-auto" />
-          <p className="mt-4 text-gray-400">Loading your NFTs...</p>
-        </div>
-      ) : myNFTs.length === 0 ? (
-        <div className="bg-card rounded-xl p-8 text-center border border-border">
-          <h2 className="text-xl font-semibold mb-4">No NFTs Found</h2>
-          <p className="text-gray-400 mb-4">
-            You don&apos;t own any NFTs yet. Explore collections and mint some!
-          </p>
-        </div>
-      ) : (
-        Object.entries(nftsByCollection).map(([collectionAddress, nfts]) => {
-          const collection = collections.find(
-            (c) => c.address === collectionAddress
-          );
+      </section>
 
-          return (
-            <div key={collectionAddress} className="mb-12">
-              <h2 className="text-2xl font-bold mb-6">
-                {collection?.name ||
-                  `Collection ${collectionAddress.slice(0, 6)}...`}
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {nfts.map((nft) => (
-                  <NFTCard
-                    key={`${nft.collection}-${nft.tokenId}`}
-                    nft={nft}
-                    collectionAddress={nft.collection}
-                  />
-                ))}
-              </div>
+      {/* Content */}
+      <section className="container mx-auto px-4 py-8 z-10 flex-grow">
+        {!address ? (
+          <div className="bg-blue-900/30 rounded-xl p-8 text-center border border-blue-800/50 backdrop-blur-sm">
+            <h2 className="text-xl font-semibold mb-4 text-white">
+              Connect Your Wallet
+            </h2>
+            <p className="text-cyan-200 mb-6">
+              Connect your wallet to view your NFTs
+            </p>
+            <PepeButton
+              variant="primary"
+              className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700"
+            >
+              Connect Wallet
+            </PepeButton>
+          </div>
+        ) : loading ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, index) => (
+                <CollectionCardSkeleton key={index} />
+              ))}
             </div>
-          );
-        })
-      )}
-    </div>
+          </div>
+        ) : myNFTs.length === 0 ? (
+          <div className="bg-blue-900/30 rounded-xl p-8 text-center border border-blue-800/50 backdrop-blur-sm">
+            <img
+              src="/images/empty-collections.svg"
+              alt="No NFTs found"
+              className="w-64 h-auto mx-auto mb-6"
+            />
+            <h2 className="text-xl font-semibold mb-4 text-white">
+              No NFTs Found
+            </h2>
+            <p className="text-cyan-200 mb-6">
+              You don&apos;t own any NFTs yet. Explore collections and mint
+              some!
+            </p>
+            <Link href="/collections">
+              <PepeButton
+                variant="primary"
+                className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700"
+              >
+                Explore Collections
+              </PepeButton>
+            </Link>
+          </div>
+        ) : (
+          Object.entries(nftsByCollection).map(([collectionAddress, nfts]) => {
+            const collection = collections.find(
+              (c) => c.address === collectionAddress
+            );
+
+            return (
+              <div key={collectionAddress} className="mb-12">
+                <Link href={`/collections/${collectionAddress}`}>
+                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent hover:from-blue-100 hover:to-cyan-100 transition-colors">
+                    {collection?.name ||
+                      `Collection ${collectionAddress.slice(0, 6)}...`}
+                  </h2>
+                </Link>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {nfts.map((nft) => (
+                    <NFTCard
+                      key={`${nft.collection}-${nft.tokenId}`}
+                      nft={nft}
+                      collectionAddress={nft.collection}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </section>
+    </main>
   );
 }

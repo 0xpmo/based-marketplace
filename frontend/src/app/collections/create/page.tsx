@@ -139,7 +139,7 @@ export default function CreateCollectionPage() {
       {step === "details" && (
         <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
           <h2 className="text-2xl font-bold mb-4">
-            Let's create a smart contract for your drop
+            Let&apos;s create a smart contract for your drop
           </h2>
           <p className="text-gray-400 mb-6">
             This will deploy a smart contract for your NFT collection on the
@@ -195,7 +195,7 @@ export default function CreateCollectionPage() {
                 />
                 <div className="flex-1">
                   <p className="text-sm text-gray-400">
-                    This image will be used for your collection's logo
+                    This image will be used for your collection&apos;s logo
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Recommended: 350x350px. JPG, PNG, or GIF.
