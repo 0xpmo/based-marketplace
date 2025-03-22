@@ -20,6 +20,8 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
   // Progress percentage
   const progress = maxSupply > 0 ? (totalMinted / maxSupply) * 100 : 0;
 
+  console.log("imageUrl", imageUrl);
+
   return (
     <motion.div
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
@@ -33,6 +35,7 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            unoptimized={imageUrl.includes("/api/ipfs/proxy")} // Skip optimization for IPFS images
           />
         </div>
 

@@ -31,13 +31,31 @@ export async function GET(request: Request) {
       console.log(`Trying IPFS gateway: ${url}`);
 
       const response = await axios.get(url, {
+        responseType: "arraybuffer", // Handle any content type
         headers: {
-          Accept: "application/json",
+          Accept: "*/*", // Accept any content type
         },
       });
 
-      // If we get here, the request was successful
-      return NextResponse.json(response.data);
+      // Get content type from response
+      const contentType = response.headers["content-type"];
+
+      // Return the appropriate response based on content type
+      if (contentType?.includes("application/json")) {
+        // If it's JSON, parse and return as JSON
+        const jsonData = JSON.parse(
+          Buffer.from(response.data as Buffer).toString()
+        );
+        return NextResponse.json(jsonData);
+      } else {
+        // For non-JSON (images, etc), return as binary with correct content type
+        return new NextResponse(Buffer.from(response.data as Buffer), {
+          headers: {
+            "Content-Type": contentType || "application/octet-stream",
+            "Cache-Control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
     } catch (error) {
       console.warn(`Failed to fetch from gateway ${gateway}:`, error);
       continue;

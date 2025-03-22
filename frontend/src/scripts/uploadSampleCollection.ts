@@ -147,14 +147,23 @@ async function main() {
     console.log("Image uploaded to IPFS:", imageUri);
 
     // Sample collection metadata with the real image URI
+    // const collectionMetadata = {
+    //   name: "Coals Originals",
+    //   description: "A collection of unique coals on the Based AI chain",
+    //   image: imageUri, // Use the IPFS URI of our uploaded image
+    //   external_link: "",
+    //   seller_fee_basis_points: 500, // 5% royalty
+    //   fee_recipient:
+    //     feeRecipient || "0x0000000000000000000000000000000000000000", // Use environment variable or zero address
+    // };
+
     const collectionMetadata = {
-      name: "Coals Originals",
+      name: "Coal Originals",
       description: "A collection of unique coals on the Based AI chain",
-      image: imageUri, // Use the IPFS URI of our uploaded image
+      image: "ipfs://QmQ4Uo5UkJEYLBTJk8tjrn29e6T9Cc1W3qZpcK1amt4xyi",
       external_link: "",
-      seller_fee_basis_points: 500, // 5% royalty
-      fee_recipient:
-        feeRecipient || "0x0000000000000000000000000000000000000000", // Use environment variable or zero address
+      seller_fee_basis_points: 500,
+      fee_recipient: feeRecipient,
     };
 
     // Upload metadata to IPFS
