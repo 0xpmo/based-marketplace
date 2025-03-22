@@ -14,8 +14,8 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Explore", href: "/explore" },
-    { name: "Create", href: "/create" },
+    { name: "Collections", href: "/collections" },
+    { name: "Create", href: "/collections/create" },
     { name: "My NFTs", href: "/my-nfts" },
   ];
 
@@ -27,21 +27,25 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-50">
+    <nav className="bg-blue-950/80 backdrop-blur-md border-b border-blue-900/50 sticky top-0 z-50 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
-              <div className="relative h-10 w-10 mr-2">
+            <Link href="/" className="flex items-center group">
+              <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
-                  src="/pepecoin-logo.jpg"
-                  alt="Pepe NFT Marketplace"
+                  src="/images/basedsea-logo.png"
+                  alt="BasedSea Marketplace"
                   width={40}
                   height={40}
+                  onError={(e) => {
+                    e.currentTarget.src = "/images/wave-icon.png";
+                  }}
                 />
+                <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"></div>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-pepe-300 to-pepe-500 bg-clip-text text-transparent">
-                Pepe NFT Market
+              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                BasedSea Market
               </span>
             </Link>
           </div>
@@ -53,13 +57,20 @@ export default function Navbar() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                     isActive(link.href)
-                      ? "text-pepe-400 font-bold"
-                      : "text-gray-300 hover:text-pepe-300"
+                      ? "text-cyan-300 font-bold"
+                      : "text-blue-100 hover:text-cyan-200"
                   }`}
                 >
                   {link.name}
+                  {isActive(link.href) && (
+                    <motion.div
+                      layoutId="nav-underline"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-400 to-cyan-400"
+                      initial={false}
+                    />
+                  )}
                 </Link>
               ))}
             </div>
@@ -71,7 +82,7 @@ export default function Navbar() {
             <WalletConnectButton />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="ml-2 inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+              className="ml-2 inline-flex items-center justify-center p-2 rounded-md text-blue-300 hover:text-white hover:bg-blue-800/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
             >
               <span className="sr-only">Open main menu</span>
               {isMenuOpen ? (
@@ -116,7 +127,7 @@ export default function Navbar() {
           exit={{ opacity: 0, y: -10 }}
           className="md:hidden"
         >
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-background border-b border-border">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-blue-950/95 border-b border-blue-900/50">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -124,8 +135,8 @@ export default function Navbar() {
                 onClick={() => setIsMenuOpen(false)}
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
                   isActive(link.href)
-                    ? "text-pepe-400 bg-gray-900"
-                    : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                    ? "text-cyan-300 bg-blue-900/50"
+                    : "text-blue-100 hover:bg-blue-800/30 hover:text-white"
                 }`}
               >
                 {link.name}

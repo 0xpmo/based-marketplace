@@ -1,7 +1,7 @@
 // frontend/src/components/nfts/NFTCard.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { NFTItem } from "@/types/contracts";
@@ -14,11 +14,24 @@ interface NFTCardProps {
 
 export default function NFTCard({ nft }: NFTCardProps) {
   const [imageError, setImageError] = useState(false);
-  const defaultImage = "/images/placeholder-nft.png";
-  const imageUrl =
-    nft.metadata?.image && !imageError
-      ? getIPFSGatewayURL(nft.metadata.image)
-      : defaultImage;
+  const [imageUrl, setImageUrl] = useState<string>(
+    "/images/placeholder-nft.png"
+  );
+
+  // Set image URL with error handling
+  useEffect(() => {
+    if (nft?.metadata?.image && !imageError) {
+      try {
+        const url = getIPFSGatewayURL(nft.metadata.image);
+        setImageUrl(url);
+      } catch (err) {
+        console.error("Error parsing image URL:", err);
+        setImageError(true);
+      }
+    } else {
+      setImageUrl("/images/placeholder-nft.png");
+    }
+  }, [nft?.metadata?.image, imageError]);
 
   // Format address for display
   const formatAddress = (address: string) => {
@@ -73,6 +86,7 @@ export default function NFTCard({ nft }: NFTCardProps) {
           className="object-cover transition-transform duration-500 group-hover:scale-105"
           onError={() => setImageError(true)}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+          priority
         />
 
         {/* Animated bubbles */}

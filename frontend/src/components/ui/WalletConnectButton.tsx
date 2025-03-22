@@ -51,17 +51,39 @@ export default function WalletConnectButton() {
     if (isConnecting) {
       return (
         <span className="flex items-center">
-          <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2" />
+          <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-cyan-200 rounded-full mr-2" />
           Connecting...
         </span>
       );
     }
 
     if (isConnected && address) {
-      return formatAddress(address);
+      return (
+        <span className="flex items-center">
+          <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 mr-2 animate-pulse"></span>
+          {formatAddress(address)}
+        </span>
+      );
     }
 
-    return "Connect Wallet";
+    return (
+      <span className="flex items-center">
+        <svg
+          className="mr-1 h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          />
+        </svg>
+        Connect Wallet
+      </span>
+    );
   };
 
   return (
@@ -70,8 +92,20 @@ export default function WalletConnectButton() {
         variant={isConnected ? "outline" : "primary"}
         onClick={isConnected ? handleDisconnect : handleConnect}
         disabled={!initialized || isConnecting}
+        className={
+          isConnected
+            ? "border-blue-500 text-blue-300 hover:bg-blue-900/30"
+            : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 relative overflow-hidden group"
+        }
       >
-        {buttonContent()}
+        {isConnected ? (
+          buttonContent()
+        ) : (
+          <>
+            <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
+            {buttonContent()}
+          </>
+        )}
       </PepeButton>
     </div>
   );

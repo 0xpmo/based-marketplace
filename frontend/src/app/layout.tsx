@@ -11,9 +11,12 @@ import Footer from "@/components/layout/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Pepe NFT Marketplace | Based AI Blockchain",
+  title: "BasedSea | Ocean-themed NFT Marketplace on Based AI Blockchain",
   description:
-    "The premier NFT marketplace on the Based AI blockchain, featuring Pepe-themed digital collectibles",
+    "The premier NFT marketplace on the Based AI blockchain, featuring ocean-themed digital collectibles in the BasedSea",
+  icons: {
+    icon: "/images/wave-icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -23,9 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        className={`${inter.className} bg-background text-foreground min-h-screen flex flex-col`}
-      >
+      <body className={`${inter.className} min-h-screen flex flex-col`}>
         <Web3Provider>
           <div className="flex flex-col min-h-screen">
             <Navbar />
@@ -43,6 +44,11 @@ export default function RootLayout({
             draggable
             pauseOnHover
             theme="dark"
+            toastStyle={{
+              backgroundColor: "#0c4a6e",
+              color: "#bae6fd",
+              borderLeft: "4px solid #0ea5e9",
+            }}
           />
         </Web3Provider>
       </body>

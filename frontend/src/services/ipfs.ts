@@ -25,8 +25,10 @@ const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY;
 const pinataEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const pinataJSONEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
-const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+// Using more reliable IPFS gateways
+const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
 const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+const BACKUP_GATEWAY = "https://ipfs.io/ipfs/";
 
 /**
  * Converts an IPFS URI to a gateway URL
@@ -34,7 +36,7 @@ const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
  * @returns Gateway URL
  */
 export function getIPFSGatewayURL(uri: string): string {
-  if (!uri) return "";
+  if (!uri) return "/images/placeholder-nft.png";
 
   // If already a HTTP URL, return as is
   if (uri.startsWith("http")) {
@@ -47,6 +49,19 @@ export function getIPFSGatewayURL(uri: string): string {
     return `${IPFS_GATEWAY}${cid}`;
   }
 
+  // If it's a CID directly, add the gateway
+  if (uri.match(/^[a-zA-Z0-9]{46}$/) || uri.match(/^Qm[a-zA-Z0-9]{44}$/)) {
+    return `${IPFS_GATEWAY}${uri}`;
+  }
+
+  // Try to handle potential relative paths or other edge cases
+  if (uri.startsWith("/")) {
+    // Likely a relative path on the server
+    return uri;
+  }
+
+  // Return the original if we can't determine format
+  console.log("Could not parse IPFS URI:", uri);
   return uri;
 }
 
@@ -117,7 +132,15 @@ export async function fetchFromIPFS(uri: string): Promise<any> {
       const alternateResponse = await fetch(alternateUrl);
 
       if (!alternateResponse.ok) {
-        throw new Error(`Failed to fetch from IPFS: ${response.statusText}`);
+        // Try backup gateway as last resort
+        const backupUrl = gatewayUrl.replace(IPFS_GATEWAY, BACKUP_GATEWAY);
+        const backupResponse = await fetch(backupUrl);
+
+        if (!backupResponse.ok) {
+          throw new Error(`Failed to fetch from IPFS: ${response.statusText}`);
+        }
+
+        return await backupResponse.json();
       }
 
       return await alternateResponse.json();
