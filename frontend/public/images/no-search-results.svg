@@ -1,0 +1,40 @@
+<svg width="300" height="200" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background ocean -->
+  <rect width="300" height="200" fill="#0c4a6e" rx="8" />
+  
+  <!-- Middle Wave -->
+  <path 
+    d="M0,100 Q75,70 150,100 T300,100 V200 H0 Z" 
+    fill="#0369a1" 
+    fill-opacity="0.7" 
+  />
+  
+  <!-- Front Wave -->
+  <path 
+    d="M0,130 Q75,100 150,130 T300,130 V200 H0 Z" 
+    fill="#0284c7" 
+    fill-opacity="0.5" 
+  />
+
+  <!-- Magnifying glass -->
+  <g transform="translate(150, 70)">
+    <!-- Glass rim -->
+    <circle cx="0" cy="0" r="25" stroke="#e0f2fe" stroke-width="5" fill="none" />
+    <!-- Glass handle -->
+    <line x1="18" y1="18" x2="35" y2="35" stroke="#e0f2fe" stroke-width="5" stroke-linecap="round" />
+    <!-- Question mark -->
+    <text x="0" y="7" font-family="Arial" font-size="28" font-weight="bold" fill="#e0f2fe" text-anchor="middle">?</text>
+  </g>
+  
+  <!-- Bubbles -->
+  <circle cx="60" cy="60" r="4" fill="white" fill-opacity="0.4" />
+  <circle cx="75" cy="80" r="3" fill="white" fill-opacity="0.3" />
+  <circle cx="40" cy="90" r="5" fill="white" fill-opacity="0.4" />
+  <circle cx="220" cy="50" r="4" fill="white" fill-opacity="0.3" />
+  <circle cx="240" cy="70" r="6" fill="white" fill-opacity="0.4" />
+  <circle cx="195" cy="85" r="3" fill="white" fill-opacity="0.3" />
+  
+  <!-- Text -->
+  <text x="150" y="160" font-family="Arial" font-size="14" fill="white" text-anchor="middle">No search results found</text>
+  <text x="150" y="180" font-family="Arial" font-size="12" fill="#bae6fd" text-anchor="middle">Try different search terms</text>
+</svg> 
