@@ -1,8 +1,8 @@
 // frontend/src/app/layout.tsx
+import ClientLayout from "@/components/ClientLayout";
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import ClientLayout from "@/components/ClientOnly";
 
 const inter = Inter({ subsets: ["latin"] });
 

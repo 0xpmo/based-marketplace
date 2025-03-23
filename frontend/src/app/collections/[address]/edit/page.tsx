@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import PepeButton from "@/components/ui/PepeButton";
 import { useCollection, useUpdateCollection } from "@/hooks/useContracts";
+import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function EditCollectionPage() {
   const params = useParams();
@@ -32,6 +33,10 @@ export default function EditCollectionPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const [processedImageUrl, setProcessedImageUrl] = useState(
+    "/images/placeholder-collection.svg"
+  );
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   // Form data for collection details
   const [formData, setFormData] = useState({
@@ -66,6 +71,23 @@ export default function EditCollectionPage() {
       router.push(`/collections/${collectionAddress}`);
     }
   }, [collection, userAddress, collectionAddress, router]);
+
+  useEffect(() => {
+    if (formData.imagePreview && formData.imagePreview.startsWith("ipfs://")) {
+      try {
+        const url = getIPFSGatewayURL(formData.imagePreview);
+        setProcessedImageUrl(url);
+      } catch (error) {
+        console.error("Error getting image URL:", error);
+        setProcessedImageUrl("/images/placeholder-collection.svg");
+      }
+    } else {
+      // If it's already a data URL or HTTP URL, use it directly
+      setProcessedImageUrl(
+        formData.imagePreview || "/images/placeholder-collection.svg"
+      );
+    }
+  }, [formData.imagePreview]);
 
   if (loading) {
     return (
@@ -424,11 +446,17 @@ export default function EditCollectionPage() {
                 >
                   {formData.imagePreview ? (
                     <Image
-                      src={formData.imagePreview}
+                      src={processedImageUrl}
                       alt="Collection preview"
                       width={128}
                       height={128}
                       className="object-cover"
+                      onError={() => {
+                        setProcessedImageUrl(
+                          "/images/placeholder-collection.svg"
+                        );
+                      }}
+                      onLoad={() => setIsImageLoading(false)}
                     />
                   ) : (
                     <div className="text-center text-gray-400 cursor-pointer">
