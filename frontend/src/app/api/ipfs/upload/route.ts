@@ -17,10 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get metadata from form data
-    const name = (formData.get("name") as string) || "Unnamed NFT";
-    const description = (formData.get("description") as string) || "";
-
     // Create a buffer from the file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -36,18 +32,8 @@ export async function POST(request: NextRequest) {
     // Upload the file to IPFS directly
     const imageUri = await uploadToIPFS(filePath);
 
-    // Create metadata
-    const metadata = {
-      name,
-      description,
-      image: imageUri,
-      attributes: [],
-    };
-
-    // Upload metadata to IPFS
-    const metadataUri = await uploadToIPFS(JSON.stringify(metadata));
-
-    return NextResponse.json({ uri: metadataUri });
+    // Just return the image URI
+    return NextResponse.json({ uri: imageUri });
   } catch (error) {
     console.error("Error in IPFS upload route:", error);
     return NextResponse.json(

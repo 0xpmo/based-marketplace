@@ -88,6 +88,12 @@ export default function CreateCollectionPage() {
       });
 
       const imageData = await imageUploadResponse.json();
+
+      if (!imageData.uri) {
+        throw new Error("Failed to upload image to IPFS");
+      }
+
+      // This is now just the image URI
       const imageUri = imageData.uri;
 
       // Create metadata for the collection
