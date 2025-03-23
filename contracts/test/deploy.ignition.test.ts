@@ -45,7 +45,7 @@ describe("PepeMarketplace Ignition Deployment", function () {
     ) as unknown as PepeNFTCollection;
 
     // Verify sample collection properties
-    expect(await sampleCollection.name()).to.equal("Pepe Originals");
+    expect(await sampleCollection.name()).to.equal("Coal Originals");
     expect(await sampleCollection.symbol()).to.equal("PEPE");
     expect(await sampleCollection.collectionURI()).to.equal(
       "ipfs://QmQ4Uo5UkJEYLBTJk8tjrn29e6T9Cc1W3qZpcK1amt4xyi"

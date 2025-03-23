@@ -175,8 +175,9 @@ export function useCreateCollection() {
       // Convert mintPrice from ETH to wei
       const mintPriceInWei = parseEther(mintPrice.toString());
 
-      // Get the creation fee - this should be stored in a config or fetched from the contract
-      const creationFee = parseEther("0.01"); // Default to 0.01 ETH
+      // Set creation fee to 10,000 BASED
+      // const creationFee = parseEther("10000"); // 10,000 BASED (𝔹)
+      const creationFee = parseEther("0.001"); // Default to 0.001 ETH
 
       // Use wagmi's writeContract
       const hash = await walletClient.writeContract({

@@ -51,6 +51,8 @@ contract PepeMarketplace is Ownable, ReentrancyGuard {
         marketFee = _marketFee;
     }
 
+// how do we verify the nft didnt sell somewhere else if they list it
+// then later a user buys it?
     function listItem(
         address nftContract,
         uint256 tokenId,

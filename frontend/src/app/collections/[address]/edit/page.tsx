@@ -7,7 +7,6 @@ import Image from "next/image";
 import Link from "next/link";
 import PepeButton from "@/components/ui/PepeButton";
 import { useCollection, useUpdateCollection } from "@/hooks/useContracts";
-import { Collection } from "@/types/contracts";
 
 export default function EditCollectionPage() {
   const params = useParams();

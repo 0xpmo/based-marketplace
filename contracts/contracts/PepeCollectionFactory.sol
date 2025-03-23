@@ -1,6 +1,7 @@
 // contracts/contracts/PepeCollectionFactory.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import "hardhat/console.sol";
 
 import "./PepeNFTCollection.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -32,6 +33,7 @@ contract PepeCollectionFactory is Ownable {
         uint256 _creationFee,
         address initialOwner
     ) Ownable(initialOwner) {
+        console.log("constructor", _creationFee, initialOwner);
         creationFee = _creationFee;
         feeRecipient = initialOwner;
     }
@@ -44,6 +46,7 @@ contract PepeCollectionFactory is Ownable {
         uint256 maxSupply,
         uint256 royaltyFee
     ) public payable returns (address) {
+        console.log("createCollection", msg.value, creationFee);
         require(msg.value >= creationFee, "Insufficient creation fee");
 
         // Create new collection

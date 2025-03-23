@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
     const extension = extname(file.name);
     const fileName = `${randomUUID()}${extension}`;
 
-    // Save to temporary storage (this is just for demo purposes - in production you'd upload directly to IPFS)
+    // Save to temporary storage
     const filePath = join("/tmp", fileName);
     await writeFile(filePath, buffer);
 
-    // Upload the file to IPFS
+    // Upload the file to IPFS directly
     const imageUri = await uploadToIPFS(filePath);
 
     // Create metadata

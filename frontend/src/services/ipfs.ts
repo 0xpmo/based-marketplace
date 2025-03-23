@@ -178,12 +178,33 @@ export async function fetchFromIPFS(
 export async function uploadToIPFS(data: string | File): Promise<string> {
   try {
     // Check if this is a File object or JSON string
-    const isFile = data instanceof File;
+    const isFile = typeof File !== "undefined" && data instanceof File;
 
     if (isFile) {
       // Handle file upload
       const formData = new FormData();
-      formData.append("file", data);
+      formData.append("file", data as File);
+
+      const response = await axios.post<PinataResponse>(
+        pinataEndpoint,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            pinata_api_key: pinataApiKey,
+            pinata_secret_api_key: pinataSecretApiKey,
+          },
+        }
+      );
+
+      return `ipfs://${response.data.IpfsHash}`;
+    } else if (typeof data === "string" && data.startsWith("/")) {
+      // Handle file path (from server-side)
+      const fs = await import("fs/promises");
+      const formData = new FormData();
+      const fileBuffer = await fs.readFile(data);
+      const blob = new Blob([fileBuffer]);
+      formData.append("file", blob);
 
       const response = await axios.post<PinataResponse>(
         pinataEndpoint,
