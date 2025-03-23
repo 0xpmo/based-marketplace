@@ -51,8 +51,8 @@ contract PepeMarketplace is Ownable, ReentrancyGuard {
         marketFee = _marketFee;
     }
 
-// how do we verify the nft didnt sell somewhere else if they list it
-// then later a user buys it?
+    // how do we verify the nft didnt sell somewhere else if they list it
+    // then later a user buys it?
     function listItem(
         address nftContract,
         uint256 tokenId,
@@ -84,6 +84,13 @@ contract PepeMarketplace is Ownable, ReentrancyGuard {
         Listing storage listing = listings[nftContract][tokenId];
         require(listing.active, "Item not active");
         require(msg.value >= listing.price, "Insufficient funds");
+
+        // Add ownership verification
+        IERC721 nft = IERC721(nftContract);
+        require(
+            nft.ownerOf(tokenId) == listing.seller,
+            "Seller no longer owns this NFT"
+        );
 
         listing.active = false;
 
@@ -169,6 +176,21 @@ contract PepeMarketplace is Ownable, ReentrancyGuard {
         listing.active = false;
 
         emit ItemCanceled(msg.sender, nftContract, tokenId);
+    }
+
+    // consider adding this check for frontend to call
+    function isListingValid(
+        address nftContract,
+        uint256 tokenId
+    ) public view returns (bool) {
+        Listing memory listing = listings[nftContract][tokenId];
+        if (!listing.active) return false;
+
+        try IERC721(nftContract).ownerOf(tokenId) returns (address owner) {
+            return owner == listing.seller;
+        } catch {
+            return false;
+        }
     }
 
     function setMarketFee(uint256 _marketFee) public onlyOwner {

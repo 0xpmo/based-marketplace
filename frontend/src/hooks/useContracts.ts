@@ -8,8 +8,8 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
-import { parseEther, formatEther } from "viem";
-import { Collection } from "@/types/contracts";
+import { parseEther, formatEther, decodeEventLog } from "viem";
+import { Collection, CollectionMetadata } from "@/types/contracts";
 import {
   MARKETPLACE_ADDRESS,
   NFT_FACTORY_ADDRESS,
@@ -81,11 +81,30 @@ export function useCollections() {
             "royaltyFee"
           );
           const owner = await readCollectionProperty(address, "owner");
+          const mintingEnabled = await readCollectionProperty(
+            address,
+            "mintingEnabled"
+          );
 
           // Fetch metadata from IPFS
           let metadata = undefined;
           try {
             metadata = await fetchFromIPFS(collectionURI as string);
+
+            // const fetchedMetadata = await fetchFromIPFS(
+            //   collectionURI as string
+            // );
+            // // Ensure fetchedMetadata has the required properties before using it
+            // if (
+            //   fetchedMetadata &&
+            //   typeof fetchedMetadata === "object" &&
+            //   "name" in fetchedMetadata &&
+            //   "description" in fetchedMetadata &&
+            //   "image" in fetchedMetadata
+            // ) {
+            //   // Safe to cast now
+            //   metadata = fetchedMetadata as unknown as CollectionMetadata;
+            // }
           } catch (err) {
             console.error(
               `Failed to fetch metadata for collection ${address}`,
@@ -111,7 +130,8 @@ export function useCollections() {
             totalMinted: formattedTotalMinted,
             royaltyFee: formattedRoyaltyFee,
             owner: owner as string,
-            metadata,
+            metadata: metadata as unknown as CollectionMetadata,
+            mintingEnabled: mintingEnabled as boolean,
           });
         } catch (err) {
           console.error(
@@ -195,6 +215,8 @@ export function useCreateCollection() {
         value: creationFee,
       });
 
+      console.log("Transaction hash:", hash);
+
       setTxHash(hash);
 
       // Wait for transaction
@@ -202,32 +224,34 @@ export function useCreateCollection() {
         hash,
       });
 
+      console.log("Transaction receipt:", receipt);
+      let collectionAddress = null;
+
       // Get collection address from the event logs
       // The CollectionCreated event has: address indexed creator, address collection, string name, string symbol
-      let collectionAddress = "";
-
-      // Find the CollectionCreated event in the logs
+      // Parse the logs directly using decodeEventLog
       for (const log of receipt.logs) {
-        // Check if the log is from our factory contract
-        if (log.address.toLowerCase() === NFT_FACTORY_ADDRESS.toLowerCase()) {
-          try {
-            // Parse the log using the factory ABI
-            const parsedLog = await publicClient.decodeEventLog({
-              abi: FactoryABI.abi,
-              data: log.data,
-              topics: log.topics,
-            });
+        try {
+          const event = decodeEventLog({
+            abi: FactoryABI.abi,
+            data: log.data,
+            topics: log.topics,
+          });
 
-            // Check if this is the CollectionCreated event
-            if (parsedLog.eventName === "CollectionCreated") {
-              // Extract the collection address from the event data
-              collectionAddress = parsedLog.args.collection;
-              break;
-            }
-          } catch (e) {
-            // Skip logs that can't be parsed with our ABI
-            continue;
+          // Check if this is our CollectionCreated event
+          if (event.eventName === "CollectionCreated") {
+            // Access the collection address directly from the event
+            collectionAddress = event.args?.[1]; // Second parameter in the event
+            // Or access by parameter name if your viem version supports it
+            // const collectionAddress = event.args.collection;
+
+            console.log("Collection created at:", collectionAddress);
+            return collectionAddress;
           }
+        } catch (e) {
+          console.error("Error decoding event:", e);
+          // This log wasn't for our event, continue to the next log
+          continue;
         }
       }
 
@@ -494,6 +518,10 @@ export function useCollection(collectionAddress: string) {
           "royaltyFee"
         );
         const owner = await readCollectionProperty(collectionAddress, "owner");
+        const mintingEnabled = await readCollectionProperty(
+          collectionAddress,
+          "mintingEnabled"
+        );
 
         // Fetch metadata from IPFS
         let metadata = undefined;
@@ -524,7 +552,8 @@ export function useCollection(collectionAddress: string) {
           totalMinted: formattedTotalMinted,
           royaltyFee: formattedRoyaltyFee,
           owner: owner as string,
-          metadata,
+          metadata: metadata as unknown as CollectionMetadata,
+          mintingEnabled: mintingEnabled as boolean,
         });
         setError(null);
       } catch (err) {

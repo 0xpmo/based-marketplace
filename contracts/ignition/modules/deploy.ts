@@ -33,5 +33,8 @@ export default buildModule("PepeMarketplace", (m) => {
     { value: DEFAULT_FEE }
   );
 
+  // Note: In Ignition, we can't directly use the return value to call methods on it
+  // Collection minting will be disabled via frontend when creating new collections
+
   return { factory, marketplace };
 });

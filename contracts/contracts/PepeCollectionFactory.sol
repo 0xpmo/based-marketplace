@@ -60,6 +60,9 @@ contract PepeCollectionFactory is Ownable {
             msg.sender // Set creator as the owner
         );
 
+        // Disable minting by default - collections should start private
+        collection.setMintingEnabled(false);
+
         // Record collection
         address collectionAddress = address(collection);
         collections.push(collectionAddress);

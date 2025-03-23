@@ -10,7 +10,7 @@ export interface Collection {
   royaltyFee: number;
   owner: string;
   metadata?: CollectionMetadata;
-  mintEnabled?: boolean;
+  mintingEnabled?: boolean;
 }
 
 export interface CollectionMetadata {

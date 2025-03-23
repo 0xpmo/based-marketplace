@@ -6,18 +6,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
 import WalletConnectButton from "@/components/ui/WalletConnectButton";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { isConnected } = useAccount();
 
-  const navLinks = [
+  // Base navigation links always visible
+  const baseNavLinks = [
     { name: "Home", href: "/" },
     { name: "Collections", href: "/collections" },
     { name: "Create", href: "/collections/create" },
+  ];
+
+  // User-specific links only shown when wallet is connected
+  const userNavLinks = [
+    { name: "My Collections", href: "/my-collections" },
     { name: "My NFTs", href: "/my-nfts" },
   ];
+
+  // Combine links based on connection status
+  const navLinks = isConnected
+    ? [...baseNavLinks, ...userNavLinks]
+    : baseNavLinks;
 
   const isActive = (path: string) => {
     if (path === "/" && pathname !== "/") {
