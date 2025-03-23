@@ -198,14 +198,44 @@ export function useCreateCollection() {
       setTxHash(hash);
 
       // Wait for transaction
-      await publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash,
       });
 
-      // Get collection address from logs/events
-      // This depends on your contract's event structure
-      // For now, we'll just return a placeholder
-      const collectionAddress = "0x1234567890123456789012345678901234567890"; // Replace with actual logic
+      // Get collection address from the event logs
+      // The CollectionCreated event has: address indexed creator, address collection, string name, string symbol
+      let collectionAddress = "";
+
+      // Find the CollectionCreated event in the logs
+      for (const log of receipt.logs) {
+        // Check if the log is from our factory contract
+        if (log.address.toLowerCase() === NFT_FACTORY_ADDRESS.toLowerCase()) {
+          try {
+            // Parse the log using the factory ABI
+            const parsedLog = await publicClient.decodeEventLog({
+              abi: FactoryABI.abi,
+              data: log.data,
+              topics: log.topics,
+            });
+
+            // Check if this is the CollectionCreated event
+            if (parsedLog.eventName === "CollectionCreated") {
+              // Extract the collection address from the event data
+              collectionAddress = parsedLog.args.collection;
+              break;
+            }
+          } catch (e) {
+            // Skip logs that can't be parsed with our ABI
+            continue;
+          }
+        }
+      }
+
+      if (!collectionAddress) {
+        throw new Error(
+          "Failed to get collection address from transaction receipt"
+        );
+      }
 
       setIsSuccess(true);
       setIsLoading(false);

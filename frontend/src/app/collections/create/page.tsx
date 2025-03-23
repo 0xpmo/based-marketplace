@@ -276,7 +276,7 @@ export default function CreateCollectionPage() {
                   name="royaltyFee"
                   value={formData.royaltyFee}
                   onChange={handleChange}
-                  placeholder="10"
+                  placeholder="5"
                   min="0"
                   max="11"
                   step="0.1"
