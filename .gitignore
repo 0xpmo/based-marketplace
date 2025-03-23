@@ -4,3 +4,19 @@
 .env*
 .nvmrc
 .vscode
+node_modules
+contracts/node_modules
+
+# Hardhat
+contracts/artifacts
+contracts/cache
+contracts/typechain
+contracts/typechain-types
+
+# Hardhat Ignition
+contracts/ignition/deployments
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/build

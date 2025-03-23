@@ -2,7 +2,7 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 import { ethers } from "ethers";
 
-const DEFAULT_FEE = ethers.parseEther("0.01"); // 0.01 ETH
+const DEFAULT_FEE = ethers.parseEther("0.001"); // 0.001 ETH
 const MARKET_FEE = 250; // 2.5%
 
 export default buildModule("PepeMarketplace", (m) => {

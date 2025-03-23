@@ -515,13 +515,13 @@ export default function EditCollectionPage() {
                   value={formData.royaltyFee}
                   onChange={handleChange}
                   min="0"
-                  max="15"
+                  max="10"
                   step="0.1"
                   className="w-full px-4 py-2 bg-input border border-border rounded-lg text-white focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Maximum 15%. BasedSea takes 10% of this.
+                  Maximum 10%. BasedSea takes a 10% fee on primary sales.
                 </p>
               </div>
 
