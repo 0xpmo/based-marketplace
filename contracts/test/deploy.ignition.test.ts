@@ -21,7 +21,7 @@ describe("PepeMarketplace Ignition Deployment", function () {
 
     // Verify the factory was deployed correctly
     expect(await factory.getAddress()).to.be.properAddress;
-    expect(await factory.creationFee()).to.equal(ethers.parseEther("0.01"));
+    expect(await factory.creationFee()).to.equal(ethers.parseEther("0.001"));
 
     // Verify the marketplace was deployed correctly
     expect(await marketplace.getAddress()).to.be.properAddress;
@@ -48,7 +48,7 @@ describe("PepeMarketplace Ignition Deployment", function () {
     expect(await sampleCollection.name()).to.equal("Coal Originals");
     expect(await sampleCollection.symbol()).to.equal("PEPE");
     expect(await sampleCollection.collectionURI()).to.equal(
-      "ipfs://QmQ4Uo5UkJEYLBTJk8tjrn29e6T9Cc1W3qZpcK1amt4xyi"
+      "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW"
     );
     expect(await sampleCollection.mintPrice()).to.equal(
       ethers.parseEther("0.05")

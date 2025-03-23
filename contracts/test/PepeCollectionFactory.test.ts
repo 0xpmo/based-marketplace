@@ -9,7 +9,7 @@ describe("PepeCollectionFactory", function () {
   let addr1: any;
   let addr2: any;
 
-  const creationFee = ethers.parseEther("0.01"); // 0.01 ETH
+  const creationFee = ethers.parseEther("0.001"); // 0.001 ETH
 
   beforeEach(async function () {
     // Get signers
@@ -58,6 +58,7 @@ describe("PepeCollectionFactory", function () {
           mintPrice,
           maxSupply,
           royaltyFee,
+          true,
           { value: creationFee }
         );
 
@@ -109,7 +110,7 @@ describe("PepeCollectionFactory", function () {
     });
 
     it("Should not allow creating a collection without paying the fee", async function () {
-      const lowFee = ethers.parseEther("0.005"); // Lower than required fee
+      const lowFee = ethers.parseEther("0.0005"); // Lower than required fee
 
       await expect(
         factory
@@ -121,6 +122,7 @@ describe("PepeCollectionFactory", function () {
             mintPrice,
             maxSupply,
             royaltyFee,
+            true,
             { value: lowFee }
           )
       ).to.be.revertedWith("Insufficient creation fee");
@@ -140,6 +142,7 @@ describe("PepeCollectionFactory", function () {
           mintPrice,
           maxSupply,
           royaltyFee,
+          true,
           { value: creationFee }
         );
 

@@ -31,6 +31,7 @@ describe("PepeNFTCollection", function () {
       mintPrice,
       maxSupply,
       royaltyFee,
+      true,
       owner.address
     );
   });
@@ -118,6 +119,7 @@ describe("PepeNFTCollection", function () {
         mintPrice,
         1, // Max supply of 1
         royaltyFee,
+        true,
         owner.address
       );
 

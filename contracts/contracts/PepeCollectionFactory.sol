@@ -44,7 +44,8 @@ contract PepeCollectionFactory is Ownable {
         string memory collectionURI,
         uint256 mintPrice,
         uint256 maxSupply,
-        uint256 royaltyFee
+        uint256 royaltyFee,
+        bool mintingEnabled
     ) public payable returns (address) {
         console.log("createCollection", msg.value, creationFee);
         require(msg.value >= creationFee, "Insufficient creation fee");
@@ -57,11 +58,9 @@ contract PepeCollectionFactory is Ownable {
             mintPrice,
             maxSupply,
             royaltyFee,
+            mintingEnabled,
             msg.sender // Set creator as the owner
         );
-
-        // Disable minting by default - collections should start private
-        collection.setMintingEnabled(false);
 
         // Record collection
         address collectionAddress = address(collection);

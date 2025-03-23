@@ -19,7 +19,7 @@ export default buildModule("PepeMarketplace", (m) => {
   ]);
 
   // Create a sample collection
-  m.call(
+  const createCollectionTx = m.call(
     factory,
     "createCollection",
     [
@@ -29,12 +29,13 @@ export default buildModule("PepeMarketplace", (m) => {
       ethers.parseEther("0.05"), // 0.05 ETH mint price
       100, // Max supply
       500, // 5% royalty
+      true, // Enable minting
     ],
-    { value: DEFAULT_FEE }
+    {
+      value: DEFAULT_FEE,
+      from: m.getAccount(0), // Specify the account explicitly
+    }
   );
-
-  // Note: In Ignition, we can't directly use the return value to call methods on it
-  // Collection minting will be disabled via frontend when creating new collections
 
   return { factory, marketplace };
 });

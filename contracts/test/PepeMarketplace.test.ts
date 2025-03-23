@@ -42,6 +42,7 @@ describe("PepeMarketplace", function () {
       mintPrice,
       maxSupply,
       royaltyFee,
+      true, // Enable minting
       seller.address // Seller is the owner of the collection
     );
 

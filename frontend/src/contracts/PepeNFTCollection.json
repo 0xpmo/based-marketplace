@@ -33,6 +33,11 @@
           "type": "uint256"
         },
         {
+          "internalType": "bool",
+          "name": "_mintingEnabled",
+          "type": "bool"
+        },
+        {
           "internalType": "address",
           "name": "initialOwner",
           "type": "address"

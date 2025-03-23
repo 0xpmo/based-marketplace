@@ -15,7 +15,7 @@ contract PepeNFTCollection is ERC721Enumerable, ERC721URIStorage, Ownable {
     uint256 public mintPrice;
     uint256 public maxSupply;
     uint256 public royaltyFee; // basis points (e.g., 250 = 2.5%)
-    bool public mintingEnabled = false;
+    bool public mintingEnabled;
 
     // Collection stats
     uint256 public totalMinted = 0;
@@ -33,12 +33,14 @@ contract PepeNFTCollection is ERC721Enumerable, ERC721URIStorage, Ownable {
         uint256 _mintPrice,
         uint256 _maxSupply,
         uint256 _royaltyFee,
+        bool _mintingEnabled,
         address initialOwner
     ) ERC721(_name, _symbol) Ownable(initialOwner) {
         collectionURI = _collectionURI;
         mintPrice = _mintPrice;
         maxSupply = _maxSupply;
         royaltyFee = _royaltyFee;
+        mintingEnabled = _mintingEnabled;
     }
 
     function mint(
