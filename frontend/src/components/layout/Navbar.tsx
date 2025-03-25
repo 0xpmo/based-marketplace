@@ -48,7 +48,7 @@ export default function Navbar() {
               <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
                   src="/images/basedsea-logo.svg"
-                  alt="BasedSea Marketplace"
+                  alt="BasedSea"
                   width={40}
                   height={40}
                   onError={(e) => {
@@ -58,7 +58,7 @@ export default function Navbar() {
                 <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"></div>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                BasedSea Market
+                BasedSea
               </span>
             </Link>
           </div>

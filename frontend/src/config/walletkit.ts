@@ -18,11 +18,11 @@ if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
 
 // App metadata for Reown WalletKit
 const metadata = {
-  name: "Pepe NFT Marketplace",
+  name: "BasedSea",
   description:
     "Discover, collect, and trade unique NFTs on the Based AI blockchain.",
-  url: "https://pepe-marketplace.vercel.app", // Default URL
-  icons: ["https://pepe-marketplace.vercel.app/pepecoin-logo.jpg"],
+  url: "https://basedsea.xyz", // Default URL
+  icons: ["https://basedsea.xyz/pepecoin-logo.jpg"],
 };
 
 // Modify the URL dynamically on the client side

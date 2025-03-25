@@ -32,7 +32,7 @@ export default function Footer() {
               <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
                   src="/images/basedsea-logo.svg"
-                  alt="BasedSea Marketplace"
+                  alt="BasedSea"
                   width={40}
                   height={40}
                   onError={(e) => {
@@ -46,8 +46,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-4 text-sm text-blue-300">
-              The premier NFT marketplace on the Based AI blockchain, featuring
-              unique digital collectibles from the depths of BasedSea.
+              The premier NFT marketplace on the BasedAI blockchain.
             </p>
           </div>
 

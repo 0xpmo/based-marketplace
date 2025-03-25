@@ -85,9 +85,8 @@ export default function Home() {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
-                Discover, collect, and sell extraordinary NFTs on the
-                world&apos;s first and largest Base-native ocean-themed NFT
-                marketplace
+                Discover, collect, and sell NFTs on the BasedAI blockchain.
+                Built by big brains, for big brains.
               </motion.p>
               <motion.div
                 className="flex flex-col sm:flex-row gap-4"
@@ -136,7 +135,7 @@ export default function Home() {
                       <h3 className="text-xl font-bold text-white">
                         Ocean Dreams #42
                       </h3>
-                      <p className="text-cyan-300">BasedSea Collection</p>
+                      <p className="text-cyan-300">BasedSea Collection #0</p>
                     </div>
                     <div className="bg-green-900/50 px-3 py-1 rounded-lg border border-green-700/30 text-sm">
                       <span className="text-green-400">2.5 ETH</span>
