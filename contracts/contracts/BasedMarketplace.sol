@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "./BasedNFTCollection.sol";
+import "./IBasedNFTCollection.sol";
 import "./IBasedMarketplaceStorage.sol";
 
 contract BasedMarketplace is
@@ -607,11 +607,11 @@ contract BasedMarketplace is
         }
 
         // Fallback to our custom BasedNFTCollection royalty mechanism
-        try BasedNFTCollection(nftContract).royaltyFee() returns (
+        try IBasedNFTCollection(nftContract).royaltyFee() returns (
             uint256 royaltyFee
         ) {
             royaltyAmount = (salePrice * royaltyFee) / 10000;
-            try BasedNFTCollection(nftContract).owner() returns (
+            try IBasedNFTCollection(nftContract).owner() returns (
                 address creator
             ) {
                 return (creator, royaltyAmount);
