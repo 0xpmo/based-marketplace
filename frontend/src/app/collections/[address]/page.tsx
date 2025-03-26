@@ -418,7 +418,7 @@ export default function CollectionDetailsPage() {
               className="flex flex-wrap gap-4"
             >
               {/* Mint Button */}
-              {collection.mintEnabled && isConnected && (
+              {collection.mintingEnabled && isConnected && (
                 <PepeButton
                   variant="primary"
                   onClick={() => setShowMintModal(true)}
@@ -437,7 +437,7 @@ export default function CollectionDetailsPage() {
               )}
 
               {/* Connect Wallet Button (when not connected) */}
-              {collection.mintEnabled && !isConnected && (
+              {collection.mintingEnabled && !isConnected && (
                 <PepeButton
                   variant="primary"
                   className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"

@@ -1,8 +1,0 @@
-{
-  "name": "Test Whales",
-  "description": "The first whale in the based sea",
-  "image": "local://temp_whale-1.png",
-  "external_link": "https://basedsea.xyz",
-  "seller_fee_basis_points": 500,
-  "fee_recipient": "0xdD2FD4581271e230360230F9337D5c0430Bf44C0"
-}
