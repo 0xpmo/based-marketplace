@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         functionName: "balanceOf",
         args: [owner as `0x${string}`],
       });
+      console.log("Balance:", balance);
     } catch (err) {
       console.error(`Error calling balanceOf for owner ${owner}:`, err);
       return NextResponse.json({ tokenIds: [] });
@@ -44,21 +45,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tokenIds: [] });
     }
 
-    // Get all token IDs owned by the user using tokenOfOwnerByIndex
+    // Since tokenOfOwnerByIndex is not available, we need to check each token
+    // First get the total minted
+    let totalMinted;
+    try {
+      totalMinted = await client.readContract({
+        address: collection as `0x${string}`,
+        abi: CollectionABI.abi,
+        functionName: "totalMinted",
+        args: [],
+      });
+    } catch (err) {
+      console.error("Error getting totalMinted:", err);
+      return NextResponse.json(
+        { error: "Failed to get total minted" },
+        { status: 500 }
+      );
+    }
+
+    // Check each token to see if the user owns it
     const userTokenIds = [];
-    for (let i = 0; i < tokenCount; i++) {
+    const totalTokens = Number(totalMinted);
+
+    for (let tokenId = 1; tokenId <= totalTokens; tokenId++) {
       try {
-        const tokenId = await client.readContract({
+        const tokenOwner = await client.readContract({
           address: collection as `0x${string}`,
           abi: CollectionABI.abi,
-          functionName: "tokenOfOwnerByIndex",
-          args: [owner as `0x${string}`, BigInt(i)],
+          functionName: "ownerOf",
+          args: [BigInt(tokenId)],
         });
 
-        userTokenIds.push(Number(tokenId));
+        if (
+          (tokenOwner as `0x${string}`).toLowerCase() === owner.toLowerCase()
+        ) {
+          userTokenIds.push(tokenId);
+        }
+
+        // If we've found all the tokens the user owns, we can stop checking
+        if (userTokenIds.length >= tokenCount) {
+          break;
+        }
       } catch (err) {
-        console.error(`Error getting token at owner index ${i}:`, err);
-        // Continue to next index
+        console.error(`Error checking ownership of token ${tokenId}:`, err);
+        // Continue to next token
       }
     }
 

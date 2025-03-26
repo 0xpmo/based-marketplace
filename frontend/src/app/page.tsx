@@ -144,17 +144,25 @@ export default function Home() {
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-cyan-400/20 rounded-2xl backdrop-blur-sm -rotate-6 scale-105"></div>
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 to-cyan-600/20 rounded-2xl backdrop-blur-sm rotate-3 scale-105"></div>
-                  <Image
-                    src={
-                      featuredCollection?.metadata?.image
-                        ? getIPFSGatewayURL(featuredCollection.metadata.image)
-                        : "/images/hero-nft.png"
-                    }
-                    alt={featuredCollection?.name || "Featured Collection"}
-                    fill
-                    className="rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10"
-                    priority
-                  />
+                  {featuredCollection?.metadata?.image ? (
+                    <Image
+                      src={getIPFSGatewayURL(featuredCollection.metadata.image)}
+                      alt={featuredCollection?.name || "Featured Collection"}
+                      fill
+                      className="rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10"
+                      priority
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 rounded-2xl shadow-2xl shadow-blue-900/50 z-10 bg-blue-900"
+                      style={{
+                        backgroundImage: "url('/images/hero-nft.png')",
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  )}
+
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-transparent to-transparent rounded-2xl z-20"></div>
                   <div className="absolute bottom-4 left-4 right-4 z-30 bg-gradient-to-r from-blue-900/80 to-cyan-800/80 backdrop-blur-md p-4 rounded-xl border border-blue-700/50">
                     <div className="flex justify-between items-center">

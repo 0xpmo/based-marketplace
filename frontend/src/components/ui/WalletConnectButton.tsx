@@ -8,7 +8,7 @@ import PepeButton from "./PepeButton";
 import Link from "next/link";
 
 export default function WalletConnectButton() {
-  const { initialized } = useWalletKit();
+  const {} = useWalletKit();
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
@@ -49,11 +49,11 @@ export default function WalletConnectButton() {
 
   // Handle connect button click
   const handleConnect = async () => {
-    if (!initialized || isConnecting) return;
+    if (isConnecting) return;
 
     try {
+      console.log("Attempting to connect...");
       setIsConnecting(true);
-      // Use wagmi's connect function instead of walletKit.connect
       connect({ connector: injected() });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -64,12 +64,18 @@ export default function WalletConnectButton() {
 
   // Handle disconnect button click
   const handleDisconnect = async () => {
-    if (!initialized || !isConnected) return;
+    // Only check if connected, don't care about initialization state for disconnect
+    if (!isConnected) {
+      console.log("Not connected, returning early");
+      return;
+    }
 
     try {
-      // Use wagmi's disconnect function
-      disconnect();
+      await disconnect();
       setDropdownOpen(false);
+
+      // Force a page reload to ensure UI updates correctly
+      // window.location.reload();
     } catch (error) {
       console.error("Failed to disconnect wallet:", error);
     }
@@ -129,7 +135,7 @@ export default function WalletConnectButton() {
       <PepeButton
         variant={isConnected ? "outline" : "primary"}
         onClick={handleWalletClick}
-        disabled={isConnecting || (!initialized && !isConnected)}
+        disabled={isConnecting}
         className={
           isConnected
             ? "border-blue-500 text-blue-300 hover:bg-blue-900/30"

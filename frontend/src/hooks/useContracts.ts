@@ -288,14 +288,14 @@ export function useMintNFT(collectionAddress: string) {
   const { writeContract, data, isError, error } = useWriteContract();
   const { isLoading, isSuccess } = useTransaction({ hash: data });
 
-  const mintNFT = async (tokenURI: string, price: string) => {
+  const mintNFT = async (price: string) => {
     if (!address) throw new Error("Wallet not connected");
 
     writeContract({
       address: collectionAddress as `0x${string}`,
       abi: CollectionABI.abi,
       functionName: "mint",
-      args: [address, tokenURI],
+      args: [address],
       value: parseEther(price),
     });
   };

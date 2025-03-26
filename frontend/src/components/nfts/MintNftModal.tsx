@@ -28,7 +28,7 @@ export default function MintNftModal({
 
     try {
       // Just call mint with null tokenURI - contract will assign the next available one
-      await mintNFT("", collection.mintPrice); // The smart contract handles token selection
+      await mintNFT(collection.mintPrice); // The smart contract handles token selection
     } catch (err) {
       console.error("Error minting NFT:", err);
     }
@@ -60,25 +60,29 @@ export default function MintNftModal({
         <h2 className="text-2xl font-bold mb-6">Mint a Random NFT</h2>
 
         <div className="mb-6">
-          <p className="text-gray-400 mb-2">Collection: {collection.name}</p>
-          <p className="text-gray-400 mb-2">
-            Price: {collection.mintPrice} BAI
-          </p>
-          <p className="text-gray-400 mb-2">
-            Minted: {collection.totalMinted} / {collection.maxSupply}
-          </p>
-          <p className="text-gray-400 mb-2">
-            Remaining: {collection.maxSupply - collection.totalMinted}
-          </p>
+          <div className="bg-black/30 p-4 rounded-lg backdrop-blur-sm">
+            <p className="text-gray-300 mb-2">Collection: {collection.name}</p>
+            <p className="text-gray-300 mb-2">
+              Price: {collection.mintPrice} 𝔹
+            </p>
+            <p className="text-gray-300 mb-2">
+              Minted: {collection.totalMinted} / {collection.maxSupply}
+            </p>
+            <p className="text-gray-300 mb-2">
+              Remaining: {collection.maxSupply - collection.totalMinted}
+            </p>
+          </div>
         </div>
 
         <div className="mb-6 border border-border rounded-lg p-4 text-center">
           <div className="bg-gray-800 w-full h-40 rounded flex items-center justify-center">
             <span className="text-2xl">?</span>
           </div>
-          <p className="mt-2 text-sm text-gray-400">
-            Mint to reveal a random NFT from this collection!
-          </p>
+          <div className="mt-2 bg-black/30 p-2 rounded backdrop-blur-sm">
+            <p className="text-sm text-gray-300">
+              Mint to reveal a random NFT from this collection!
+            </p>
+          </div>
         </div>
 
         {isError && (
@@ -118,10 +122,12 @@ export default function MintNftModal({
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2" />
-                Minting...
+                Processing...
               </span>
+            ) : collection.totalMinted >= collection.maxSupply ? (
+              "Sold Out"
             ) : (
-              `Mint Random NFT for ${collection.mintPrice} BAI`
+              `Mint Random NFT for ${collection.mintPrice} 𝔹`
             )}
           </PepeButton>
 

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       totalSupply = await client.readContract({
         address: collection as `0x${string}`,
         abi: CollectionABI.abi,
-        functionName: "totalSupply",
+        functionName: "totalMinted",
       });
     } catch (err) {
       console.error(

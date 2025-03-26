@@ -72,7 +72,9 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
             bottom: "0%",
             animationDelay: `${animationDelay}s`,
             animationDuration: `${animationDuration}s`,
-            animation: "bubble-rise infinite ease-in-out",
+            animationName: "bubble-rise",
+            animationIterationCount: "infinite",
+            animationTimingFunction: "ease-in-out",
           }}
         />
       );
@@ -115,10 +117,10 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
             />
 
             {/* Animated bubbles */}
-            {renderBubbles()}
+            {/* {renderBubbles()} */}
 
             {/* Animated wave overlay - REDUCED SIZE */}
-            <div className="absolute bottom-0 left-0 right-0 h-12 opacity-40 transition-opacity duration-300 pointer-events-none">
+            {/* <div className="absolute bottom-0 left-0 right-0 h-12 opacity-40 transition-opacity duration-300 pointer-events-none">
               <svg
                 className="absolute bottom-0 w-full h-12"
                 xmlns="http://www.w3.org/2000/svg"
@@ -132,7 +134,7 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
                   className="animate-[wave_25s_ease-in-out_infinite]"
                 ></path>
               </svg>
-            </div>
+            </div> */}
 
             {/* Sale Badge */}
             {nft.listing && nft.listing.active && (
