@@ -1,0 +1,24 @@
+{
+  "name": "Test Whales #3",
+  "description": "The first whale in the based sea",
+  "image": "ipfs://QmPoZYteCP1unAHP9pyeH4KhfdcwyiihxVKTe2zjGDgJ9v",
+  "external_url": "https://basedsea.xyz/3",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Yellow"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Tiger"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Formal"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Laser"
+    }
+  ]
+}

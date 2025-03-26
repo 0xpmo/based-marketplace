@@ -1,0 +1,24 @@
+{
+  "name": "Test Whales #3",
+  "description": "The first whale in the based sea",
+  "image": "local://temp_whale-3.png",
+  "external_url": "https://basedsea.xyz/3",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Ape"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Casual"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Normal"
+    }
+  ]
+}

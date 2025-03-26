@@ -1,0 +1,24 @@
+{
+  "name": "Test Whales #4",
+  "description": "The first whale in the based sea",
+  "image": "local://temp_whale-4.png",
+  "external_url": "https://basedsea.xyz/4",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Blue"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Tiger"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "Suit"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Laser"
+    }
+  ]
+}

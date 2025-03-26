@@ -1,0 +1,9 @@
+{
+  "name": "Test Sharks",
+  "description": "Metadata manifest for Test Sharks",
+  "metadata_files": {
+    "1.json": "local://metadata-f8be6e447ea77a59.json",
+    "2.json": "local://metadata-eeeb5ca42fde3e6c.json",
+    "3.json": "local://metadata-cb5b2909906486e7.json"
+  }
+}

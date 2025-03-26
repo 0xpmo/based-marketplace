@@ -9,6 +9,13 @@
   "max_supply": 100,
   "enable_minting": true,
   "reserve_for_owner": 5,
+
+  "category": "art",
+  "background_color": "121212",
+  "twitter_username": "my_collection_twitter",
+  "discord_url": "https://discord.gg/myproject",
+  "created_by": "Creator Name",
+
   "traits": {
     "Background": ["Red", "Blue", "Green", "Yellow", "Purple"],
     "Species": ["Ape", "Lion", "Tiger", "Bear", "Owl"],

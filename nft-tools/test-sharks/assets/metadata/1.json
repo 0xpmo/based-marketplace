@@ -1,0 +1,24 @@
+{
+  "name": "Test Sharks #1",
+  "description": "A collection of unique shark NFTs swimming in the based sea",
+  "image": "local://temp_shark-1.png",
+  "external_url": "https://basedsea.xyz/sharks/1",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Reef"
+    },
+    {
+      "trait_type": "Skin",
+      "value": "White"
+    },
+    {
+      "trait_type": "Accessory",
+      "value": "Laser Eyes"
+    },
+    {
+      "trait_type": "Mouth",
+      "value": "Closed"
+    }
+  ]
+}

@@ -10,26 +10,32 @@ const NFT_TOOLS_PATH = path.join(process.cwd(), "..", "nft-tools");
  */
 export async function getToolsCollections(): Promise<Collection[]> {
   try {
-    // Check collections directory - this would be where processed collections are stored
-    const collectionsDir = path.join(NFT_TOOLS_PATH, "collections");
+    // Look directly in the nft-tools directory for collection folders
+    // instead of in a collections subdirectory
+    const nftToolsDir = NFT_TOOLS_PATH;
+    console.log("nftToolsDir", nftToolsDir);
 
     // If the directory doesn't exist, return empty array
-    if (!fs.existsSync(collectionsDir)) {
-      console.warn("Collections directory not found:", collectionsDir);
+    if (!fs.existsSync(nftToolsDir)) {
+      console.warn("NFT tools directory not found:", nftToolsDir);
       return [];
     }
 
-    // Read all collections
+    // Read all directories in nft-tools folder
     const collections: Collection[] = [];
-    const collectionFolders = fs.readdirSync(collectionsDir);
+    const potentialCollectionFolders = fs.readdirSync(nftToolsDir);
 
-    for (const folder of collectionFolders) {
-      const collectionPath = path.join(collectionsDir, folder);
+    for (const folder of potentialCollectionFolders) {
+      // Skip the essential tool directories that aren't collections
+      if (["node_modules", "docs", "templates", "contracts"].includes(folder))
+        continue;
+
+      const collectionPath = path.join(nftToolsDir, folder);
 
       // Skip if not a directory
       if (!fs.statSync(collectionPath).isDirectory()) continue;
 
-      // Read collection config
+      // Check for collection config to verify this is a collection folder
       const configPath = path.join(collectionPath, "collection-config.json");
       if (!fs.existsSync(configPath)) continue;
 
@@ -94,11 +100,7 @@ export async function getToolsCollectionNFTs(
   collectionId: string
 ): Promise<NFT[]> {
   try {
-    const collectionPath = path.join(
-      NFT_TOOLS_PATH,
-      "collections",
-      collectionId
-    );
+    const collectionPath = path.join(NFT_TOOLS_PATH, collectionId);
 
     // If the collection doesn't exist, return empty array
     if (!fs.existsSync(collectionPath)) {

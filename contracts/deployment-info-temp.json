@@ -1,0 +1,17 @@
+{
+  "name": "Test Whales",
+  "symbol": "WHALE",
+  "collectionUri": "ipfs://QmQ6MnCHZaBPhUNN7K4a5MJ4qF285zrEppwwtfxnXLthzX",
+  "metadataBaseUri": "ipfs://QmdVLUAdirC8Ebnw3eGw36spyG6XRdHUk1XcAtqx1JufF4/",
+  "tokenURIs": {
+    "1.json": "ipfs://QmdVLUAdirC8Ebnw3eGw36spyG6XRdHUk1XcAtqx1JufF4",
+    "2.json": "ipfs://QmSc8BJRVsq6ed5LVyiCNLDGg95EGuw9F7G61rfYwoq8fG",
+    "3.json": "ipfs://QmT59m59BAqMTwPKkB2VYh5F41ZTMfZ2Ha3Wj954NT3DUv",
+    "4.json": "ipfs://QmWHFzcXnDWTFjEGiQi9BDyoFsXnmXgDZdeFCMhiQJuZQ3"
+  },
+  "maxSupply": 4,
+  "mintPrice": "50000000000000000",
+  "royaltyFee": 500,
+  "enableMinting": true,
+  "timestamp": "2025-03-26T07:35:36.368Z"
+}
