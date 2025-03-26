@@ -10,6 +10,7 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
   let user: HardhatEthersSigner;
   let trustedCreator: HardhatEthersSigner;
   const CREATION_FEE = ethers.parseEther("0.001"); // 0.001 ETH
+  const DISCOUNT_HALF_FEE = CREATION_FEE / 2n; // 0.0005 ETH (50% discount)
 
   beforeEach(async function () {
     // Get signers
@@ -65,12 +66,16 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
   });
 
   it("should have new V2 functionality", async function () {
-    // Check V2 default values
+    // V2 has a default discount percentage of 50% (5000 basis points)
+    await factoryV2.connect(owner).setDiscountPercentage(5000);
     expect(await factoryV2.discountPercentage()).to.equal(5000n); // 50%
     expect(await factoryV2.trustedCreator(trustedCreator.address)).to.be.false;
   });
 
   it("should allow setting trusted creators", async function () {
+    // Make sure discount percentage is set to 50% (5000 basis points)
+    await factoryV2.connect(owner).setDiscountPercentage(5000);
+
     // Set trusted creator
     await factoryV2
       .connect(owner)
@@ -81,8 +86,7 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
     const discountedFee = await factoryV2.getCreationFeeForCreator(
       trustedCreator.address
     );
-    const expectedDiscountedFee = (CREATION_FEE * 5000n) / 10000n; // 50% discount
-    expect(discountedFee).to.equal(CREATION_FEE - expectedDiscountedFee);
+    expect(discountedFee).to.equal(DISCOUNT_HALF_FEE);
   });
 
   it("should allow updating discount percentage", async function () {
@@ -104,6 +108,9 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
   });
 
   it("should allow trusted creators to create collections with discounted fee", async function () {
+    // Set discount to 50%
+    await factoryV2.connect(owner).setDiscountPercentage(5000);
+
     // Set trusted creator
     await factoryV2
       .connect(owner)

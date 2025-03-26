@@ -1,6 +1,6 @@
 // contracts/test/BasedCollectionFactory.test.ts
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import { BasedCollectionFactory, BasedNFTCollection } from "../typechain-types";
 
 describe("BasedCollectionFactory", function () {
@@ -15,14 +15,18 @@ describe("BasedCollectionFactory", function () {
     // Get signers
     [owner, addr1, addr2] = await ethers.getSigners();
 
-    // Deploy factory
+    // Deploy factory using upgradeable pattern
     const BasedCollectionFactoryFactory = await ethers.getContractFactory(
       "BasedCollectionFactory"
     );
-    factory = await BasedCollectionFactoryFactory.deploy(
-      creationFee,
-      owner.address
-    );
+
+    factory = (await upgrades.deployProxy(
+      BasedCollectionFactoryFactory,
+      [creationFee, owner.address],
+      { initializer: "initialize" }
+    )) as unknown as BasedCollectionFactory;
+
+    await factory.waitForDeployment();
   });
 
   describe("Deployment", function () {

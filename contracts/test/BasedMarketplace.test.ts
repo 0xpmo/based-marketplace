@@ -1,6 +1,6 @@
 // contracts/test/BasedMarketplace.test.ts
 import { expect } from "chai";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import {
   BasedMarketplace,
   BasedMarketplaceStorage,
@@ -30,22 +30,29 @@ describe("BasedMarketplace", function () {
     // Get signers
     [owner, seller, buyer, feeRecipient] = await ethers.getSigners();
 
-    // Deploy storage contract first
+    // Deploy storage contract as upgradeable
     const BasedMarketplaceStorageFactory = await ethers.getContractFactory(
       "BasedMarketplaceStorage"
     );
-    marketplaceStorage = await BasedMarketplaceStorageFactory.deploy();
-    await marketplaceStorage.initialize();
+    marketplaceStorage = (await upgrades.deployProxy(
+      BasedMarketplaceStorageFactory,
+      [],
+      { initializer: "initialize", kind: "uups" }
+    )) as unknown as BasedMarketplaceStorage;
 
-    // Deploy marketplace
+    await marketplaceStorage.waitForDeployment();
+
+    // Deploy marketplace as upgradeable
     const BasedMarketplaceFactory = await ethers.getContractFactory(
       "BasedMarketplace"
     );
-    marketplace = await BasedMarketplaceFactory.deploy();
-    await marketplace.initialize(
-      await marketplaceStorage.getAddress(),
-      marketFee
-    );
+    marketplace = (await upgrades.deployProxy(
+      BasedMarketplaceFactory,
+      [await marketplaceStorage.getAddress(), marketFee],
+      { initializer: "initialize", kind: "uups" }
+    )) as unknown as BasedMarketplace;
+
+    await marketplace.waitForDeployment();
 
     // Transfer ownership of storage to marketplace
     await marketplaceStorage.transferOwnership(await marketplace.getAddress());

@@ -5,39 +5,44 @@ import { ethers } from "ethers";
 const DEFAULT_FEE = ethers.parseEther("0.001"); // 0.001 ETH
 const MARKET_FEE = 250; // 2.5%
 
-// Note: Since direct proxy deployment with init data is difficult in Ignition,
-// we'll use a simpler approach where we deploy and initialize separately
-
+// For testing purposes only - In production, use the Hardhat deployProxy script
 export default buildModule("BasedMarketplace", (m) => {
   // Get deployer account
   const deployerAccount = m.getAccount(0);
 
-  // Deploy implementation contracts (not used directly by users)
-  const factoryImpl = m.contract("BasedCollectionFactory", []);
-  const storageImpl = m.contract("BasedMarketplaceStorage", []);
-  const marketplaceImpl = m.contract("BasedMarketplace", []);
+  // For testing, we'll use direct contract deployments
+  // In production, use the proper upgrade deployment script
 
-  // Deploy non-upgradeable instances for Ignition's limitations
-  // (In production, use the Hardhat script that properly deploys upgradeable instances)
+  // Deploy factory contract
+  const factory = m.contract("BasedCollectionFactory", [], { id: "Factory" });
 
-  // Deploy BasedCollectionFactory with constructor
-  const factory = m.contract("BasedCollectionFactory", []);
-  const factoryInit = m.call(factory, "initialize", [
-    DEFAULT_FEE,
-    deployerAccount,
-  ]);
+  // Deploy storage contract
+  const marketplaceStorage = m.contract("BasedMarketplaceStorage", [], {
+    id: "Storage",
+  });
 
-  // Deploy BasedMarketplaceStorage
-  const marketplaceStorage = m.contract("BasedMarketplaceStorage", []);
-  const storageInit = m.call(marketplaceStorage, "initialize", []);
+  // Deploy marketplace contract
+  const marketplace = m.contract("BasedMarketplace", [], { id: "Marketplace" });
 
-  // Deploy BasedMarketplace
-  const marketplace = m.contract("BasedMarketplace", []);
+  // Initialize factory
+  const factoryInit = m.call(
+    factory,
+    "initialize",
+    [DEFAULT_FEE, deployerAccount],
+    { id: "FactoryInit" }
+  );
+
+  // Initialize storage
+  const storageInit = m.call(marketplaceStorage, "initialize", [], {
+    id: "StorageInit",
+  });
+
+  // Initialize marketplace
   const marketplaceInit = m.call(
     marketplace,
     "initialize",
     [marketplaceStorage, MARKET_FEE],
-    { after: [storageInit] }
+    { id: "MarketplaceInit", after: [storageInit] }
   );
 
   // Transfer ownership of storage to marketplace
@@ -45,10 +50,10 @@ export default buildModule("BasedMarketplace", (m) => {
     marketplaceStorage,
     "transferOwnership",
     [marketplace],
-    { after: [storageInit, marketplaceInit] }
+    { id: "TransferOwnership", after: [storageInit, marketplaceInit] }
   );
 
-  // Create a sample collection
+  // For testing purposes, we'll create a sample collection
   const createCollectionTx = m.call(
     factory,
     "createCollection",
@@ -65,16 +70,11 @@ export default buildModule("BasedMarketplace", (m) => {
       value: DEFAULT_FEE,
       from: deployerAccount,
       after: [factoryInit, transferOwnership],
+      id: "CreateSampleCollection",
     }
   );
 
   return {
-    // Implementation contracts (for reference)
-    factoryImpl,
-    storageImpl,
-    marketplaceImpl,
-
-    // Instances that will be used by users
     factory,
     marketplaceStorage,
     marketplace,
