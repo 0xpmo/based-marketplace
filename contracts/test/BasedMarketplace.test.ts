@@ -1,24 +1,24 @@
-// contracts/test/PepeMarketplace.test.ts
+// contracts/test/BasedMarketplace.test.ts
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
-  PepeMarketplace,
-  PepeMarketplaceStorage,
-  PepeNFTCollection,
+  BasedMarketplace,
+  BasedMarketplaceStorage,
+  BasedNFTCollection,
 } from "../typechain-types";
 
-describe("PepeMarketplace", function () {
-  let marketplace: PepeMarketplace;
-  let marketplaceStorage: PepeMarketplaceStorage;
-  let nftCollection: PepeNFTCollection;
+describe("BasedMarketplace", function () {
+  let marketplace: BasedMarketplace;
+  let marketplaceStorage: BasedMarketplaceStorage;
+  let nftCollection: BasedNFTCollection;
   let owner: any;
   let seller: any;
   let buyer: any;
   let feeRecipient: any;
 
   const marketFee = 250; // 2.5%
-  const collectionName = "Pepe Collection";
-  const collectionSymbol = "PEPE";
+  const collectionName = "Based Collection";
+  const collectionSymbol = "BASED";
   const collectionURI = "ipfs://QmCollectionMetadata";
   const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
   const maxSupply = 100;
@@ -31,17 +31,17 @@ describe("PepeMarketplace", function () {
     [owner, seller, buyer, feeRecipient] = await ethers.getSigners();
 
     // Deploy storage contract first
-    const PepeMarketplaceStorageFactory = await ethers.getContractFactory(
-      "PepeMarketplaceStorage"
+    const BasedMarketplaceStorageFactory = await ethers.getContractFactory(
+      "BasedMarketplaceStorage"
     );
-    marketplaceStorage = await PepeMarketplaceStorageFactory.deploy();
+    marketplaceStorage = await BasedMarketplaceStorageFactory.deploy();
     await marketplaceStorage.initialize();
 
     // Deploy marketplace
-    const PepeMarketplaceFactory = await ethers.getContractFactory(
-      "PepeMarketplace"
+    const BasedMarketplaceFactory = await ethers.getContractFactory(
+      "BasedMarketplace"
     );
-    marketplace = await PepeMarketplaceFactory.deploy();
+    marketplace = await BasedMarketplaceFactory.deploy();
     await marketplace.initialize(
       await marketplaceStorage.getAddress(),
       marketFee
@@ -51,10 +51,10 @@ describe("PepeMarketplace", function () {
     await marketplaceStorage.transferOwnership(await marketplace.getAddress());
 
     // Deploy NFT collection
-    const PepeNFTCollectionFactory = await ethers.getContractFactory(
-      "PepeNFTCollection"
+    const BasedNFTCollectionFactory = await ethers.getContractFactory(
+      "BasedNFTCollection"
     );
-    nftCollection = await PepeNFTCollectionFactory.deploy(
+    nftCollection = await BasedNFTCollectionFactory.deploy(
       collectionName,
       collectionSymbol,
       collectionURI,

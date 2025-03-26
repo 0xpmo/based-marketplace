@@ -1,10 +1,10 @@
-// contracts/test/PepeCollectionFactory.test.ts
+// contracts/test/BasedCollectionFactory.test.ts
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { PepeCollectionFactory, PepeNFTCollection } from "../typechain-types";
+import { BasedCollectionFactory, BasedNFTCollection } from "../typechain-types";
 
-describe("PepeCollectionFactory", function () {
-  let factory: PepeCollectionFactory;
+describe("BasedCollectionFactory", function () {
+  let factory: BasedCollectionFactory;
   let owner: any;
   let addr1: any;
   let addr2: any;
@@ -16,10 +16,10 @@ describe("PepeCollectionFactory", function () {
     [owner, addr1, addr2] = await ethers.getSigners();
 
     // Deploy factory
-    const PepeCollectionFactoryFactory = await ethers.getContractFactory(
-      "PepeCollectionFactory"
+    const BasedCollectionFactoryFactory = await ethers.getContractFactory(
+      "BasedCollectionFactory"
     );
-    factory = await PepeCollectionFactoryFactory.deploy(
+    factory = await BasedCollectionFactoryFactory.deploy(
       creationFee,
       owner.address
     );
@@ -40,8 +40,8 @@ describe("PepeCollectionFactory", function () {
   });
 
   describe("Collection Creation", function () {
-    const collectionName = "Pepe Collection";
-    const collectionSymbol = "PEPE";
+    const collectionName = "Based Collection";
+    const collectionSymbol = "BASED";
     const collectionURI = "ipfs://QmCollectionMetadata";
     const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
     const maxSupply = 100;
@@ -93,12 +93,12 @@ describe("PepeCollectionFactory", function () {
       expect(collections[0]).to.equal(collectionAddress);
 
       // Check the collection properties
-      const PepeNFTCollection = await ethers.getContractFactory(
-        "PepeNFTCollection"
+      const BasedNFTCollection = await ethers.getContractFactory(
+        "BasedNFTCollection"
       );
-      const collection = PepeNFTCollection.attach(
+      const collection = BasedNFTCollection.attach(
         collectionAddress
-      ) as PepeNFTCollection;
+      ) as BasedNFTCollection;
 
       expect(await collection.name()).to.equal(collectionName);
       expect(await collection.symbol()).to.equal(collectionSymbol);

@@ -4,9 +4,10 @@ import path from "path";
 
 // Contract names
 const contracts = [
-  "PepeNFTCollection",
-  "PepeCollectionFactory",
-  "PepeMarketplace",
+  "BasedNFTCollection",
+  "BasedCollectionFactory",
+  "BasedMarketplace",
+  "BasedMarketplaceStorage",
 ];
 
 // Paths

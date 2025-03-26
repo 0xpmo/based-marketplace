@@ -21,8 +21,8 @@ async function main() {
   const deployments = JSON.parse(fs.readFileSync(deploymentsPath, "utf8"));
 
   // Extract contract addresses
-  const factoryAddress = deployments["PepeMarketplace#PepeCollectionFactory"];
-  const marketplaceAddress = deployments["PepeMarketplace#PepeMarketplace"];
+  const factoryAddress = deployments["BasedMarketplace#BasedCollectionFactory"];
+  const marketplaceAddress = deployments["BasedMarketplace#BasedMarketplace"];
 
   // Update the frontend config
   const web3ConfigPath = path.join(

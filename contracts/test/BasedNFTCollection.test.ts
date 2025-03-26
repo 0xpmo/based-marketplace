@@ -1,16 +1,16 @@
-// contracts/test/PepeNFTCollection.test.ts
+// contracts/test/BasedNFTCollection.test.ts
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { PepeNFTCollection } from "../typechain-types";
+import { BasedNFTCollection } from "../typechain-types";
 
-describe("PepeNFTCollection", function () {
-  let nftCollection: PepeNFTCollection;
+describe("BasedNFTCollection", function () {
+  let nftCollection: BasedNFTCollection;
   let owner: any;
   let addr1: any;
   let addr2: any;
 
-  const collectionName = "Pepe Collection";
-  const collectionSymbol = "PEPE";
+  const collectionName = "Based Collection";
+  const collectionSymbol = "BASED";
   const collectionURI = "ipfs://QmCollectionMetadata";
   const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
   const maxSupply = 100;
@@ -21,10 +21,10 @@ describe("PepeNFTCollection", function () {
     [owner, addr1, addr2] = await ethers.getSigners();
 
     // Deploy collection
-    const PepeNFTCollectionFactory = await ethers.getContractFactory(
-      "PepeNFTCollection"
+    const BasedNFTCollectionFactory = await ethers.getContractFactory(
+      "BasedNFTCollection"
     );
-    nftCollection = await PepeNFTCollectionFactory.deploy(
+    nftCollection = await BasedNFTCollectionFactory.deploy(
       collectionName,
       collectionSymbol,
       collectionURI,
@@ -109,10 +109,10 @@ describe("PepeNFTCollection", function () {
 
     it("Should not allow minting beyond max supply", async function () {
       // Deploy a collection with max supply of 1
-      const PepeNFTCollectionFactory = await ethers.getContractFactory(
-        "PepeNFTCollection"
+      const BasedNFTCollectionFactory = await ethers.getContractFactory(
+        "BasedNFTCollection"
       );
-      const smallCollection = await PepeNFTCollectionFactory.deploy(
+      const smallCollection = await BasedNFTCollectionFactory.deploy(
         collectionName,
         collectionSymbol,
         collectionURI,

@@ -643,7 +643,6 @@ contract BasedMarketplace is
         address nftContract,
         uint256 tokenId
     ) public view returns (bool) {
-        // Get listing struct
         IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
             nftContract,
             tokenId
@@ -667,7 +666,6 @@ contract BasedMarketplace is
         address nftContract,
         uint256 tokenId
     ) public view returns (bool) {
-        // Get listing struct
         IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
             nftContract,
             tokenId

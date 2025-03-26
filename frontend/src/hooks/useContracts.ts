@@ -23,9 +23,9 @@ import {
 } from "@/lib/contracts";
 
 // Import ABIs (you'll need to generate these from your compiled contracts)
-import FactoryABI from "@/contracts/PepeCollectionFactory.json";
-import CollectionABI from "@/contracts/PepeNFTCollection.json";
-import MarketplaceABI from "@/contracts/PepeMarketplace.json";
+import FactoryABI from "@/contracts/BasedCollectionFactory.json";
+import CollectionABI from "@/contracts/BasedNFTCollection.json";
+import MarketplaceABI from "@/contracts/BasedMarketplace.json";
 
 // Hook for fetching collections
 export function useCollections() {

@@ -1,9 +1,9 @@
 // contracts/scripts/verify-deployment.ts
 import { ethers } from "ethers";
-import PepeCollectionFactoryArtifact from "../artifacts/contracts/PepeCollectionFactory.sol/PepeCollectionFactory.json";
-import PepeMarketplaceArtifact from "../artifacts/contracts/PepeMarketplace.sol/PepeMarketplace.json";
-import PepeMarketplaceStorageArtifact from "../artifacts/contracts/PepeMarketplaceStorage.sol/PepeMarketplaceStorage.json";
-import PepeNFTCollectionArtifact from "../artifacts/contracts/PepeNFTCollection.sol/PepeNFTCollection.json";
+import BasedCollectionFactoryArtifact from "../artifacts/contracts/BasedCollectionFactory.sol/BasedCollectionFactory.json";
+import BasedMarketplaceArtifact from "../artifacts/contracts/BasedMarketplace.sol/BasedMarketplace.json";
+import BasedMarketplaceStorageArtifact from "../artifacts/contracts/BasedMarketplaceStorage.sol/BasedMarketplaceStorage.json";
+import BasedNFTCollectionArtifact from "../artifacts/contracts/BasedNFTCollection.sol/BasedNFTCollection.json";
 
 async function main() {
   console.log("Verifying contract deployment...");
@@ -12,20 +12,20 @@ async function main() {
   const deployments = require("../ignition/deployments/chain-1337/deployed_addresses.json");
 
   const factory = new ethers.Contract(
-    deployments["PepeMarketplace#PepeCollectionFactory"],
-    PepeCollectionFactoryArtifact.abi,
+    deployments["BasedMarketplace#BasedCollectionFactory"],
+    BasedCollectionFactoryArtifact.abi,
     provider
   );
 
   const marketplaceStorage = new ethers.Contract(
-    deployments["PepeMarketplace#PepeMarketplaceStorage"],
-    PepeMarketplaceStorageArtifact.abi,
+    deployments["BasedMarketplace#BasedMarketplaceStorage"],
+    BasedMarketplaceStorageArtifact.abi,
     provider
   );
 
   const marketplace = new ethers.Contract(
-    deployments["PepeMarketplace#PepeMarketplace"],
-    PepeMarketplaceArtifact.abi,
+    deployments["BasedMarketplace#BasedMarketplace"],
+    BasedMarketplaceArtifact.abi,
     provider
   );
 
@@ -67,7 +67,7 @@ async function main() {
     const collectionAddress = collections[i];
     const collection = new ethers.Contract(
       collectionAddress,
-      PepeNFTCollectionArtifact.abi,
+      BasedNFTCollectionArtifact.abi,
       provider
     );
 
