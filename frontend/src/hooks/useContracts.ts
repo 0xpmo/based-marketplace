@@ -341,18 +341,18 @@ export function useListNFT() {
         `Listing NFT: Collection=${collectionAddress}, TokenId=${tokenId}, Price=${price}`
       );
 
-      // 1. First step: Approve the marketplace to manage ALL of the user's NFTs in this collection
+      // 1. First step: Approve the marketplace to manage THIS SPECIFIC token
       try {
-        console.log("Requesting marketplace approval for all tokens...");
+        console.log(`Requesting marketplace approval for token #${tokenId}...`);
         setApprovalStep(true);
 
         // Get the NFT contract
         const nftContract = await getNFTContractWithSigner(collectionAddress);
 
-        // Request approval for marketplace to manage ALL NFTs in this collection
-        const approvalTx = await nftContract.setApprovalForAll(
+        // Request approval for marketplace to manage ONLY this specific NFT token
+        const approvalTx = await nftContract.approve(
           MARKETPLACE_ADDRESS,
-          true
+          tokenId
         );
         setApprovalTxHash(approvalTx.hash);
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { NFTItem } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
+import { useAccount } from "wagmi";
 
 interface NFTCardProps {
   nft: NFTItem;
@@ -14,6 +15,7 @@ interface NFTCardProps {
 }
 
 export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
+  const { address } = useAccount(); // Get current user's wallet address
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>(
     "/images/placeholder-nft.svg"
@@ -22,6 +24,10 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
 
   // Use collection address from props or from NFT object
   const collection = collectionAddress || nft.collection;
+
+  // Check if this NFT belongs to the current user
+  const isOwnedByUser =
+    address && nft.owner.toLowerCase() === address.toLowerCase();
 
   // Set image URL with error handling
   useEffect(() => {
@@ -96,11 +102,35 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
         >
           {/* Image Container */}
           <div className="aspect-square relative overflow-hidden">
+            {/* Your NFT Badge - only shown when user owns this NFT */}
+            {isOwnedByUser && (
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="absolute top-3 left-3 z-20 bg-gradient-to-r from-purple-600 to-blue-500 px-3 py-1 rounded-full shadow-lg border border-purple-300/30"
+              >
+                <div className="flex items-center">
+                  <motion.div
+                    animate={{ rotate: [0, 10, 0, -10, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    💎
+                  </motion.div>
+                  <span className="text-xs font-bold ml-1 text-white tracking-wide">
+                    Yours
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Existing loading indicator */}
             {isImageLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-10">
                 <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
+
+            {/* Rest of your existing code */}
             <Image
               src={imageUrl}
               alt={nft.metadata?.name || `NFT #${nft.tokenId}`}
@@ -116,26 +146,6 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
               priority
             />
 
-            {/* Animated bubbles */}
-            {/* {renderBubbles()} */}
-
-            {/* Animated wave overlay - REDUCED SIZE */}
-            {/* <div className="absolute bottom-0 left-0 right-0 h-12 opacity-40 transition-opacity duration-300 pointer-events-none">
-              <svg
-                className="absolute bottom-0 w-full h-12"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 1200 120"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z"
-                  fill="#1e3a8a"
-                  opacity=".5"
-                  className="animate-[wave_25s_ease-in-out_infinite]"
-                ></path>
-              </svg>
-            </div> */}
-
             {/* Sale Badge */}
             {nft.listing && nft.listing.active && (
               <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full font-semibold text-sm shadow-lg z-10">
@@ -146,7 +156,12 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
 
           {/* Card Content */}
           <div className="p-4 relative">
-            {/* Gradient overlay for better text visibility */}
+            {/* Add subtle glow for owned NFTs */}
+            {isOwnedByUser && (
+              <div className="absolute inset-0 bg-gradient-to-t from-purple-700/20 via-blue-600/10 to-transparent rounded-b-xl pointer-events-none"></div>
+            )}
+
+            {/* Existing gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-blue-950/90 to-blue-900/30 pointer-events-none"></div>
 
             {/* Content */}
@@ -159,8 +174,12 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
                 <div className="text-sm text-blue-300 font-medium">
                   #{nft.tokenId}
                 </div>
-                <div className="text-xs text-blue-400">
-                  {formatAddress(nft.owner)}
+                <div className="text-xs text-blue-400 flex items-center">
+                  {isOwnedByUser ? (
+                    <span className="text-purple-300 font-semibold">You</span>
+                  ) : (
+                    formatAddress(nft.owner)
+                  )}
                 </div>
               </div>
 
@@ -169,12 +188,17 @@ export default function NFTCard({ nft, collectionAddress }: NFTCardProps) {
                 <div className="mt-2 pt-2 border-t border-blue-800/30">
                   <div className="text-xs text-blue-400">Price</div>
                   <div className="text-blue-100 font-semibold">
-                    {parseFloat(nft.listing.price).toFixed(4)} BAI
+                    {parseFloat(nft.listing.price).toFixed(4)} 𝔹
                   </div>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Add subtle border glow for owned NFTs */}
+          {isOwnedByUser && (
+            <div className="absolute inset-0 rounded-xl border-2 border-purple-500/30 pointer-events-none"></div>
+          )}
         </motion.div>
       </Link>
 

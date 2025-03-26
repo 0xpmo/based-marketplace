@@ -27,6 +27,7 @@ export default function NFTDetailsPage() {
   const [price, setPrice] = useState("0.001");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showOwnershipEffect, setShowOwnershipEffect] = useState(false);
 
   // Collection data
   const { collection } = useCollection(collectionAddress);
@@ -102,6 +103,12 @@ export default function NFTDetailsPage() {
       fetchNFTData();
     }
   }, [collectionAddress, tokenId]);
+
+  useEffect(() => {
+    if (nft?.owner?.toLowerCase() === userAddress?.toLowerCase()) {
+      setTimeout(() => setShowOwnershipEffect(true), 500);
+    }
+  }, [nft, userAddress]);
 
   // Handle listing NFT for sale
   const handleListForSale = async (e: React.FormEvent) => {
@@ -254,8 +261,14 @@ export default function NFTDetailsPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="bg-blue-900/30 border border-blue-800/30 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 backdrop-blur-sm"
+              className={`bg-blue-900/30 border border-blue-800/30 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 backdrop-blur-sm relative
+                ${
+                  nft.owner.toLowerCase() === userAddress?.toLowerCase()
+                    ? "ring-4 ring-purple-500/30"
+                    : ""
+                }`}
             >
+              {/* Ownership badge - only shown for owners */}
               <div className="relative aspect-square w-full group">
                 <Image
                   src={imageUrl}
@@ -373,17 +386,27 @@ export default function NFTDetailsPage() {
               </div>
 
               <div className="flex mb-6 text-sm">
-                <div className="flex items-center bg-blue-950/50 px-3 py-2 rounded-lg border border-blue-800/30">
-                  <span className="text-blue-400 mr-2">Owned by</span>
-                  <span className="text-blue-100 font-medium">
-                    {formatAddress(nft.owner)}
-                  </span>
-                  {nft.owner.toLowerCase() === userAddress?.toLowerCase() && (
-                    <span className="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
-                      You
+                {nft.owner.toLowerCase() === userAddress?.toLowerCase() ? (
+                  <div className="flex items-center bg-blue-950/50 px-3 py-2 rounded-lg border border-blue-700/30">
+                    <span className="text-blue-400 mr-2">Owned by</span>
+                    <span className="text-purple-300 font-medium flex items-center">
+                      <motion.div
+                        animate={{ rotate: [0, 10, 0, -10, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        💎
+                      </motion.div>
+                      <span className="ml-1">You</span>
                     </span>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center bg-blue-950/50 px-3 py-2 rounded-lg border border-blue-800/30">
+                    <span className="text-blue-400 mr-2">Owned by</span>
+                    <span className="text-blue-100 font-medium">
+                      {formatAddress(nft.owner)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {nft.metadata?.description && (
@@ -420,7 +443,7 @@ export default function NFTDetailsPage() {
                       <span className="mr-2">
                         {parseFloat(nft.listing.price).toFixed(4)}
                       </span>
-                      <span className="text-blue-300">BAI</span>
+                      <span className="text-blue-300">𝔹</span>
                     </div>
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() ? (
                       <div className="mt-4">
@@ -463,6 +486,51 @@ export default function NFTDetailsPage() {
                     )}
                   </div>
                 )}
+
+                {nft.owner.toLowerCase() === userAddress?.toLowerCase() &&
+                  !nft.listing?.active && (
+                    <motion.div
+                      className="mb-6 bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-blue-900/40 p-4 rounded-lg border border-purple-500/30 shadow-lg overflow-hidden relative"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      {/* Animated background effect */}
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-purple-500/0"
+                        animate={{ x: ["-100%", "100%"] }}
+                        transition={{
+                          duration: 3,
+                          repeat: Infinity,
+                          repeatType: "loop",
+                        }}
+                      />
+
+                      <div className="flex items-center space-x-3 relative z-10">
+                        <div className="bg-purple-600/70 p-2 rounded-full flex-shrink-0">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-purple-200 font-medium">
+                            Ready to put this NFT on the market?
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
               </div>
             </div>
 
@@ -544,7 +612,7 @@ export default function NFTDetailsPage() {
                       htmlFor="price"
                       className="block text-sm font-medium mb-2 text-blue-300"
                     >
-                      Price (BAI)
+                      Price (𝔹)
                     </label>
                     <div className="relative">
                       <input
@@ -558,11 +626,11 @@ export default function NFTDetailsPage() {
                         required
                       />
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-blue-400 font-bold">BAI</span>
+                        <span className="text-blue-400 font-bold">𝔹</span>
                       </div>
                     </div>
                     <p className="text-xs text-blue-400 mt-1">
-                      Set your price in BAI (Based AI Token)
+                      Set your price in 𝔹
                     </p>
                   </div>
 
