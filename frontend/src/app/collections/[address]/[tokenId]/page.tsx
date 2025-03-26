@@ -249,7 +249,7 @@ export default function NFTDetailsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Image Section - 3 columns */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -269,7 +269,7 @@ export default function NFTDetailsPage() {
                 />
 
                 {/* Animated wave overlay */}
-                <div className="absolute bottom-0 left-0 right-0 h-32 opacity-60 group-hover:opacity-80 transition-opacity duration-300 pointer-events-none">
+                {/* <div className="absolute bottom-0 left-0 right-0 h-32 opacity-60 group-hover:opacity-80 transition-opacity duration-300 pointer-events-none">
                   <svg
                     className="absolute bottom-0 w-full h-32"
                     xmlns="http://www.w3.org/2000/svg"
@@ -289,7 +289,7 @@ export default function NFTDetailsPage() {
                       className="animate-[wave_20s_ease-in-out_infinite_reverse]"
                     ></path>
                   </svg>
-                </div>
+                </div> */}
 
                 {nft.listing && nft.listing.active && (
                   <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full font-bold shadow-lg">
@@ -642,47 +642,6 @@ export default function NFTDetailsPage() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Add a global style for the ocean pulse animation */}
-        <style jsx global>{`
-          .ocean-pulse-animation {
-            position: relative;
-            overflow: hidden;
-          }
-          .ocean-pulse-animation::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(56, 189, 248, 0.2);
-            opacity: 0;
-            animation: oceanPulse 2s infinite;
-          }
-          @keyframes oceanPulse {
-            0% {
-              opacity: 0;
-            }
-            50% {
-              opacity: 1;
-            }
-            100% {
-              opacity: 0;
-            }
-          }
-          @keyframes wave {
-            0% {
-              transform: translateX(0) translateZ(0) scaleY(1);
-            }
-            50% {
-              transform: translateX(-25%) translateZ(0) scaleY(0.8);
-            }
-            100% {
-              transform: translateX(-50%) translateZ(0) scaleY(1);
-            }
-          }
-        `}</style>
       </motion.div>
     </div>
   );

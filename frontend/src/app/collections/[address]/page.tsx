@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Collection, NFTItem } from "@/types/contracts";
 import PepeButton from "@/components/ui/PepeButton";
 import NFTCard from "@/components/nfts/NftCard";
-import { getIPFSGatewayURL } from "@/services/ipfs";
+import { getIPFSGatewayURL, fetchFromIPFS } from "@/services/ipfs";
 import { useCollections } from "@/hooks/useContracts";
 import MintNftModal from "@/components/nfts/MintNftModal";
 import { motion } from "framer-motion";
@@ -123,6 +123,7 @@ export default function CollectionDetailsPage() {
 
         // Check if we have token IDs
         if (data.tokenIds && Array.isArray(data.tokenIds)) {
+          console.log("Token IDs:", data.tokenIds);
           // Fetch details for each token
           const promises = data.tokenIds.map(async (tokenId: number) => {
             try {
@@ -136,6 +137,21 @@ export default function CollectionDetailsPage() {
               }
 
               const tokenData = await detailsResponse.json();
+              console.log("Token Data:", tokenData);
+
+              // Fetch metadata from IPFS if tokenURI exists
+              if (tokenData.tokenURI) {
+                try {
+                  const metadata = await fetchFromIPFS(tokenData.tokenURI);
+                  tokenData.metadata = metadata;
+                } catch (err) {
+                  console.error(
+                    `Error fetching metadata for token ${tokenId}:`,
+                    err
+                  );
+                  tokenData.metadata = null;
+                }
+              }
 
               // Check for listing status
               try {
@@ -278,7 +294,7 @@ export default function CollectionDetailsPage() {
         <div className="absolute inset-0 bg-blue-950/30 z-5" />
 
         {/* Animated Wave Effect */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 z-20 overflow-hidden">
+        {/* <div className="absolute bottom-0 left-0 right-0 h-16 z-20 overflow-hidden">
           <svg
             className="absolute bottom-0 w-full h-20"
             xmlns="http://www.w3.org/2000/svg"
@@ -303,7 +319,7 @@ export default function CollectionDetailsPage() {
               className="animate-[wave_7s_ease-in-out_infinite]"
             ></path>
           </svg>
-        </div>
+        </div> */}
       </div>
 
       <div className="container mx-auto px-4 -mt-20 sm:-mt-24 md:-mt-28 relative z-30">
@@ -641,21 +657,6 @@ export default function CollectionDetailsPage() {
           onClose={() => setShowMintModal(false)}
         />
       )}
-
-      {/* Global Ocean Wave Animation Styles */}
-      <style jsx global>{`
-        @keyframes wave {
-          0% {
-            transform: translateX(0) translateZ(0) scaleY(1);
-          }
-          50% {
-            transform: translateX(-25%) translateZ(0) scaleY(0.8);
-          }
-          100% {
-            transform: translateX(-50%) translateZ(0) scaleY(1);
-          }
-        }
-      `}</style>
     </div>
   );
 }

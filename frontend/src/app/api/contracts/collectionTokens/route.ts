@@ -21,45 +21,42 @@ export async function GET(request: NextRequest) {
       transport: http(),
     });
 
-    // First, get the total supply of tokens
-    let totalSupply;
+    // Get total minted instead of supply
+    let totalMinted;
     try {
-      totalSupply = await client.readContract({
+      totalMinted = await client.readContract({
         address: collection as `0x${string}`,
         abi: CollectionABI.abi,
         functionName: "totalMinted",
+        args: [],
       });
     } catch (err) {
-      console.error(
-        `Error calling totalSupply on collection ${collection}:`,
-        err
+      console.error("Error getting totalMinted:", err);
+      return NextResponse.json(
+        { error: "Failed to get total minted" },
+        { status: 500 }
       );
-      return NextResponse.json({ tokenIds: [] });
     }
 
-    // Convert BigInt to number
-    const supply = Number(totalSupply);
-
-    // If there are no tokens, return an empty array
-    if (supply === 0) {
-      return NextResponse.json({ tokenIds: [] });
-    }
-
-    // Get all token IDs using tokenByIndex
+    // Get all token IDs - tokens start at ID 1
     const tokenIds = [];
-    for (let i = 0; i < supply; i++) {
+    const totalTokens = Number(totalMinted);
+
+    for (let tokenId = 1; tokenId <= totalTokens; tokenId++) {
       try {
-        const tokenId = await client.readContract({
+        // Check if token exists by trying to get its owner
+        await client.readContract({
           address: collection as `0x${string}`,
           abi: CollectionABI.abi,
-          functionName: "tokenByIndex",
-          args: [BigInt(i)],
+          functionName: "ownerOf",
+          args: [BigInt(tokenId)],
         });
 
-        tokenIds.push(Number(tokenId));
+        // If we get here, the token exists
+        tokenIds.push(tokenId);
       } catch (err) {
-        console.error(`Error getting token at index ${i}:`, err);
-        // Continue to next index
+        console.error(`Error checking token ${tokenId}:`, err);
+        // Continue to next token
       }
     }
 
