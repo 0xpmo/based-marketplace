@@ -3,6 +3,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ignition";
 import * as dotenv from "dotenv";
+import "@openzeppelin/hardhat-upgrades";
 
 dotenv.config();
 
@@ -14,7 +15,7 @@ const BASED_AI_RPC_URL =
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.20",
+    version: "0.8.22",
     settings: {
       optimizer: {
         enabled: true,

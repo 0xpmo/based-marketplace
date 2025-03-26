@@ -17,15 +17,28 @@ describe("PepeMarketplace Ignition Deployment", function () {
 
     // Access the deployed contracts
     const factory = result.factory as unknown as PepeCollectionFactory;
+    const marketplaceStorage = await ethers.getContractAt(
+      "PepeMarketplaceStorage",
+      await result.marketplaceStorage.getAddress()
+    );
     const marketplace = result.marketplace as unknown as PepeMarketplace;
 
     // Verify the factory was deployed correctly
     expect(await factory.getAddress()).to.be.properAddress;
     expect(await factory.creationFee()).to.equal(ethers.parseEther("0.001"));
 
-    // Verify the marketplace was deployed correctly
-    expect(await marketplace.getAddress()).to.be.properAddress;
-    expect(await marketplace.marketFee()).to.equal(250); // 2.5%
+    // Verify the storage was deployed correctly
+    expect(await marketplaceStorage.getAddress()).to.be.properAddress;
+    expect(await marketplaceStorage.marketFee()).to.equal(250); // 2.5%
+    expect(await marketplaceStorage.owner()).to.equal(
+      await marketplace.getAddress()
+    );
+
+    // Access marketplace storage through ABI calls since type is not available
+    const marketplaceStorageAddress = await marketplace.marketplaceStorage();
+    expect(marketplaceStorageAddress).to.equal(
+      await marketplaceStorage.getAddress()
+    );
 
     // Verify the sample collection was created
     expect(await factory.getCollectionCount()).to.equal(1);

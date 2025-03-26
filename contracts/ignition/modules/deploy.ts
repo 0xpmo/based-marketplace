@@ -12,10 +12,19 @@ export default buildModule("PepeMarketplace", (m) => {
     m.getAccount(0),
   ]);
 
-  // Deploy Marketplace
-  const marketplace = m.contract("PepeMarketplace", [
+  // Deploy Storage Contract first
+  const marketplaceStorage = m.contract("PepeMarketplaceStorage", []);
+
+  // Call initialize on storage contract
+  const initializeStorage = m.call(marketplaceStorage, "initialize", []);
+
+  // Deploy Marketplace with reference to storage
+  const marketplace = m.contract("PepeMarketplace", []);
+
+  // Initialize marketplace contract after it's deployed
+  const initializeMarketplace = m.call(marketplace, "initialize", [
+    marketplaceStorage,
     MARKET_FEE,
-    m.getAccount(0),
   ]);
 
   // Create a sample collection
@@ -37,5 +46,5 @@ export default buildModule("PepeMarketplace", (m) => {
     }
   );
 
-  return { factory, marketplace };
+  return { factory, marketplaceStorage, marketplace };
 });

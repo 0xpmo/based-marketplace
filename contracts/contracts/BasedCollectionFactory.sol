@@ -1,12 +1,12 @@
-// contracts/contracts/PepeCollectionFactory.sol
+// contracts/contracts/BasedCollectionFactory.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 import "hardhat/console.sol";
 
-import "./PepeNFTCollection.sol";
+import "./BasedNFTCollection.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PepeCollectionFactory is Ownable {
+contract BasedCollectionFactory is Ownable {
     // Collection creation fee
     uint256 public creationFee;
 
@@ -51,7 +51,7 @@ contract PepeCollectionFactory is Ownable {
         require(msg.value >= creationFee, "Insufficient creation fee");
 
         // Create new collection
-        PepeNFTCollection collection = new PepeNFTCollection(
+        BasedNFTCollection collection = new BasedNFTCollection(
             name,
             symbol,
             collectionURI,

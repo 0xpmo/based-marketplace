@@ -2,6 +2,7 @@
 import { ethers } from "ethers";
 import PepeCollectionFactoryArtifact from "../artifacts/contracts/PepeCollectionFactory.sol/PepeCollectionFactory.json";
 import PepeMarketplaceArtifact from "../artifacts/contracts/PepeMarketplace.sol/PepeMarketplace.json";
+import PepeMarketplaceStorageArtifact from "../artifacts/contracts/PepeMarketplaceStorage.sol/PepeMarketplaceStorage.json";
 import PepeNFTCollectionArtifact from "../artifacts/contracts/PepeNFTCollection.sol/PepeNFTCollection.json";
 
 async function main() {
@@ -13,6 +14,12 @@ async function main() {
   const factory = new ethers.Contract(
     deployments["PepeMarketplace#PepeCollectionFactory"],
     PepeCollectionFactoryArtifact.abi,
+    provider
+  );
+
+  const marketplaceStorage = new ethers.Contract(
+    deployments["PepeMarketplace#PepeMarketplaceStorage"],
+    PepeMarketplaceStorageArtifact.abi,
     provider
   );
 
@@ -32,14 +39,24 @@ async function main() {
   console.log(`- Owner: ${await factory.owner()}`);
   console.log(`- Collection Count: ${await factory.getCollectionCount()}`);
 
+  // Verify marketplace storage
+  console.log("\nPepeMarketplaceStorage:");
+  console.log(`- Address: ${await marketplaceStorage.getAddress()}`);
+  console.log(
+    `- Market Fee: ${await marketplaceStorage.marketFee()} basis points (${Number(
+      ((await marketplaceStorage.marketFee()) * BigInt(100)) / BigInt(10000)
+    )}%)`
+  );
+  console.log(`- Owner: ${await marketplaceStorage.owner()}`);
+  console.log(`- Paused: ${await marketplaceStorage.paused()}`);
+  console.log(
+    `- Royalties Disabled: ${await marketplaceStorage.royaltiesDisabled()}`
+  );
+
   // Verify marketplace
   console.log("\nPepeMarketplace:");
   console.log(`- Address: ${await marketplace.getAddress()}`);
-  console.log(
-    `- Market Fee: ${await marketplace.marketFee()} basis points (${Number(
-      ((await marketplace.marketFee()) * BigInt(100)) / BigInt(10000)
-    )}%)`
-  );
+  console.log(`- Storage Contract: ${await marketplace.marketplaceStorage()}`);
   console.log(`- Owner: ${await marketplace.owner()}`);
 
   // Verify collections

@@ -1,13 +1,13 @@
-// contracts/contracts/PepeNFTCollection.sol
+// contracts/contracts/BasedNFTCollection.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract PepeNFTCollection is ERC721Enumerable, ERC721URIStorage, Ownable {
+contract BasedNFTCollection is ERC721Enumerable, ERC721URIStorage, Ownable {
     using Strings for uint256;
 
     // Collection details

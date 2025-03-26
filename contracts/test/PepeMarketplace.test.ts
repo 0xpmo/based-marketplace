@@ -1,10 +1,15 @@
 // contracts/test/PepeMarketplace.test.ts
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { PepeMarketplace, PepeNFTCollection } from "../typechain-types";
+import {
+  PepeMarketplace,
+  PepeMarketplaceStorage,
+  PepeNFTCollection,
+} from "../typechain-types";
 
 describe("PepeMarketplace", function () {
   let marketplace: PepeMarketplace;
+  let marketplaceStorage: PepeMarketplaceStorage;
   let nftCollection: PepeNFTCollection;
   let owner: any;
   let seller: any;
@@ -25,11 +30,25 @@ describe("PepeMarketplace", function () {
     // Get signers
     [owner, seller, buyer, feeRecipient] = await ethers.getSigners();
 
+    // Deploy storage contract first
+    const PepeMarketplaceStorageFactory = await ethers.getContractFactory(
+      "PepeMarketplaceStorage"
+    );
+    marketplaceStorage = await PepeMarketplaceStorageFactory.deploy();
+    await marketplaceStorage.initialize();
+
     // Deploy marketplace
     const PepeMarketplaceFactory = await ethers.getContractFactory(
       "PepeMarketplace"
     );
-    marketplace = await PepeMarketplaceFactory.deploy(marketFee, owner.address);
+    marketplace = await PepeMarketplaceFactory.deploy();
+    await marketplace.initialize(
+      await marketplaceStorage.getAddress(),
+      marketFee
+    );
+
+    // Transfer ownership of storage to marketplace
+    await marketplaceStorage.transferOwnership(await marketplace.getAddress());
 
     // Deploy NFT collection
     const PepeNFTCollectionFactory = await ethers.getContractFactory(
@@ -59,11 +78,17 @@ describe("PepeMarketplace", function () {
 
   describe("Deployment", function () {
     it("Should set the correct market fee", async function () {
-      expect(await marketplace.marketFee()).to.equal(marketFee);
+      expect(await marketplaceStorage.marketFee()).to.equal(marketFee);
     });
 
-    it("Should set the correct owner", async function () {
+    it("Should set the correct owner of marketplace", async function () {
       expect(await marketplace.owner()).to.equal(owner.address);
+    });
+
+    it("Should set the correct owner of storage", async function () {
+      expect(await marketplaceStorage.owner()).to.equal(
+        await marketplace.getAddress()
+      );
     });
   });
 
@@ -79,18 +104,28 @@ describe("PepeMarketplace", function () {
           seller.address,
           await nftCollection.getAddress(),
           1,
-          listingPrice
+          listingPrice,
+          false, // not private
+          ethers.ZeroAddress // no allowed buyer
         );
 
-      const listing = await marketplace.getListing(
-        await nftCollection.getAddress(),
-        1
-      );
-      expect(listing.seller).to.equal(seller.address);
-      expect(listing.nftContract).to.equal(await nftCollection.getAddress());
-      expect(listing.tokenId).to.equal(1);
-      expect(listing.price).to.equal(listingPrice);
-      expect(listing.active).to.equal(true);
+      const [
+        listingSeller,
+        listingNftContract,
+        listingTokenId,
+        listingPrice,
+        listingActive,
+        listingIsPrivate,
+        listingAllowedBuyer,
+      ] = await marketplace.getListing(await nftCollection.getAddress(), 1);
+
+      expect(listingSeller).to.equal(seller.address);
+      expect(listingNftContract).to.equal(await nftCollection.getAddress());
+      expect(listingTokenId).to.equal(1);
+      expect(listingPrice).to.equal(listingPrice);
+      expect(listingActive).to.equal(true);
+      expect(listingIsPrivate).to.equal(false);
+      expect(listingAllowedBuyer).to.equal(ethers.ZeroAddress);
 
       expect(
         await marketplace.isListed(await nftCollection.getAddress(), 1)
@@ -157,11 +192,16 @@ describe("PepeMarketplace", function () {
       expect(
         await marketplace.isListed(await nftCollection.getAddress(), 1)
       ).to.equal(false);
-      const listing = await marketplace.getListing(
-        await nftCollection.getAddress(),
-        1
-      );
-      expect(listing.active).to.equal(false);
+
+      const [
+        listingSeller,
+        listingNftContract,
+        listingTokenId,
+        listingPrice,
+        listingActive,
+      ] = await marketplace.getListing(await nftCollection.getAddress(), 1);
+
+      expect(listingActive).to.equal(false);
     });
 
     it("Should distribute funds correctly when buying an NFT", async function () {
@@ -412,11 +452,16 @@ describe("PepeMarketplace", function () {
       expect(
         await marketplace.isListed(await nftCollection.getAddress(), 1)
       ).to.equal(false);
-      const listing = await marketplace.getListing(
-        await nftCollection.getAddress(),
-        1
-      );
-      expect(listing.active).to.equal(false);
+
+      const [
+        listingSeller,
+        listingNftContract,
+        listingTokenId,
+        listingPrice,
+        listingActive,
+      ] = await marketplace.getListing(await nftCollection.getAddress(), 1);
+
+      expect(listingActive).to.equal(false);
     });
 
     it("Should not allow non-seller to cancel a listing", async function () {
@@ -449,7 +494,7 @@ describe("PepeMarketplace", function () {
         .to.emit(marketplace, "MarketFeeUpdated")
         .withArgs(newFee);
 
-      expect(await marketplace.marketFee()).to.equal(newFee);
+      expect(await marketplaceStorage.marketFee()).to.equal(newFee);
     });
 
     it("Should not allow setting a fee that's too high", async function () {
