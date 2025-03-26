@@ -44,6 +44,10 @@ This deploys:
 
 ## After Deployment
 
+### Important
+
+Env vars (address updates) should automatically be copied into .env in (/contracts directory), but if it isn't manually them.
+
 Verify the deployment:
 
 ```shell

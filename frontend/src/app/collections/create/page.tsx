@@ -113,13 +113,13 @@ export default function CreateCollectionPage() {
       });
 
       const metadataData = await metadataResponse.json();
-      const collectionUri = metadataData.uri;
+      const contractURI = metadataData.uri;
 
       // Deploy the collection contract
       const collectionAddress = await createCollection(
         formData.name,
         formData.symbol,
-        collectionUri,
+        contractURI,
         formData.mintPrice,
         formData.maxSupply,
         formData.royaltyFee * 100 // Convert percentage to basis points

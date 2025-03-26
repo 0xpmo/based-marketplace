@@ -36,7 +36,7 @@ export default function EditCollectionPage() {
   const [processedImageUrl, setProcessedImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
-  const [isImageLoading, setIsImageLoading] = useState(true);
+  // const [isImageLoading, setIsImageLoading] = useState(true);
 
   // Form data for collection details
   const [formData, setFormData] = useState({
@@ -200,12 +200,12 @@ export default function EditCollectionPage() {
       });
 
       const metadataData = await metadataResponse.json();
-      const collectionUri = metadataData.uri;
+      const contractURI = metadataData.uri;
 
       // Update the collection on-chain
       await updateCollection(
         formData.name,
-        collectionUri,
+        contractURI,
         formData.mintPrice,
         formData.royaltyFee * 100 // Convert percentage to basis points
       );
@@ -456,7 +456,7 @@ export default function EditCollectionPage() {
                           "/images/placeholder-collection.svg"
                         );
                       }}
-                      onLoad={() => setIsImageLoading(false)}
+                      // onLoad={() => setIsImageLoading(false)}
                     />
                   ) : (
                     <div className="text-center text-gray-400 cursor-pointer">

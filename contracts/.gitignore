@@ -18,3 +18,5 @@ node_modules
 
 
 ignition/deployments/chain-1337
+
+.DS_Store

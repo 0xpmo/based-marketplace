@@ -151,7 +151,7 @@ After processing (and deployment if chosen), a `deployment-info.json` file will 
 {
   "name": "My Collection",
   "symbol": "COLL",
-  "collectionUri": "ipfs://QmAbc...",
+  "contractURI": "ipfs://QmAbc...",
   "metadataBaseUri": "ipfs://QmXyz.../",
   "maxSupply": 100,
   "mintPrice": "50000000000000000",

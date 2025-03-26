@@ -367,7 +367,7 @@ async function processCollection() {
   const deploymentInfo = {
     name: config.name,
     symbol: config.symbol,
-    collectionUri: collectionIpfsUrl,
+    contractURI: collectionIpfsUrl,
     metadataBaseUri: metadataUrls,
     tokenURIs: tokenURIs,
     maxSupply: config.max_supply,

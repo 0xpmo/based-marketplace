@@ -178,7 +178,12 @@
         },
         {
           "internalType": "string",
-          "name": "collectionURI",
+          "name": "baseURI",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "contractURI",
           "type": "string"
         },
         {

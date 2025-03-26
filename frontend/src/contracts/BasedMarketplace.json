@@ -665,11 +665,6 @@
           "internalType": "address",
           "name": "storageAddress",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_marketFee",
-          "type": "uint256"
         }
       ],
       "name": "initialize",

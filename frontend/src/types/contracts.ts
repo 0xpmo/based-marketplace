@@ -3,7 +3,7 @@ export interface Collection {
   address: string;
   name: string;
   symbol: string;
-  collectionURI: string;
+  contractURI: string;
   mintPrice: string;
   maxSupply: number;
   totalMinted: number;

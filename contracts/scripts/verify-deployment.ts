@@ -9,11 +9,11 @@ import BasedMarketplaceStorageArtifact from "../artifacts/contracts/BasedMarketp
 import BasedNFTCollectionArtifact from "../artifacts/contracts/BasedNFTCollection.sol/BasedNFTCollection.json";
 
 // Load environment variables from .env.deployment if it exists
-const deploymentEnvPath = path.join(__dirname, "../.env.deployment");
-if (fs.existsSync(deploymentEnvPath)) {
-  console.log(`Loading deployment addresses from ${deploymentEnvPath}`);
-  dotenv.config({ path: deploymentEnvPath });
-}
+// const deploymentEnvPath = path.join(__dirname, "../.env.deployment");
+// if (fs.existsSync(deploymentEnvPath)) {
+//   console.log(`Loading deployment addresses from ${deploymentEnvPath}`);
+//   dotenv.config({ path: deploymentEnvPath });
+// }
 
 async function main() {
   console.log("Verifying contract deployment...");

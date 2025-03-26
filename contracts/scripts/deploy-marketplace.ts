@@ -108,20 +108,19 @@ async function main() {
   console.log("Storage ownership transferred to marketplace");
 
   // 6. Create a sample collection (optional)
-  console.log("\n6. Creating a sample collection...");
-  await factoryProxy.createCollection(
-    "Based Originals",
-    "BASED",
-    "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW",
-    "ipfs://QmCollectionMetadata",
-    ethers.parseEther("0.05"), // 0.05 ETH mint price
-    100, // Max supply
-    500, // 5% royalty
-    true, // Enable minting
-    { value: DEFAULT_FEE }
-  );
-
-  console.log("Sample collection created");
+  //   console.log("\n6. Creating a sample collection...");
+  //   await factoryProxy.createCollection(
+  //     "Based Originals",
+  //     "BASED",
+  //     "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW",
+  //     "ipfs://QmCollectionMetadata",
+  //     ethers.parseEther("0.05"), // 0.05 ETH mint price
+  //     100, // Max supply
+  //     500, // 5% royalty
+  //     true, // Enable minting
+  //     { value: DEFAULT_FEE }
+  //   );
+  //   console.log("Sample collection created");
 
   // Summary
   console.log("\nDeployment Summary:");
@@ -143,18 +142,34 @@ async function main() {
   );
   console.log("\nDeployment completed successfully");
 
-  // Save deployment addresses to .env.deployment file
-  const envPath = path.join(__dirname, "../.env.deployment");
-  const envContent =
-    `# Deployment addresses - Created at ${new Date().toISOString()}\n` +
-    `FACTORY_PROXY_ADDRESS=${factoryProxyAddress}\n` +
-    `MARKETPLACE_ADDRESS=${marketplaceAddress}\n` +
-    `MARKETPLACE_STORAGE_ADDRESS=${storageAddress}\n` +
-    `FACTORY_IMPL_ADDRESS=${factoryImplementationAddress}\n` +
-    `MARKETPLACE_IMPL_ADDRESS=${marketplaceImplementationAddress}\n` +
-    `STORAGE_IMPL_ADDRESS=${storageImplementationAddress}\n`;
+  // Update .env file with new addresses
+  console.log("\nUpdating .env file...");
+  const envPath = path.join(__dirname, "../.env");
+  let envContent = fs.readFileSync(envPath, "utf-8");
+
+  // Update or add each address
+  const updates = {
+    FACTORY_PROXY_ADDRESS: factoryProxyAddress,
+    MARKETPLACE_ADDRESS: marketplaceAddress,
+    MARKETPLACE_STORAGE_ADDRESS: storageAddress,
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (envContent.includes(key)) {
+      // Replace existing line
+      envContent = envContent.replace(
+        new RegExp(`${key}=.*`, "g"),
+        `${key}=${value}`
+      );
+    } else {
+      // Add new line
+      envContent += `\n${key}=${value}`;
+    }
+  }
 
   fs.writeFileSync(envPath, envContent);
+  console.log("✅ Updated .env file with new addresses");
+
   console.log(`\nDeployment addresses saved to ${envPath}`);
   console.log("To use these addresses in subsequent scripts, run:");
   console.log(`export $(cat ${envPath} | grep -v '#' | xargs)`);

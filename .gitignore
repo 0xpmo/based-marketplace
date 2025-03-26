@@ -27,3 +27,5 @@ frontend/build
 nft-tools/test-*
 nft-tools/test-whales
 nft-tools/test-sharks
+
+.DS_Store

@@ -1,0 +1,16 @@
+{
+  "name": "#2",
+  "image": "ipfs://QmSiFxgtv73WaEzQjdTCHD5Jq4p9yYe6UDXju1vGv7MiTP",
+  "attributes": [
+    {
+      "trait_type": "Eyes",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    }
+  ],
+  "description": "Based whale #2",
+  "external_url": "https://basedsea.xyz"
+}

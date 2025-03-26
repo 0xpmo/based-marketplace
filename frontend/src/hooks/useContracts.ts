@@ -66,9 +66,9 @@ export function useCollections() {
           // Fetch basic collection details
           const name = await readCollectionProperty(address, "name");
           const symbol = await readCollectionProperty(address, "symbol");
-          const collectionURI = await readCollectionProperty(
+          const contractURI = await readCollectionProperty(
             address,
-            "collectionURI"
+            "contractURI"
           );
           const mintPrice = await readCollectionProperty(address, "mintPrice");
           const maxSupply = await readCollectionProperty(address, "maxSupply");
@@ -89,10 +89,10 @@ export function useCollections() {
           // Fetch metadata from IPFS
           let metadata = undefined;
           try {
-            metadata = await fetchFromIPFS(collectionURI as string);
+            metadata = await fetchFromIPFS(contractURI as string);
 
             // const fetchedMetadata = await fetchFromIPFS(
-            //   collectionURI as string
+            //   contractURI as string
             // );
             // // Ensure fetchedMetadata has the required properties before using it
             // if (
@@ -124,7 +124,7 @@ export function useCollections() {
             address,
             name: name as string,
             symbol: symbol as string,
-            collectionURI: collectionURI as string,
+            contractURI: contractURI as string,
             mintPrice: formattedMintPrice,
             maxSupply: formattedMaxSupply,
             totalMinted: formattedTotalMinted,
@@ -177,7 +177,7 @@ export function useCreateCollection() {
   const createCollection = async (
     name: string,
     symbol: string,
-    collectionURI: string,
+    contractURI: string,
     mintPrice: number,
     maxSupply: number,
     royaltyFee: number
@@ -207,7 +207,7 @@ export function useCreateCollection() {
         args: [
           name,
           symbol,
-          collectionURI,
+          contractURI,
           mintPriceInWei,
           BigInt(maxSupply),
           BigInt(royaltyFee),
@@ -497,9 +497,9 @@ export function useCollection(collectionAddress: string) {
           collectionAddress,
           "symbol"
         );
-        const collectionURI = await readCollectionProperty(
+        const contractURI = await readCollectionProperty(
           collectionAddress,
-          "collectionURI"
+          "contractURI"
         );
         const mintPrice = await readCollectionProperty(
           collectionAddress,
@@ -526,7 +526,7 @@ export function useCollection(collectionAddress: string) {
         // Fetch metadata from IPFS
         let metadata = undefined;
         try {
-          metadata = await fetchFromIPFS(collectionURI as string);
+          metadata = await fetchFromIPFS(contractURI as string);
         } catch (err) {
           console.error(
             `Failed to fetch metadata for collection ${collectionAddress}`,
@@ -546,7 +546,7 @@ export function useCollection(collectionAddress: string) {
           address: collectionAddress,
           name: name as string,
           symbol: symbol as string,
-          collectionURI: collectionURI as string,
+          contractURI: contractURI as string,
           mintPrice: formattedMintPrice,
           maxSupply: formattedMaxSupply,
           totalMinted: formattedTotalMinted,
@@ -578,7 +578,7 @@ export function useUpdateCollection(collectionAddress: string) {
 
   const updateCollection = async (
     name: string,
-    collectionURI: string,
+    contractURI: string,
     mintPrice: number,
     royaltyFee: number
   ) => {
@@ -590,8 +590,8 @@ export function useUpdateCollection(collectionAddress: string) {
     await writeContract({
       address: collectionAddress as `0x${string}`,
       abi: CollectionABI.abi,
-      functionName: "setCollectionURI",
-      args: [collectionURI],
+      functionName: "setContractURI",
+      args: [contractURI],
     });
 
     // Update mint price
