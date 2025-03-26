@@ -3,6 +3,11 @@
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
     "@types/csv-parse": "^1.1.12",
-    "csv-parse": "^5.6.0"
+    "canvas-confetti": "^1.9.3",
+    "csv-parse": "^5.6.0",
+    "react-hot-toast": "^2.5.2"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0"
   }
 }

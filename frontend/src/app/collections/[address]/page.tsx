@@ -597,19 +597,14 @@ export default function CollectionDetailsPage() {
             </div>
           ) : filteredNFTs.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredNFTs.map((nft, index) => (
-                <motion.div
-                  key={nft.tokenId}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 * (index % 8) }}
-                >
+              {filteredNFTs.map((nft) => (
+                <div key={`${collection.address}-${nft.tokenId}`}>
                   <Link
                     href={`/collections/${collection.address}/${nft.tokenId}`}
                   >
                     <NFTCard nft={nft} collectionAddress={collection.address} />
                   </Link>
-                </motion.div>
+                </div>
               ))}
             </div>
           ) : (

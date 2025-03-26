@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { NFTItem } from "@/types/contracts";
-import { useCollection } from "@/hooks/useContracts";
+import { useCollection, useBuyNFT } from "@/hooks/useContracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import PepeButton from "@/components/ui/PepeButton";
 import { fetchFromIPFS } from "@/services/ipfs";
 import { useListNFT } from "@/hooks/useContracts";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
+import { MARKETPLACE_ADDRESS } from "@/constants/addresses";
+import { getMarketplaceContract } from "@/lib/contracts";
+import confetti from "canvas-confetti";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -28,6 +32,15 @@ export default function NFTDetailsPage() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showOwnershipEffect, setShowOwnershipEffect] = useState(false);
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelTxHash, setCancelTxHash] = useState<string | null>(null);
+  const [showMarketPrompt, setShowMarketPrompt] = useState(false);
+  const [listingJustCompleted, setListingJustCompleted] = useState(false);
+  const [justPurchased, setJustPurchased] = useState(false);
+
+  // Confetti reference
+  const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Collection data
   const { collection } = useCollection(collectionAddress);
@@ -42,6 +55,16 @@ export default function NFTDetailsPage() {
     approvalStep,
     approvalTxHash,
   } = useListNFT();
+
+  // Buy NFT hook
+  const {
+    buyNFT,
+    isLoading: isBuying,
+    isSuccess: isBuyingSuccess,
+    isError: isBuyingError,
+    error: buyingError,
+    txHash: buyingTxHash,
+  } = useBuyNFT();
 
   // Format address for display
   const formatAddress = (address: string) => {
@@ -110,6 +133,50 @@ export default function NFTDetailsPage() {
     }
   }, [nft, userAddress]);
 
+  // Check if we should show the marketing prompt based on local storage
+  useEffect(() => {
+    if (!nft || !userAddress) return;
+
+    // Don't show the market prompt if the user just purchased this NFT
+    if (justPurchased) {
+      setShowMarketPrompt(false);
+      return;
+    }
+
+    // Only proceed if user is the owner and NFT is not listed
+    if (
+      nft.owner.toLowerCase() === userAddress.toLowerCase() &&
+      !nft.listing?.active
+    ) {
+      const promptKey = `nft-market-prompt-${userAddress.toLowerCase()}-${collectionAddress}-${tokenId}`;
+      const lastPromptTime = localStorage.getItem(promptKey);
+      const viewCountKey = `nft-market-views-${userAddress.toLowerCase()}-${collectionAddress}-${tokenId}`;
+      let viewCount = parseInt(localStorage.getItem(viewCountKey) || "0");
+
+      // Increment view count
+      viewCount++;
+      localStorage.setItem(viewCountKey, viewCount.toString());
+
+      const now = Date.now();
+      const oneWeek = 7 * 24 * 60 * 60 * 1000; // One week in milliseconds
+
+      // Show prompt if: never shown before, or last shown more than a week ago, or every 5 views
+      if (
+        !lastPromptTime ||
+        now - parseInt(lastPromptTime) > oneWeek ||
+        viewCount % 5 === 0
+      ) {
+        setShowMarketPrompt(true);
+        // Update the last time we showed the prompt
+        localStorage.setItem(promptKey, now.toString());
+      } else {
+        setShowMarketPrompt(false);
+      }
+    } else {
+      setShowMarketPrompt(false);
+    }
+  }, [nft, userAddress, collectionAddress, tokenId, justPurchased]);
+
   // Handle listing NFT for sale
   const handleListForSale = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,29 +198,278 @@ export default function NFTDetailsPage() {
 
     try {
       setTxHash(null);
+      setListingJustCompleted(false);
       const success = await listNFT(collectionAddress, tokenId, price);
-      if (success && listingTxHash) {
-        setTxHash(listingTxHash);
+      if (success) {
+        setListingJustCompleted(true);
+        // Set txHash after setting listingJustCompleted
+        if (listingTxHash) {
+          setTxHash(listingTxHash);
+        }
       }
     } catch (err) {
       console.error("Error listing NFT:", err);
     }
   };
 
-  // Handle success - refresh page after listing
+  // Reset listing form and state when modal is opened or closed
+  useEffect(() => {
+    // When the modal is opened, reset all listing-related states
+    if (showListModal) {
+      setTxHash(null);
+      // Don't reset listingJustCompleted here to preserve success message
+    } else {
+      // When the modal is closed, reset success state
+      setListingJustCompleted(false);
+
+      // If there was a successful listing, refresh data
+      if (isListingSuccess) {
+        // We can't reset the hook's state directly, but we can force a refresh
+        // which will effectively reset the UI state and fetch the latest data
+        fetchNFTData();
+      }
+    }
+  }, [showListModal, isListingSuccess]);
+
+  // Handle success - close modal after listing with delay
   useEffect(() => {
     if (isListingSuccess) {
-      // Refresh the page to show updated listing status
+      // Make sure listingJustCompleted is set to true when isListingSuccess becomes true
+      setListingJustCompleted(true);
+
+      // Close the modal after a delay to show the success message
       setTimeout(() => {
+        setShowListModal(false);
+        // Refresh the page to show updated listing status
         fetchNFTData();
-      }, 2000);
+      }, 5000); // 5 seconds is enough time to see the success message
     }
   }, [isListingSuccess]);
+
+  // Refresh UI when listing is canceled - to ensure all states are updated
+  useEffect(() => {
+    if (!isCancelling && cancelTxHash) {
+      // If we just finished canceling, refresh to ensure all UI states are updated
+      fetchNFTData();
+    }
+  }, [isCancelling, cancelTxHash]);
 
   // Handle refresh
   const handleRefresh = () => {
     setRefreshing(true);
     fetchNFTData();
+  };
+
+  // Handle buying NFT
+  const handleBuyNFT = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!nft || !nft.listing || !nft.listing.active) {
+      toast.error("This NFT is not available for purchase");
+      return;
+    }
+
+    try {
+      setTxHash(null);
+      toast.promise(buyNFT(collectionAddress, tokenId, nft.listing.price), {
+        loading: "Initiating purchase...",
+        success: "Transaction submitted! Waiting for confirmation...",
+        error: "Failed to initiate purchase",
+      });
+    } catch (err) {
+      console.error("Error buying NFT:", err);
+
+      // Check for specific error messages
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Check for "Item not active" error or similar patterns
+      if (
+        errorMessage.includes("Item not active") ||
+        errorMessage.includes("not active") ||
+        errorMessage.includes("not listed")
+      ) {
+        toast.error(
+          "This NFT is no longer available for purchase. The listing may have been canceled."
+        );
+        // Refresh the NFT data to update the UI
+        fetchNFTData();
+      } else {
+        toast.error(
+          err instanceof Error
+            ? `Error: ${err.message}`
+            : "Failed to buy NFT. Please try again."
+        );
+      }
+    }
+  };
+
+  // Function to trigger confetti explosion
+  const triggerConfetti = () => {
+    const duration = 8 * 1000;
+    const animationEnd = Date.now() + duration;
+
+    // Create intense confetti explosion
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
+
+    const interval = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      // Launch confetti from sides
+      confetti({
+        particleCount: 3,
+        angle: randomInRange(45, 65),
+        spread: randomInRange(50, 70),
+        origin: { x: 0, y: 0.6 },
+        colors: [
+          "#5D5FEF",
+          "#2563EB",
+          "#3B82F6",
+          "#60A5FA",
+          "#93C5FD",
+          "#BFDBFE",
+        ],
+      });
+
+      confetti({
+        particleCount: 3,
+        angle: randomInRange(115, 135),
+        spread: randomInRange(50, 70),
+        origin: { x: 1, y: 0.6 },
+        colors: [
+          "#5D5FEF",
+          "#2563EB",
+          "#3B82F6",
+          "#60A5FA",
+          "#93C5FD",
+          "#BFDBFE",
+        ],
+      });
+    }, 200);
+
+    // Initial burst
+    confetti({
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.6 },
+    });
+  };
+
+  // Handle buy success
+  useEffect(() => {
+    if (isBuyingSuccess) {
+      setShowPurchaseSuccess(true);
+      setJustPurchased(true);
+
+      // Trigger confetti
+      triggerConfetti();
+
+      // Refresh the NFT data to show updated ownership
+      setTimeout(() => {
+        fetchNFTData();
+        // Hide the success animation after a longer time
+        setTimeout(() => {
+          setShowPurchaseSuccess(false);
+
+          // Reset the justPurchased flag after a day
+          setTimeout(() => {
+            setJustPurchased(false);
+          }, 24 * 60 * 60 * 1000); // 24 hours
+        }, 8000); // Increased from 5000 to 8000 ms
+      }, 2000);
+    }
+  }, [isBuyingSuccess]);
+
+  // Handle buy error - updated to handle RPC errors with custom messages
+  useEffect(() => {
+    if (isBuyingError && buyingError) {
+      const errorMessage = buyingError.message || "Unknown error";
+
+      // Check for common blockchain error patterns in RPC errors
+      if (errorMessage.includes("Internal JSON-RPC error")) {
+        // Try to extract the revert reason if available
+        const revertMatch = errorMessage.match(
+          /reverted with reason string '(.+?)'/
+        );
+        const revertReason = revertMatch ? revertMatch[1] : null;
+
+        if (revertReason === "Item not active") {
+          toast.error(
+            "This NFT is no longer available for purchase. The listing may have been canceled."
+          );
+          // Refresh the NFT data automatically
+          fetchNFTData();
+        } else if (revertReason) {
+          toast.error(`Transaction failed: ${revertReason}`);
+        } else {
+          toast.error(
+            "Transaction failed. The NFT may no longer be available for purchase."
+          );
+        }
+      } else {
+        toast.error(`Transaction failed: ${errorMessage}`);
+      }
+    }
+  }, [isBuyingError, buyingError]);
+
+  // Handle cancel listing
+  const handleCancelListing = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!nft || !nft.listing || !nft.listing.active) {
+      toast.error("This NFT is not currently listed");
+      return;
+    }
+
+    if (nft.owner.toLowerCase() !== userAddress?.toLowerCase()) {
+      toast.error("You are not the owner of this NFT");
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+      setCancelTxHash(null);
+
+      // Get marketplace contract
+      const marketplaceContract = await getMarketplaceContract();
+
+      // Call the cancelListing function
+      const tx = await marketplaceContract.cancelListing(
+        collectionAddress,
+        tokenId
+      );
+
+      setCancelTxHash(tx.hash);
+
+      toast.success("Cancellation submitted! Waiting for confirmation...");
+
+      // Wait for transaction to complete
+      const receipt = await tx.wait();
+
+      // Refresh the NFT data to show updated listing status
+      toast.success("Listing cancelled successfully!");
+      fetchNFTData();
+    } catch (err) {
+      console.error("Error cancelling listing:", err);
+      toast.error(
+        err instanceof Error
+          ? `Error: ${err.message}`
+          : "Failed to cancel listing. Please try again."
+      );
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   if (loading) {
@@ -207,6 +523,13 @@ export default function NFTDetailsPage() {
         transition={{ duration: 0.5 }}
         className="container mx-auto py-12 px-4"
       >
+        {/* Canvas for confetti (positioned fixed to cover the whole screen) */}
+        <canvas
+          ref={confettiCanvasRef}
+          className="fixed inset-0 pointer-events-none z-50"
+          style={{ width: "100vw", height: "100vh" }}
+        />
+
         {/* Breadcrumbs */}
         <nav className="flex mb-8 text-sm text-blue-300 items-center">
           <Link href="/" className="hover:text-blue-100 transition-colors">
@@ -450,18 +773,124 @@ export default function NFTDetailsPage() {
                         <PepeButton
                           variant="primary"
                           className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                          onClick={handleCancelListing}
+                          disabled={isCancelling}
                         >
-                          Cancel Listing
+                          {isCancelling ? "Cancelling..." : "Cancel Listing"}
                         </PepeButton>
+
+                        {/* Transaction Hash Link */}
+                        {cancelTxHash && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-2 text-xs text-center text-blue-300"
+                          >
+                            <a
+                              href={`https://explorer.getbased.ai/tx/${cancelTxHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-blue-200 hover:underline"
+                            >
+                              View transaction on explorer
+                            </a>
+                          </motion.div>
+                        )}
                       </div>
                     ) : (
-                      <div className="mt-4">
+                      <div className="mt-4 relative">
                         <PepeButton
                           variant="primary"
                           className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                          onClick={handleBuyNFT}
+                          disabled={isBuying}
                         >
-                          Buy Now
+                          {isBuying ? "Processing..." : "Buy Now"}
                         </PepeButton>
+
+                        {/* Purchase success animation overlay */}
+                        <AnimatePresence>
+                          {showPurchaseSuccess && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{
+                                opacity: 0,
+                                scale: 0.8,
+                                transition: { duration: 0.5 },
+                              }}
+                              className="absolute inset-0 flex items-center justify-center"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/70 to-blue-600/70 rounded-lg backdrop-blur-sm z-10"></div>
+                              <div className="relative z-20 flex flex-col items-center">
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: [0, 1.2, 1] }}
+                                  transition={{
+                                    duration: 0.5,
+                                    times: [0, 0.8, 1],
+                                  }}
+                                  className="text-4xl mb-2"
+                                >
+                                  🎉
+                                </motion.div>
+                                <motion.div
+                                  initial={{ y: 10, opacity: 0 }}
+                                  animate={{ y: 0, opacity: 1 }}
+                                  transition={{ delay: 0.3 }}
+                                  className="text-white font-bold text-xl text-center"
+                                >
+                                  Purchased Successfully!
+                                </motion.div>
+                                <motion.div
+                                  initial={{ scale: 0.5, opacity: 0 }}
+                                  animate={{
+                                    scale: 1,
+                                    opacity: 1,
+                                    rotate: [0, 10, 0, -10, 0],
+                                  }}
+                                  transition={{
+                                    delay: 0.5,
+                                    rotate: {
+                                      repeat: Infinity,
+                                      duration: 1.5,
+                                      ease: "easeInOut",
+                                    },
+                                  }}
+                                  className="text-3xl mt-2"
+                                >
+                                  💎
+                                </motion.div>
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ delay: 1 }}
+                                  className="mt-4 text-blue-100 text-center text-sm"
+                                >
+                                  This NFT is now yours!
+                                </motion.div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Transaction Hash Link */}
+                        {buyingTxHash && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-2 text-xs text-center text-blue-300"
+                          >
+                            <a
+                              href={`https://explorer.getbased.ai/tx/${buyingTxHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-blue-200 hover:underline"
+                            >
+                              View transaction on explorer
+                            </a>
+                          </motion.div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -476,11 +905,18 @@ export default function NFTDetailsPage() {
                       <div className="mt-4">
                         <PepeButton
                           variant="primary"
-                          className="w-full relative overflow-hidden group bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                          className={`w-full relative overflow-hidden group ${
+                            isListing || txHash
+                              ? "opacity-70 cursor-not-allowed"
+                              : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+                          } border-blue-500`}
                           onClick={() => setShowListModal(true)}
+                          disabled={isListing || txHash !== null}
                         >
                           <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
-                          List for Sale
+                          {isListing
+                            ? "Listing in Progress..."
+                            : "List for Sale"}
                         </PepeButton>
                       </div>
                     )}
@@ -488,7 +924,8 @@ export default function NFTDetailsPage() {
                 )}
 
                 {nft.owner.toLowerCase() === userAddress?.toLowerCase() &&
-                  !nft.listing?.active && (
+                  !nft.listing?.active &&
+                  showMarketPrompt && (
                     <motion.div
                       className="mb-6 bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-blue-900/40 p-4 rounded-lg border border-purple-500/30 shadow-lg overflow-hidden relative"
                       initial={{ opacity: 0, y: 10 }}
@@ -603,7 +1040,7 @@ export default function NFTDetailsPage() {
                 </button>
 
                 <h2 className="text-2xl font-bold mb-6 text-blue-100">
-                  List NFT for Sale in BasedSea
+                  List NFT for Sale on BasedSea
                 </h2>
 
                 <form onSubmit={handleListForSale}>
@@ -634,6 +1071,30 @@ export default function NFTDetailsPage() {
                     </p>
                   </div>
 
+                  {/* Add information notice about how listing works */}
+                  <div className="mb-6 p-3 bg-blue-800/20 border border-blue-700/30 rounded-lg text-blue-200 text-sm">
+                    <p className="flex items-center">
+                      <span className="h-4 w-4 mr-2">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 mr-2 text-blue-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </span>
+                      When you list an NFT, it remains in your wallet. The
+                      marketplace is only authorized to transfer it when sold.
+                    </p>
+                  </div>
+
                   {approvalStep && (
                     <div className="mb-4 p-3 bg-blue-800/30 border border-blue-700/50 rounded text-blue-300 text-sm">
                       <p>
@@ -654,7 +1115,11 @@ export default function NFTDetailsPage() {
                     </div>
                   )}
 
-                  {isListingSuccess && (
+                  {/* Show success message if either:
+                      1. Listing was just completed in this session OR
+                      2. The NFT is currently listed and we have a listing success status */}
+                  {(listingJustCompleted ||
+                    (isListingSuccess && nft?.listing?.active)) && (
                     <div className="mb-4 p-3 bg-green-900/30 border border-green-800/50 rounded text-green-300 text-sm">
                       <p>NFT listed successfully!</p>
                       {txHash && (
@@ -669,7 +1134,7 @@ export default function NFTDetailsPage() {
                     </div>
                   )}
 
-                  {!isListingSuccess && txHash && (
+                  {!isListingSuccess && !listingJustCompleted && txHash && (
                     <div className="mb-4 p-3 bg-blue-800/30 border border-blue-700/50 rounded text-blue-300 text-sm">
                       <p>Transaction submitted, waiting for confirmation...</p>
                       <p className="mt-2 text-xs break-all">
@@ -682,14 +1147,22 @@ export default function NFTDetailsPage() {
                     <PepeButton
                       variant="primary"
                       type="submit"
-                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                      disabled={isListing}
+                      className={`w-full ${
+                        isListing || isListingSuccess || listingJustCompleted
+                          ? "bg-blue-800/50 cursor-not-allowed"
+                          : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+                      } border-blue-500`}
+                      disabled={
+                        isListing || isListingSuccess || listingJustCompleted
+                      }
                     >
                       {isListing ? (
                         <span className="flex items-center justify-center">
                           <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2" />
                           {approvalStep ? "Approving..." : "Listing..."}
                         </span>
+                      ) : isListingSuccess || listingJustCompleted ? (
+                        "Listed Successfully"
                       ) : (
                         "List for Sale"
                       )}
@@ -700,9 +1173,13 @@ export default function NFTDetailsPage() {
                       type="button"
                       onClick={() => setShowListModal(false)}
                       className="w-full border-blue-500 text-blue-300 hover:bg-blue-900/30"
-                      disabled={isListing}
+                      disabled={
+                        isListing || isListingSuccess || listingJustCompleted
+                      }
                     >
-                      Cancel
+                      {isListingSuccess || listingJustCompleted
+                        ? "Close"
+                        : "Cancel"}
                     </PepeButton>
                   </div>
                 </form>
