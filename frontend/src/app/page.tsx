@@ -86,7 +86,6 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
                 Discover, collect, and sell NFTs on the BasedAI blockchain.
-                Built by big brains, for big brains.
               </motion.p>
               <motion.div
                 className="flex flex-col sm:flex-row gap-4"
@@ -102,14 +101,14 @@ export default function Home() {
                     Explore Collections
                   </PepeButton>
                 </Link>
-                <Link href="/collections/create">
+                {/* <Link href="/collections/create">
                   <PepeButton
                     variant="outline"
                     className="border-cyan-500 text-cyan-300 hover:bg-cyan-900/30"
                   >
                     Create Collection
                   </PepeButton>
-                </Link>
+                </Link> */}
               </motion.div>
             </div>
             <div className="md:w-1/2 relative">
@@ -173,29 +172,28 @@ export default function Home() {
           ) : (
             <div className="text-center py-10 bg-blue-900/30 border border-blue-800/50 rounded-xl shadow-inner shadow-blue-900/30">
               <p className="text-cyan-200 mb-4">No collections available yet</p>
-              <Link href="/collections/create">
+              {/* <Link href="/collections/create">
                 <PepeButton
                   variant="primary"
                   className="bg-gradient-to-r from-blue-600 to-cyan-500 border-cyan-700"
                 >
                   Create First Collection
                 </PepeButton>
-              </Link>
+              </Link> */}
             </div>
           )}
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="w-full py-16 px-4 relative overflow-hidden bg-gradient-to-b from-blue-900 to-blue-950">
+      {/* <section className="w-full py-16 px-4 relative overflow-hidden bg-gradient-to-b from-blue-900 to-blue-950">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4 text-white">
-              Why BasedSea?
+              Upcoming Features
             </h2>
             <p className="text-cyan-200 max-w-2xl mx-auto">
-              The most trusted NFT marketplace on Base, built with the latest
-              technology
+              Prepare for the next wave...
             </p>
           </div>
 
@@ -203,21 +201,19 @@ export default function Home() {
             {[
               {
                 icon: <div className="text-3xl text-cyan-400">🖼️</div>,
-                title: "Ocean of NFTs",
-                description:
-                  "Dive into an ocean of unique digital collectibles from artists worldwide",
+                title: "Studio",
+                description: "Create your own NFTs with our built-in studio",
               },
               {
                 icon: <div className="text-3xl text-cyan-400">👛</div>,
                 title: "Secure Wallet",
                 description:
-                  "Connect with multiple wallets for secure transactions on the Base network",
+                  "Connect with multiple wallets for secure transactions on the BasedAI network",
               },
               {
                 icon: <div className="text-3xl text-cyan-400">💰</div>,
                 title: "Low Fees",
-                description:
-                  "Enjoy minimal gas fees on the Base L2 network, optimizing your trading experience",
+                description: "Enjoy minimal gas fees on the BasedAI network",
               },
               {
                 icon: <div className="text-3xl text-cyan-400">💡</div>,
@@ -245,7 +241,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
       <section className="w-full py-16 px-4 bg-gradient-to-b from-blue-950 to-blue-900">

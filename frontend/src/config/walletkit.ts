@@ -22,7 +22,7 @@ const metadata = {
   description:
     "Discover, collect, and trade unique NFTs on the Based AI blockchain.",
   url: "https://basedsea.xyz", // Default URL
-  icons: ["https://basedsea.xyz/pepecoin-logo.jpg"],
+  icons: ["https://basedsea.xyz/whale-logo.jpg"],
 };
 
 // Modify the URL dynamically on the client side

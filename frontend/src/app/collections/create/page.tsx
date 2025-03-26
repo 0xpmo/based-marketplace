@@ -8,7 +8,9 @@ import PepeButton from "@/components/ui/PepeButton";
 import { useCreateCollection } from "@/hooks/useContracts";
 
 export default function CreateCollectionPage() {
+  // For now, redirect to the home page
   const router = useRouter();
+  router.push("/");
   const { address, isConnected } = useAccount();
   const [step, setStep] = useState<"details" | "deploying" | "success">(
     "details"

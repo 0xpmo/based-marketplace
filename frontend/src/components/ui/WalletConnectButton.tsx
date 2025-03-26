@@ -129,7 +129,7 @@ export default function WalletConnectButton() {
       <PepeButton
         variant={isConnected ? "outline" : "primary"}
         onClick={handleWalletClick}
-        disabled={!initialized || isConnecting}
+        disabled={isConnecting || (!initialized && !isConnected)}
         className={
           isConnected
             ? "border-blue-500 text-blue-300 hover:bg-blue-900/30"
@@ -178,7 +178,7 @@ export default function WalletConnectButton() {
               My NFTs
             </Link>
 
-            <Link
+            {/* <Link
               href="/profile"
               className="flex items-center px-4 py-2 text-sm text-cyan-100 hover:bg-blue-800/50 transition-colors"
               onClick={() => setDropdownOpen(false)}
@@ -197,7 +197,7 @@ export default function WalletConnectButton() {
                 />
               </svg>
               Profile
-            </Link>
+            </Link> */}
 
             <button
               onClick={copyAddress}

@@ -25,7 +25,9 @@ interface NFTItem {
 }
 
 export default function ManageCollectionPage() {
+  // For now, redirect to the home page
   const router = useRouter();
+  router.push("/");
   const { address: collectionAddress } = useParams();
   const { address: walletAddress, isConnected } = useAccount();
 

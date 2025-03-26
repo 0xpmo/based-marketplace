@@ -7,8 +7,8 @@ import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BasedSea | Ocean-themed NFT Marketplace on Based AI Blockchain",
-  description: "The premier NFT marketplace on the Based AI blockchain",
+  title: "BasedSea | NFT Marketplace on BasedAI",
+  description: "The most based NFT marketplace on the Based AI blockchain",
   icons: {
     icon: "/images/wave-icon.svg",
   },

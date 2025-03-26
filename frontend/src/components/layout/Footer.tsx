@@ -31,7 +31,7 @@ export default function Footer() {
             <Link href="/" className="flex items-center">
               <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
-                  src="/images/basedsea-logo.svg"
+                  src="/images/whale-logo.jpg"
                   alt="BasedSea"
                   width={40}
                   height={40}
@@ -46,7 +46,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-4 text-sm text-blue-300">
-              The premier NFT marketplace on the BasedAI blockchain.
+              The most based NFT marketplace on the BasedAI blockchain.
             </p>
           </div>
 
@@ -64,14 +64,14 @@ export default function Footer() {
                   Collections
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link
                   href="/collections/create"
                   className="text-blue-300 hover:text-cyan-300 transition-colors"
                 >
                   Create
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link
                   href="/my-nfts"
@@ -84,7 +84,7 @@ export default function Footer() {
           </div>
 
           {/* Resources */}
-          <div>
+          {/* <div>
             <h3 className="text-sm font-semibold text-cyan-200 tracking-wider uppercase">
               Resources
             </h3>
@@ -116,7 +116,7 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
-          </div>
+          </div> */}
 
           {/* Community */}
           <div>
@@ -126,7 +126,7 @@ export default function Footer() {
             <ul className="mt-4 space-y-2">
               <li>
                 <a
-                  href="https://twitter.com"
+                  href="https://x.com/basedsea_xyz"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-300 hover:text-cyan-300 transition-colors group flex items-center"
@@ -142,7 +142,7 @@ export default function Footer() {
                   Twitter
                 </a>
               </li>
-              <li>
+              {/* <li>
                 <a
                   href="https://discord.com"
                   target="_blank"
@@ -159,10 +159,10 @@ export default function Footer() {
                   </svg>
                   Discord
                 </a>
-              </li>
+              </li> */}
               <li>
                 <a
-                  href="https://telegram.org"
+                  href="https://t.me/+61XecOgCg540MzQx"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-300 hover:text-cyan-300 transition-colors group flex items-center"
@@ -182,7 +182,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-blue-900/50 pt-8 flex flex-col md:flex-row justify-between">
+        {/* <div className="mt-8 border-t border-blue-900/50 pt-8 flex flex-col md:flex-row justify-between">
           <p className="text-base text-blue-400">
             &copy; {new Date().getFullYear()} BasedSea Marketplace. All rights
             reserved.
@@ -201,7 +201,7 @@ export default function Footer() {
               Privacy
             </Link>
           </div>
-        </div>
+        </div> */}
       </div>
     </footer>
   );

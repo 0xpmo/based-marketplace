@@ -18,12 +18,12 @@ export default function Navbar() {
   const baseNavLinks = [
     { name: "Home", href: "/" },
     { name: "Collections", href: "/collections" },
-    { name: "Create", href: "/collections/create" },
+    // { name: "Create", href: "/collections/create" },
   ];
 
   // User-specific links only shown when wallet is connected
   const userNavLinks = [
-    { name: "My Collections", href: "/my-collections" },
+    // { name: "My Collections", href: "/my-collections" },
     { name: "My NFTs", href: "/my-nfts" },
   ];
 
@@ -47,7 +47,7 @@ export default function Navbar() {
             <Link href="/" className="flex items-center group">
               <div className="relative h-10 w-10 mr-2 overflow-hidden rounded-full border border-blue-500/50">
                 <Image
-                  src="/images/basedsea-logo.svg"
+                  src="/images/whale-logo.jpg"
                   alt="BasedSea"
                   width={40}
                   height={40}

@@ -10,8 +10,10 @@ import { useCollection, useUpdateCollection } from "@/hooks/useContracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function EditCollectionPage() {
+  // For now, redirect to the home page
   const params = useParams();
   const router = useRouter();
+  router.push("/");
   const { address: userAddress, isConnected } = useAccount();
   const collectionAddress = params.address as string;
 

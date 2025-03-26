@@ -63,15 +63,14 @@ export default function CollectionsPage() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Discover incredible digital collections from creators around the
-            world
+            Discover insane NFTs from creators around the world
           </motion.p>
         </div>
       </section>
 
       {/* Collections Content */}
       <section className="container mx-auto py-8 px-4 z-10 flex-grow">
-        {/* Search and Filters */}
+        {/* Search and Filters 
         <div className="bg-blue-900/30 rounded-xl p-4 mb-8 border border-blue-800/50 backdrop-blur-sm">
           <div className="flex flex-col md:flex-row justify-between gap-4">
             <div className="relative flex-grow">
@@ -145,7 +144,7 @@ export default function CollectionsPage() {
               </PepeButton>
             </Link>
           </div>
-        </div>
+        </div> */}
 
         {/* Loading State */}
         {loading && (
@@ -236,17 +235,33 @@ export default function CollectionsPage() {
               Ready to create your own collection?
             </h2>
             <p className="text-cyan-200 mb-6 max-w-2xl mx-auto">
-              Launch your NFT collection on BasedSea with low gas fees and
-              powerful tools for creators
+              Launch your NFT collection on BasedSea with powerful no-code tools
+              for creators
             </p>
-            <Link href="/collections/create">
+            <div className="flex flex-col items-center gap-3">
               <PepeButton
-                variant="primary"
-                className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700 shadow-lg shadow-blue-900/30"
+                variant="outline"
+                disabled={true}
+                className="bg-gradient-to-r from-blue-600/50 to-cyan-500/50 hover:from-blue-700/50 hover:to-cyan-600/50 border-cyan-700/50 shadow-lg shadow-blue-900/30 opacity-80"
               >
-                Create Collection
+                🤫 Collection Creation Coming Soon...
               </PepeButton>
-            </Link>
+              <a
+                href="https://twitter.com/basedsea_xyz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center"
+              >
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                </svg>
+                Stay tuned on Twitter for updates
+              </a>
+            </div>
           </div>
         </section>
       )}
