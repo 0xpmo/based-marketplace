@@ -10,7 +10,8 @@ export const metadata: Metadata = {
   title: "BasedSea | NFT Marketplace on BasedAI",
   description: "The most based NFT marketplace on the Based AI blockchain",
   icons: {
-    icon: "/images/wave-icon.svg",
+    // icon: "/images/wave-icon.svg",
+    icon: "/images/whale-logo.jpg",
   },
 };
 

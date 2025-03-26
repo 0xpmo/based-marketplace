@@ -8,9 +8,26 @@ import { useCollections } from "@/hooks/useContracts";
 import CollectionCard from "@/components/collections/CollectionCard";
 import PepeButton from "@/components/ui/PepeButton";
 import PepeConfetti from "@/components/effects/PepeConfetti";
+import { useEffect, useState } from "react";
+import { Collection } from "@/types/contracts";
+import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function Home() {
-  const { collections } = useCollections();
+  const { collections, loading } = useCollections();
+  const [featuredCollection, setFeaturedCollection] =
+    useState<Collection | null>(null);
+
+  useEffect(() => {
+    if (collections.length > 0) {
+      const featured = collections.reduce(
+        (prev, current) =>
+          current.totalMinted > prev.totalMinted ? current : prev,
+        collections[0]
+      );
+      setFeaturedCollection(featured);
+    }
+  }, [collections]);
+
   const topCollections = collections.slice(0, 3);
 
   return (
@@ -112,36 +129,58 @@ export default function Home() {
               </motion.div>
             </div>
             <div className="md:w-1/2 relative">
-              <motion.div
-                className="relative w-full aspect-square max-w-lg mx-auto"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+              <Link
+                href={
+                  featuredCollection
+                    ? `/collections/${featuredCollection.address}`
+                    : "#"
+                }
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-cyan-400/20 rounded-2xl backdrop-blur-sm -rotate-6 scale-105"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 to-cyan-600/20 rounded-2xl backdrop-blur-sm rotate-3 scale-105"></div>
-                <Image
-                  src="/images/hero-nft.png"
-                  alt="Featured NFT"
-                  fill
-                  className="rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10"
-                  priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-transparent to-transparent rounded-2xl z-20"></div>
-                <div className="absolute bottom-4 left-4 right-4 z-30 bg-gradient-to-r from-blue-900/80 to-cyan-800/80 backdrop-blur-md p-4 rounded-xl border border-blue-700/50">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-xl font-bold text-white">
-                        Ocean Dreams #42
-                      </h3>
-                      <p className="text-cyan-300">BasedSea Collection #0</p>
-                    </div>
-                    <div className="bg-green-900/50 px-3 py-1 rounded-lg border border-green-700/30 text-sm">
-                      <span className="text-green-400">2.5 ETH</span>
+                <motion.div
+                  className="relative w-full aspect-square max-w-lg mx-auto cursor-pointer transform transition-transform hover:scale-[1.02]"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-cyan-400/20 rounded-2xl backdrop-blur-sm -rotate-6 scale-105"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 to-cyan-600/20 rounded-2xl backdrop-blur-sm rotate-3 scale-105"></div>
+                  <Image
+                    src={
+                      featuredCollection?.metadata?.image
+                        ? getIPFSGatewayURL(featuredCollection.metadata.image)
+                        : "/images/hero-nft.png"
+                    }
+                    alt={featuredCollection?.name || "Featured Collection"}
+                    fill
+                    className="rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-transparent to-transparent rounded-2xl z-20"></div>
+                  <div className="absolute bottom-4 left-4 right-4 z-30 bg-gradient-to-r from-blue-900/80 to-cyan-800/80 backdrop-blur-md p-4 rounded-xl border border-blue-700/50">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-xl font-bold text-white">
+                          {featuredCollection?.name || "Loading Collection..."}
+                        </h3>
+                        <p className="text-cyan-300">
+                          {loading
+                            ? "Loading..."
+                            : featuredCollection
+                            ? "Featured Collection"
+                            : "No Collections Available"}
+                        </p>
+                      </div>
+                      <div className="bg-blue-900/50 px-3 py-1 rounded-lg border border-blue-700/30 text-sm">
+                        <span className="text-cyan-400">
+                          {featuredCollection
+                            ? `${featuredCollection.totalMinted} Items`
+                            : "0 Items"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </Link>
             </div>
           </div>
         </div>

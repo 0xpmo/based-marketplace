@@ -42,7 +42,7 @@ export function getIPFSGatewayURL(uri: string): string {
     // Check if this is already an IPFS gateway URL that might have CORS issues
     const ipfsGatewayPatterns = [
       "ipfs.io/ipfs/",
-      "cloudflare-ipfs.com/ipfs/",
+      // "cloudflare-ipfs.com/ipfs/",
       "gateway.pinata.cloud/ipfs/",
       "gateway.ipfs.io/ipfs/",
     ];

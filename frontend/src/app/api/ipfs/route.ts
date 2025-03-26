@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   // List of IPFS gateways to try in order
   const gateways = [
-    "https://cloudflare-ipfs.com/ipfs/",
+    // "https://cloudflare-ipfs.com/ipfs/",
     "https://gateway.pinata.cloud/ipfs/",
     "https://ipfs.io/ipfs/",
     "https://gateway.ipfs.io/ipfs/",
