@@ -113,7 +113,7 @@ describe("BasedMarketplace", function () {
         listingSeller,
         listingNftContract,
         listingTokenId,
-        listingPrice,
+        price,
         listingActive,
         listingIsPrivate,
         listingAllowedBuyer,
@@ -122,7 +122,7 @@ describe("BasedMarketplace", function () {
       expect(listingSeller).to.equal(seller.address);
       expect(listingNftContract).to.equal(await nftCollection.getAddress());
       expect(listingTokenId).to.equal(1);
-      expect(listingPrice).to.equal(listingPrice);
+      expect(price).to.equal(listingPrice);
       expect(listingActive).to.equal(true);
       expect(listingIsPrivate).to.equal(false);
       expect(listingAllowedBuyer).to.equal(ethers.ZeroAddress);
@@ -197,7 +197,7 @@ describe("BasedMarketplace", function () {
         listingSeller,
         listingNftContract,
         listingTokenId,
-        listingPrice,
+        price,
         listingActive,
       ] = await marketplace.getListing(await nftCollection.getAddress(), 1);
 
@@ -457,7 +457,7 @@ describe("BasedMarketplace", function () {
         listingSeller,
         listingNftContract,
         listingTokenId,
-        listingPrice,
+        price,
         listingActive,
       ] = await marketplace.getListing(await nftCollection.getAddress(), 1);
 
@@ -497,12 +497,14 @@ describe("BasedMarketplace", function () {
       expect(await marketplaceStorage.marketFee()).to.equal(newFee);
     });
 
-    it("Should not allow setting a fee that's too high", async function () {
-      const highFee = 1100; // 11%, above the 10% limit
+    it("Should allow setting high fees", async function () {
+      const highFee = 1100; // 11%
 
-      await expect(
-        marketplace.connect(owner).setMarketFee(highFee)
-      ).to.be.revertedWith("Fee too high");
+      await expect(marketplace.connect(owner).setMarketFee(highFee))
+        .to.emit(marketplace, "MarketFeeUpdated")
+        .withArgs(highFee);
+
+      expect(await marketplaceStorage.marketFee()).to.equal(highFee);
     });
 
     it("Should not allow non-owner to call owner functions", async function () {

@@ -14,9 +14,19 @@ npx hardhat compile
 
 npx hardhat test
 
-# Step 4: Deploy contracts using Ignition
+# Step 4: Deploy contracts (choose one of the following options)
+
+# Option A: Deploy using Ignition (simpler, good for local testing)
 
 npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
+
+# Option B: Deploy using upgradeable script (recommended for production-like testing)
+
+npx hardhat run scripts/deploy-marketplace.ts --network localhost
+
+# After deployment, load the contract addresses into your environment:
+
+export $(cat contracts/.env.deployment | grep -v '#' | xargs)
 
 # Step 5: Verify deployment
 
@@ -49,7 +59,13 @@ npx hardhat compile
 
 # Step 3: Deploy contracts to Based AI testnet
 
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network basedai
+# (use upgradeable script for production deployments)
+
+npx hardhat run scripts/deploy-marketplace.ts --network basedai
+
+# After deployment, load the contract addresses into your environment:
+
+export $(cat contracts/.env.deployment | grep -v '#' | xargs)
 
 # Step 4: Verify deployment
 

@@ -94,10 +94,9 @@ contract BasedMarketplace is
         // Connect to storage contract via interface
         marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
 
-        // Initialize storage values
-        marketplaceStorage.setMarketFee(_marketFee);
-        marketplaceStorage.setPaused(false);
-        marketplaceStorage.setRoyaltiesDisabled(false);
+        // NOTE: Storage configuration values should be set by the deployer before
+        // transferring ownership to this contract, as this contract doesn't
+        // own the storage contract during initialization
     }
 
     // Required for UUPS upgradeable pattern
