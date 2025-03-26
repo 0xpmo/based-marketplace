@@ -75,7 +75,7 @@ async function main() {
   // Create a custom initialize function that doesn't try to modify storage
   const marketplaceProxy = await upgrades.deployProxy(
     BasedMarketplace,
-    [storageAddress, MARKET_FEE],
+    [storageAddress],
     {
       initializer: "initialize",
       kind: "uups",
@@ -113,6 +113,7 @@ async function main() {
     "Based Originals",
     "BASED",
     "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW",
+    "ipfs://QmCollectionMetadata",
     ethers.parseEther("0.05"), // 0.05 ETH mint price
     100, // Max supply
     500, // 5% royalty

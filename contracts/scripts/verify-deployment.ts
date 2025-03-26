@@ -146,7 +146,7 @@ async function main() {
     console.log(`- Address: ${collectionAddress}`);
     console.log(`- Name: ${await collection.name()}`);
     console.log(`- Symbol: ${await collection.symbol()}`);
-    console.log(`- Collection URI: ${await collection.collectionURI()}`);
+    console.log(`- Collection URI: ${await collection.contractURI()}`);
     console.log(
       `- Mint Price: ${ethers.formatEther(await collection.mintPrice())} ETH`
     );
