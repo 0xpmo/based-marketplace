@@ -1,0 +1,39 @@
+{
+  "name": "My Sample Collection",
+  "symbol": "SAMPLE",
+  "description": "A collection of unique digital collectibles on the blockchain",
+  "external_link": "https://mysamplecollection.com",
+  "seller_fee_basis_points": 500,
+  "fee_recipient": "0x0000000000000000000000000000000000000000",
+  "mint_price": "0.05",
+  "max_supply": 100,
+  "enable_minting": true,
+  "reserve_for_owner": 5,
+  "traits": {
+    "Background": ["Red", "Blue", "Green", "Yellow", "Purple"],
+    "Species": ["Ape", "Lion", "Tiger", "Bear", "Owl"],
+    "Outfit": ["Suit", "Dress", "Casual", "Sporty", "Formal"],
+    "Eyes": ["Normal", "Laser", "Sleepy", "Crazy", "Wide"]
+  },
+  "rarities": {
+    "Background": {
+      "Red": 30,
+      "Blue": 25,
+      "Green": 20,
+      "Yellow": 15,
+      "Purple": 10
+    },
+    "Species": {
+      "Ape": 40,
+      "Lion": 25,
+      "Tiger": 20,
+      "Bear": 10,
+      "Owl": 5
+    }
+  },
+  "pinata": {
+    "api_key": "",
+    "api_secret": "",
+    "jwt": ""
+  }
+}

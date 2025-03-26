@@ -1,0 +1,24 @@
+{
+  "name": "[NAME] #[ID]",
+  "description": "[DESCRIPTION]",
+  "image": "[IMAGE_URL]",
+  "external_url": "[EXTERNAL_URL]/[ID]",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "[BACKGROUND]"
+    },
+    {
+      "trait_type": "Species",
+      "value": "[SPECIES]"
+    },
+    {
+      "trait_type": "Outfit",
+      "value": "[OUTFIT]"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "[EYES]"
+    }
+  ]
+}
