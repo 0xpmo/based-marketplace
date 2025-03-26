@@ -4,6 +4,7 @@
 // Then upload folder to pinata and copy and past folder cid into FOLDER_HASH
 // npx hardhat run scripts/deploy-whale-collection.ts --network localhost
 import { ethers } from "hardhat";
+import { Log, EventLog } from "ethers";
 
 const FACTORY_PROXY_ADDRESS = process.env.FACTORY_PROXY_ADDRESS;
 const FOLDER_HASH =
@@ -49,8 +50,9 @@ async function main() {
 
   // Get collection address from event logs
   const event = receipt?.logs.find(
-    (log: any) => "eventName" in log && log.eventName === "CollectionCreated"
-  ) as ethers.EventLog;
+    (log: Log) =>
+      log instanceof EventLog && log.eventName === "CollectionCreated"
+  ) as EventLog;
   const collectionAddress = event?.args?.[0]; // First argument is the collection address
 
   console.log("\n✅ Collection created successfully!");
