@@ -36,7 +36,8 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
       .createCollection(
         "Test Collection",
         "TEST",
-        "ipfs://test",
+        "ipfs://QmBaseMetadata/",
+        "ipfs://QmCollectionMetadata",
         ethers.parseEther("0.05"),
         100,
         500,
@@ -127,7 +128,8 @@ describe("BasedCollectionFactory V2 Upgrade", function () {
       .createCollection(
         "Trusted Collection",
         "TRUST",
-        "ipfs://trusted",
+        "ipfs://QmBaseMetadata/",
+        "ipfs://QmCollectionMetadata",
         ethers.parseEther("0.05"),
         100,
         500,

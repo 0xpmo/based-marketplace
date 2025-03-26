@@ -11,7 +11,8 @@ describe("BasedNFTCollection", function () {
 
   const collectionName = "Based Collection";
   const collectionSymbol = "BASED";
-  const collectionURI = "ipfs://QmCollectionMetadata";
+  const initialBaseURI = "ipfs://QmBaseMetadata/";
+  const initialContractURI = "ipfs://QmCollectionMetadata";
   const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
   const maxSupply = 100;
   const royaltyFee = 250; // 2.5%
@@ -27,7 +28,8 @@ describe("BasedNFTCollection", function () {
     nftCollection = await BasedNFTCollectionFactory.deploy(
       collectionName,
       collectionSymbol,
-      collectionURI,
+      initialBaseURI,
+      initialContractURI,
       mintPrice,
       maxSupply,
       royaltyFee,
@@ -42,8 +44,9 @@ describe("BasedNFTCollection", function () {
       expect(await nftCollection.symbol()).to.equal(collectionSymbol);
     });
 
-    it("Should set the correct collection URI", async function () {
-      expect(await nftCollection.collectionURI()).to.equal(collectionURI);
+    it("Should set the correct URIs", async function () {
+      expect(await nftCollection.baseURI()).to.equal(initialBaseURI);
+      expect(await nftCollection.contractURI()).to.equal(initialContractURI);
     });
 
     it("Should set the correct mint price", async function () {
@@ -64,23 +67,19 @@ describe("BasedNFTCollection", function () {
   });
 
   describe("Minting", function () {
-    const tokenURI = "ipfs://QmTokenMetadata";
-
     it("Should allow minting with correct payment", async function () {
       // Mint an NFT
       await expect(
-        nftCollection
-          .connect(addr1)
-          .mint(addr1.address, tokenURI, { value: mintPrice })
+        nftCollection.connect(addr1).mint(addr1.address, { value: mintPrice })
       )
         .to.emit(nftCollection, "NFTMinted")
-        .withArgs(addr1.address, 1, tokenURI);
+        .withArgs(addr1.address, 1);
 
       // Check token owner
       expect(await nftCollection.ownerOf(1)).to.equal(addr1.address);
 
       // Check token URI
-      expect(await nftCollection.tokenURI(1)).to.equal(tokenURI);
+      expect(await nftCollection.tokenURI(1)).to.equal(initialBaseURI + "1");
 
       // Check total minted
       expect(await nftCollection.totalMinted()).to.equal(1);
@@ -90,9 +89,7 @@ describe("BasedNFTCollection", function () {
       const lowPrice = ethers.parseEther("0.05"); // Lower than mint price
 
       await expect(
-        nftCollection
-          .connect(addr1)
-          .mint(addr1.address, tokenURI, { value: lowPrice })
+        nftCollection.connect(addr1).mint(addr1.address, { value: lowPrice })
       ).to.be.revertedWith("Insufficient payment");
     });
 
@@ -101,9 +98,7 @@ describe("BasedNFTCollection", function () {
       await nftCollection.connect(owner).setMintingEnabled(false);
 
       await expect(
-        nftCollection
-          .connect(addr1)
-          .mint(addr1.address, tokenURI, { value: mintPrice })
+        nftCollection.connect(addr1).mint(addr1.address, { value: mintPrice })
       ).to.be.revertedWith("Minting is disabled");
     });
 
@@ -115,7 +110,8 @@ describe("BasedNFTCollection", function () {
       const smallCollection = await BasedNFTCollectionFactory.deploy(
         collectionName,
         collectionSymbol,
-        collectionURI,
+        initialBaseURI,
+        initialContractURI,
         mintPrice,
         1, // Max supply of 1
         royaltyFee,
@@ -126,26 +122,30 @@ describe("BasedNFTCollection", function () {
       // Mint the only NFT
       await smallCollection
         .connect(addr1)
-        .mint(addr1.address, tokenURI, { value: mintPrice });
+        .mint(addr1.address, { value: mintPrice });
 
       // Try to mint another one
       await expect(
-        smallCollection
-          .connect(addr2)
-          .mint(addr2.address, tokenURI, { value: mintPrice })
+        smallCollection.connect(addr2).mint(addr2.address, { value: mintPrice })
       ).to.be.revertedWith("Max supply reached");
     });
   });
 
   describe("Owner Functions", function () {
-    it("Should allow owner to update collection URI", async function () {
-      const newURI = "ipfs://QmNewCollectionMetadata";
+    it("Should allow owner to update URIs", async function () {
+      const newBaseURI = "ipfs://QmNewBaseMetadata/";
+      const newContractURI = "ipfs://QmNewCollectionMetadata";
 
-      await expect(nftCollection.connect(owner).setCollectionURI(newURI))
-        .to.emit(nftCollection, "CollectionURIUpdated")
-        .withArgs(newURI);
+      await expect(nftCollection.connect(owner).setBaseURI(newBaseURI))
+        .to.emit(nftCollection, "BaseURIUpdated")
+        .withArgs(newBaseURI);
 
-      expect(await nftCollection.collectionURI()).to.equal(newURI);
+      await expect(nftCollection.connect(owner).setContractURI(newContractURI))
+        .to.emit(nftCollection, "ContractURIUpdated")
+        .withArgs(newContractURI);
+
+      expect(await nftCollection.baseURI()).to.equal(newBaseURI);
+      expect(await nftCollection.contractURI()).to.equal(newContractURI);
     });
 
     it("Should allow owner to update mint price", async function () {
@@ -176,7 +176,7 @@ describe("BasedNFTCollection", function () {
       // Mint an NFT to add funds to the contract
       await nftCollection
         .connect(addr1)
-        .mint(addr1.address, "ipfs://QmTokenMetadata", { value: mintPrice });
+        .mint(addr1.address, { value: mintPrice });
 
       // Get initial balances
       const initialContractBalance = await ethers.provider.getBalance(
@@ -210,7 +210,14 @@ describe("BasedNFTCollection", function () {
 
     it("Should not allow non-owner to call owner functions", async function () {
       await expect(
-        nftCollection.connect(addr1).setCollectionURI("ipfs://QmNewURI")
+        nftCollection.connect(addr1).setBaseURI("ipfs://QmNewURI")
+      ).to.be.revertedWithCustomError(
+        nftCollection,
+        "OwnableUnauthorizedAccount"
+      );
+
+      await expect(
+        nftCollection.connect(addr1).setContractURI("ipfs://QmNewURI")
       ).to.be.revertedWithCustomError(
         nftCollection,
         "OwnableUnauthorizedAccount"

@@ -71,7 +71,10 @@ describe("BasedMarketplace Ignition Deployment (Test Only)", function () {
       // Verify sample collection properties
       expect(await sampleCollection.name()).to.equal("Based Originals");
       expect(await sampleCollection.symbol()).to.equal("BASED");
-      expect(await sampleCollection.collectionURI()).to.equal(
+      expect(await sampleCollection.baseURI()).to.equal(
+        "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW/"
+      );
+      expect(await sampleCollection.contractURI()).to.equal(
         "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW"
       );
       expect(await sampleCollection.mintPrice()).to.equal(

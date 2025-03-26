@@ -19,7 +19,8 @@ describe("BasedMarketplace", function () {
   const marketFee = 250; // 2.5%
   const collectionName = "Based Collection";
   const collectionSymbol = "BASED";
-  const collectionURI = "ipfs://QmCollectionMetadata";
+  const baseURI = "ipfs://QmBaseMetadata/";
+  const contractURI = "ipfs://QmCollectionMetadata";
   const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
   const maxSupply = 100;
   const royaltyFee = 250; // 2.5%
@@ -48,7 +49,7 @@ describe("BasedMarketplace", function () {
     );
     marketplace = (await upgrades.deployProxy(
       BasedMarketplaceFactory,
-      [await marketplaceStorage.getAddress(), marketFee],
+      [await marketplaceStorage.getAddress()],
       { initializer: "initialize", kind: "uups" }
     )) as unknown as BasedMarketplace;
 
@@ -64,7 +65,8 @@ describe("BasedMarketplace", function () {
     nftCollection = await BasedNFTCollectionFactory.deploy(
       collectionName,
       collectionSymbol,
-      collectionURI,
+      baseURI,
+      contractURI,
       mintPrice,
       maxSupply,
       royaltyFee,
@@ -75,7 +77,7 @@ describe("BasedMarketplace", function () {
     // Mint an NFT for the seller
     await nftCollection
       .connect(seller)
-      .mint(seller.address, tokenURI, { value: mintPrice });
+      .mint(seller.address, { value: mintPrice });
 
     // Approve marketplace to transfer the NFT
     await nftCollection

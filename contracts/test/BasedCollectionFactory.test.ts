@@ -46,7 +46,8 @@ describe("BasedCollectionFactory", function () {
   describe("Collection Creation", function () {
     const collectionName = "Based Collection";
     const collectionSymbol = "BASED";
-    const collectionURI = "ipfs://QmCollectionMetadata";
+    const baseURI = "ipfs://QmBaseMetadata/";
+    const contractURI = "ipfs://QmCollectionMetadata";
     const mintPrice = ethers.parseEther("0.1"); // 0.1 ETH
     const maxSupply = 100;
     const royaltyFee = 250; // 2.5%
@@ -58,7 +59,8 @@ describe("BasedCollectionFactory", function () {
         .createCollection(
           collectionName,
           collectionSymbol,
-          collectionURI,
+          baseURI,
+          contractURI,
           mintPrice,
           maxSupply,
           royaltyFee,
@@ -106,7 +108,8 @@ describe("BasedCollectionFactory", function () {
 
       expect(await collection.name()).to.equal(collectionName);
       expect(await collection.symbol()).to.equal(collectionSymbol);
-      expect(await collection.collectionURI()).to.equal(collectionURI);
+      expect(await collection.baseURI()).to.equal(baseURI);
+      expect(await collection.contractURI()).to.equal(contractURI);
       expect(await collection.mintPrice()).to.equal(mintPrice);
       expect(await collection.maxSupply()).to.equal(maxSupply);
       expect(await collection.royaltyFee()).to.equal(royaltyFee);
@@ -122,7 +125,8 @@ describe("BasedCollectionFactory", function () {
           .createCollection(
             collectionName,
             collectionSymbol,
-            collectionURI,
+            baseURI,
+            contractURI,
             mintPrice,
             maxSupply,
             royaltyFee,
@@ -142,7 +146,8 @@ describe("BasedCollectionFactory", function () {
         .createCollection(
           collectionName,
           collectionSymbol,
-          collectionURI,
+          baseURI,
+          contractURI,
           mintPrice,
           maxSupply,
           royaltyFee,

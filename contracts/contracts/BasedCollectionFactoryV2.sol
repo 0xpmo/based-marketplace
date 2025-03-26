@@ -83,6 +83,7 @@ contract BasedCollectionFactoryV2 is Initializable, OwnableUpgradeable {
     function createCollection(
         string memory name,
         string memory symbol,
+        string memory baseURI,
         string memory collectionURI,
         uint256 mintPrice,
         uint256 maxSupply,
@@ -98,6 +99,7 @@ contract BasedCollectionFactoryV2 is Initializable, OwnableUpgradeable {
         BasedNFTCollection collection = new BasedNFTCollection(
             name,
             symbol,
+            baseURI,
             collectionURI,
             mintPrice,
             maxSupply,

@@ -82,10 +82,7 @@ contract BasedMarketplace is
         _disableInitializers();
     }
 
-    function initialize(
-        address storageAddress,
-        uint256 _marketFee
-    ) public initializer {
+    function initialize(address storageAddress) public initializer {
         require(storageAddress != address(0), "Invalid storage address");
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();

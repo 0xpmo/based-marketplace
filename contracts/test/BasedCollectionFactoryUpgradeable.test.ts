@@ -36,7 +36,8 @@ describe("BasedCollectionFactory (Upgradeable)", function () {
   it("should create a new collection", async function () {
     const name = "Test Collection";
     const symbol = "TEST";
-    const collectionURI = "ipfs://test";
+    const baseURI = "ipfs://QmBaseMetadata/";
+    const contractURI = "ipfs://QmCollectionMetadata";
     const mintPrice = ethers.parseEther("0.05");
     const maxSupply = 100;
     const royaltyFee = 500; // 5%
@@ -48,7 +49,8 @@ describe("BasedCollectionFactory (Upgradeable)", function () {
       .createCollection(
         name,
         symbol,
-        collectionURI,
+        baseURI,
+        contractURI,
         mintPrice,
         maxSupply,
         royaltyFee,
@@ -97,7 +99,8 @@ describe("BasedCollectionFactory (Upgradeable)", function () {
         .createCollection(
           "Test",
           "TEST",
-          "ipfs://test",
+          "ipfs://QmBaseMetadata/",
+          "ipfs://QmCollectionMetadata",
           ethers.parseEther("0.05"),
           100,
           500,
