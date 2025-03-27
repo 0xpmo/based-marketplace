@@ -18,8 +18,8 @@ interface NFTMetadata {
 }
 
 // Pinata API configuration
-const pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-const pinataSecretApiKey = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY;
+const pinataApiKey = process.env.PINATA_API_KEY;
+const pinataSecretApiKey = process.env.PINATA_SECRET_API_KEY;
 
 const pinataEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const pinataJSONEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
