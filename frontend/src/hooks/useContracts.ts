@@ -1,5 +1,5 @@
 // frontend/src/hooks/useContracts.ts
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   useAccount,
   useReadContract,
@@ -14,6 +14,7 @@ import {
   MARKETPLACE_ADDRESS,
   NFT_FACTORY_ADDRESS,
 } from "@/constants/addresses";
+import { EXTERNAL_COLLECTIONS } from "@/constants/collections";
 import { fetchFromIPFS } from "@/services/ipfs";
 import { createPublicClient, http } from "viem";
 import { getActiveChain } from "@/config/chains";
@@ -27,8 +28,8 @@ import FactoryABI from "@/contracts/BasedCollectionFactory.json";
 import CollectionABI from "@/contracts/BasedNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedMarketplace.json";
 
-// Hook for fetching collections
-export function useCollections() {
+// Hook for fetching based collections from factory
+export function useBasedCollections() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,47 +65,44 @@ export function useCollections() {
       for (const address of collectionAddresses as string[]) {
         try {
           // Fetch basic collection details
-          const name = await readCollectionProperty(address, "name");
-          const symbol = await readCollectionProperty(address, "symbol");
+          const name = await readCollectionProperty(address, "name", false);
+          const symbol = await readCollectionProperty(address, "symbol", false);
           const contractURI = await readCollectionProperty(
             address,
-            "contractURI"
+            "contractURI",
+            false
           );
-          const mintPrice = await readCollectionProperty(address, "mintPrice");
-          const maxSupply = await readCollectionProperty(address, "maxSupply");
+          const mintPrice = await readCollectionProperty(
+            address,
+            "mintPrice",
+            false
+          );
+          const maxSupply = await readCollectionProperty(
+            address,
+            "maxSupply",
+            false
+          );
           const totalMinted = await readCollectionProperty(
             address,
-            "totalMinted"
+            "totalMinted",
+            false
           );
           const royaltyFee = await readCollectionProperty(
             address,
-            "royaltyFee"
+            "royaltyFee",
+            false
           );
-          const owner = await readCollectionProperty(address, "owner");
+          const owner = await readCollectionProperty(address, "owner", false);
           const mintingEnabled = await readCollectionProperty(
             address,
-            "mintingEnabled"
+            "mintingEnabled",
+            false
           );
 
           // Fetch metadata from IPFS
           let metadata = undefined;
           try {
             metadata = await fetchFromIPFS(contractURI as string);
-
-            // const fetchedMetadata = await fetchFromIPFS(
-            //   contractURI as string
-            // );
-            // // Ensure fetchedMetadata has the required properties before using it
-            // if (
-            //   fetchedMetadata &&
-            //   typeof fetchedMetadata === "object" &&
-            //   "name" in fetchedMetadata &&
-            //   "description" in fetchedMetadata &&
-            //   "image" in fetchedMetadata
-            // ) {
-            //   // Safe to cast now
-            //   metadata = fetchedMetadata as unknown as CollectionMetadata;
-            // }
           } catch (err) {
             console.error(
               `Failed to fetch metadata for collection ${address}`,
@@ -132,6 +130,7 @@ export function useCollections() {
             owner: owner as string,
             metadata: metadata as unknown as CollectionMetadata,
             mintingEnabled: mintingEnabled as boolean,
+            source: "based",
           });
         } catch (err) {
           console.error(
@@ -162,6 +161,313 @@ export function useCollections() {
   }, [fetchCollectionDetails]);
 
   return { collections, loading, error, refreshCollections };
+}
+
+// Hook for fetching external collections from in-memory list
+export function useExternalCollections() {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Debug logs
+  useEffect(() => {
+    console.log("External Collections Count:", EXTERNAL_COLLECTIONS.length);
+  }, []);
+
+  const fetchExternalCollections = useCallback(async () => {
+    if (EXTERNAL_COLLECTIONS.length === 0) {
+      console.log("No external collections configured");
+      setCollections([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const collectionsData: Collection[] = [];
+
+      for (const externalCollection of EXTERNAL_COLLECTIONS) {
+        try {
+          const address = externalCollection.address;
+
+          // Fetch basic collection details - similar to factory collections
+          const name =
+            externalCollection.name ||
+            (await readCollectionProperty(address, "name", true));
+          const symbol = await readCollectionProperty(address, "symbol", true);
+          const contractURI = await readCollectionProperty(
+            address,
+            "contractURI",
+            true
+          );
+
+          // Some external collections might not have all the same properties
+          // So we handle them differently to be more resilient
+          let mintPrice,
+            maxSupply,
+            totalMinted,
+            royaltyFee,
+            owner,
+            mintingEnabled;
+
+          try {
+            mintPrice = await readCollectionProperty(
+              address,
+              "mintPrice",
+              true
+            );
+          } catch (e) {
+            console.log(`Collection ${address} doesn't have mintPrice`);
+            mintPrice = 0;
+          }
+
+          try {
+            maxSupply = await readCollectionProperty(
+              address,
+              "maxSupply",
+              true
+            );
+          } catch (e) {
+            console.log(`Collection ${address} doesn't have maxSupply`);
+            maxSupply = 0;
+          }
+
+          try {
+            totalMinted =
+              (await readCollectionProperty(address, "totalSupply", true)) ||
+              (await readCollectionProperty(address, "totalMinted", true));
+          } catch (e) {
+            console.log(
+              `Collection ${address} doesn't have totalSupply/totalMinted`
+            );
+            totalMinted = 0;
+          }
+
+          try {
+            royaltyFee =
+              (await readCollectionProperty(address, "royaltyFee", true)) ||
+              (await readCollectionProperty(address, "royaltyInfo", true));
+          } catch (e) {
+            console.log(`Collection ${address} doesn't have royalty info`);
+            royaltyFee = 0;
+          }
+
+          try {
+            owner = await readCollectionProperty(address, "owner", true);
+          } catch (e) {
+            console.log(`Collection ${address} doesn't have owner method`);
+            owner = "0x0000000000000000000000000000000000000000";
+          }
+
+          try {
+            mintingEnabled = await readCollectionProperty(
+              address,
+              "mintingEnabled",
+              true
+            );
+          } catch (e) {
+            console.log(`Collection ${address} doesn't have mintingEnabled`);
+            mintingEnabled = false;
+          }
+
+          // Fetch metadata from IPFS or other URI
+          let metadata = undefined;
+          try {
+            if (contractURI) {
+              metadata = await fetchFromIPFS(contractURI as string);
+            }
+          } catch (err) {
+            console.error(
+              `Failed to fetch metadata for collection ${address}`,
+              err
+            );
+          }
+
+          // Format values and handle possible missing properties
+          const formattedMintPrice = mintPrice
+            ? formatEther(BigInt(mintPrice.toString()))
+            : "0";
+          const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
+          const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
+          const formattedRoyaltyFee = royaltyFee ? Number(royaltyFee) : 0;
+
+          // Check if this is a manually deployed BasedNFT contract
+          const isManualBasedContract =
+            externalCollection.isBasedContract === true;
+
+          collectionsData.push({
+            address,
+            name: (name as string) || "Unknown Collection",
+            symbol: (symbol as string) || "UNKNOWN",
+            contractURI: (contractURI as string) || "",
+            mintPrice: formattedMintPrice,
+            maxSupply: formattedMaxSupply,
+            totalMinted: formattedTotalMinted,
+            royaltyFee: formattedRoyaltyFee,
+            owner: owner as string,
+            metadata: metadata as unknown as CollectionMetadata,
+            mintingEnabled: mintingEnabled as boolean,
+            source: isManualBasedContract ? "based" : "external", // Use "based" source for manually deployed BasedNFT contracts
+          });
+        } catch (err) {
+          console.error(
+            `Error fetching details for external collection ${externalCollection.address}:`,
+            err
+          );
+          // Continue with next collection instead of failing completely
+          continue;
+        }
+      }
+
+      setCollections(collectionsData);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching external collections:", err);
+      setError("Failed to fetch external collections");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExternalCollections();
+  }, [fetchExternalCollections]);
+
+  const refreshCollections = useCallback(() => {
+    fetchExternalCollections();
+  }, [fetchExternalCollections]);
+
+  return { collections, loading, error, refreshCollections };
+}
+
+// Combined hook that fetches both based and external collections
+export function useCollections() {
+  const {
+    collections: basedCollections,
+    loading: basedLoading,
+    error: basedError,
+    refreshCollections: refreshBasedCollections,
+  } = useBasedCollections();
+
+  const {
+    collections: externalCollections,
+    loading: externalLoading,
+    error: externalError,
+    refreshCollections: refreshExternalCollections,
+  } = useExternalCollections();
+
+  // Combine the collections with based collections coming first
+  const collections = useMemo(() => {
+    return [...basedCollections, ...externalCollections];
+  }, [basedCollections, externalCollections]);
+
+  const loading = basedLoading || externalLoading;
+  const error = basedError || externalError;
+
+  const refreshCollections = useCallback(() => {
+    refreshBasedCollections();
+    refreshExternalCollections();
+  }, [refreshBasedCollections, refreshExternalCollections]);
+
+  return { collections, loading, error, refreshCollections };
+}
+
+// Helper function to check if a contract implements ERC721 interface
+export async function isValidNFTCollection(collectionAddress: string) {
+  try {
+    const publicClient = createPublicClient({
+      chain: getActiveChain(),
+      transport: http(),
+    });
+
+    // Check if contract implements ERC721 interface
+    const supportsERC721 = await publicClient.readContract({
+      address: collectionAddress as `0x${string}`,
+      abi: [
+        {
+          name: "supportsInterface",
+          inputs: [{ type: "bytes4" }],
+          outputs: [{ type: "bool" }],
+          stateMutability: "view",
+          type: "function",
+        },
+      ],
+      functionName: "supportsInterface",
+      args: ["0x80ac58cd"], // ERC721 interface ID
+    });
+
+    return !!supportsERC721;
+  } catch (err) {
+    console.error("Error checking collection validity:", err);
+    return false;
+  }
+}
+
+// Helper function to read a property from a collection contract
+async function readCollectionProperty(
+  collectionAddress: string,
+  propertyName: string,
+  isExternalCollection: boolean = false
+) {
+  try {
+    const publicClient = createPublicClient({
+      chain: getActiveChain(),
+      transport: http(),
+    });
+
+    // Check if it's a manually deployed BasedNFT collection
+    const manualBasedCollection = EXTERNAL_COLLECTIONS.find(
+      (ec) =>
+        ec.address.toLowerCase() === collectionAddress.toLowerCase() &&
+        ec.isBasedContract
+    );
+
+    // Use the appropriate ABI based on the collection source
+    let abi;
+
+    if (isExternalCollection) {
+      try {
+        // Try to import a specific ABI file for this external collection
+        // The file should be named with the contract address (without 0x prefix)
+        const contractAddress = collectionAddress.startsWith("0x")
+          ? collectionAddress.substring(2).toLowerCase()
+          : collectionAddress.toLowerCase();
+
+        // First, try to import a collection-specific ABI file
+        abi = (await import(`@/contracts/${contractAddress}.json`)).abi;
+        console.log(`Using specific ABI for collection ${collectionAddress}`);
+      } catch (error) {
+        // If specific ABI not found, check if it's a manually deployed BasedNFT
+        if (manualBasedCollection) {
+          abi = CollectionABI.abi;
+          console.log(
+            `Using BasedNFT ABI for manually deployed collection ${collectionAddress}`
+          );
+        } else {
+          // Otherwise, use the generic ERC721 ABI as fallback
+          abi = (await import("@/contracts/ExternalERC721.json")).abi;
+          console.log(
+            `Using generic ERC721 ABI for collection ${collectionAddress}`
+          );
+        }
+      }
+    } else {
+      // For factory collections, always use the BasedNFT ABI
+      abi = CollectionABI.abi;
+    }
+
+    const data = await publicClient.readContract({
+      address: collectionAddress as `0x${string}`,
+      abi,
+      functionName: propertyName,
+      args: [],
+    });
+
+    return data;
+  } catch (err) {
+    console.error(`Error reading ${propertyName} from collection`, err);
+    return null;
+  }
 }
 
 // Hook for creating a new collection
@@ -452,30 +758,6 @@ export function useBuyNFT() {
   };
 }
 
-// Helper function to read a property from a collection contract
-async function readCollectionProperty(
-  collectionAddress: string,
-  propertyName: string
-) {
-  try {
-    const publicClient = createPublicClient({
-      chain: getActiveChain(),
-      transport: http(),
-    });
-
-    const data = await publicClient.readContract({
-      address: collectionAddress as `0x${string}`,
-      abi: CollectionABI.abi,
-      functionName: propertyName,
-    });
-
-    return data;
-  } catch (err) {
-    console.error(`Error reading ${propertyName} from collection`, err);
-    return null;
-  }
-}
-
 // Hook for fetching a single collection
 export function useCollection(collectionAddress: string) {
   const [collection, setCollection] = useState<Collection | null>(null);
@@ -491,36 +773,66 @@ export function useCollection(collectionAddress: string) {
 
       setLoading(true);
       try {
+        // First, determine if it's an external collection
+        const externalCollection = EXTERNAL_COLLECTIONS.find(
+          (ec) => ec.address.toLowerCase() === collectionAddress.toLowerCase()
+        );
+
+        const isExternal = !!externalCollection;
+        const isManualBasedContract =
+          externalCollection?.isBasedContract === true;
+
         // Fetch basic collection details
-        const name = await readCollectionProperty(collectionAddress, "name");
+        const name = await readCollectionProperty(
+          collectionAddress,
+          "name",
+          isExternal
+        );
         const symbol = await readCollectionProperty(
           collectionAddress,
-          "symbol"
+          "symbol",
+          isExternal
         );
         const contractURI = await readCollectionProperty(
           collectionAddress,
-          "contractURI"
+          "contractURI",
+          isExternal
         );
         const mintPrice = await readCollectionProperty(
           collectionAddress,
-          "mintPrice"
+          "mintPrice",
+          isExternal
         );
         const maxSupply = await readCollectionProperty(
           collectionAddress,
-          "maxSupply"
+          "maxSupply",
+          isExternal
         );
-        const totalMinted = await readCollectionProperty(
-          collectionAddress,
-          "totalMinted"
-        );
+        const totalMinted =
+          (await readCollectionProperty(
+            collectionAddress,
+            "totalMinted",
+            isExternal
+          )) ||
+          (await readCollectionProperty(
+            collectionAddress,
+            "totalSupply",
+            isExternal
+          ));
         const royaltyFee = await readCollectionProperty(
           collectionAddress,
-          "royaltyFee"
+          "royaltyFee",
+          isExternal
         );
-        const owner = await readCollectionProperty(collectionAddress, "owner");
+        const owner = await readCollectionProperty(
+          collectionAddress,
+          "owner",
+          isExternal
+        );
         const mintingEnabled = await readCollectionProperty(
           collectionAddress,
-          "mintingEnabled"
+          "mintingEnabled",
+          isExternal
         );
 
         // Fetch metadata from IPFS
@@ -554,6 +866,11 @@ export function useCollection(collectionAddress: string) {
           owner: owner as string,
           metadata: metadata as unknown as CollectionMetadata,
           mintingEnabled: mintingEnabled as boolean,
+          source: isExternal
+            ? isManualBasedContract
+              ? "based"
+              : "external"
+            : "based",
         });
         setError(null);
       } catch (err) {

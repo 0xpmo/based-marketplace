@@ -11,6 +11,7 @@ export interface Collection {
   owner: string;
   metadata?: CollectionMetadata;
   mintingEnabled?: boolean;
+  source?: "based" | "external"; // Indicates if the collection is from BasedFactory or external list
 }
 
 export interface CollectionMetadata {

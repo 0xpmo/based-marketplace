@@ -11,7 +11,8 @@ interface CollectionCardProps {
 }
 
 export default function CollectionCard({ collection }: CollectionCardProps) {
-  const { address, name, metadata, totalMinted, maxSupply } = collection;
+  const { address, name, metadata, totalMinted, maxSupply, source } =
+    collection;
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
@@ -47,6 +48,17 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
     >
       <Link href={`/collections/${address}`} className="block">
         <div className="relative h-48 w-full overflow-hidden group">
+          {source && (
+            <div
+              className={`absolute top-2 right-2 z-20 px-2 py-1 rounded-md text-xs font-medium ${
+                source === "based"
+                  ? "bg-cyan-700/80 text-cyan-100"
+                  : "bg-purple-700/80 text-purple-100"
+              }`}
+            >
+              {source === "based" ? "Based" : "External"}
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-950/60 z-10"></div>
           {isImageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-20">

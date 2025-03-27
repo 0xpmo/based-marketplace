@@ -433,43 +433,61 @@ export default function CollectionDetailsPage() {
               transition={{ delay: 0.5 }}
               className="flex flex-wrap gap-4"
             >
-              {/* Mint Button */}
-              {collection.mintingEnabled && isConnected && (
-                <PepeButton
-                  variant="primary"
-                  onClick={() => setShowMintModal(true)}
-                  className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                  disabled={
-                    Number(collection.totalMinted) >=
+              {/* Mint Button - Always shown but conditionally disabled */}
+              {isConnected ? (
+                <div className="relative">
+                  <PepeButton
+                    variant="primary"
+                    onClick={() => setShowMintModal(true)}
+                    className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={
+                      !collection.mintingEnabled ||
+                      Number(collection.totalMinted) >=
+                        Number(collection.maxSupply)
+                    }
+                    aria-label={
+                      !collection.mintingEnabled
+                        ? "Minting is not live yet"
+                        : "Mint NFT"
+                    }
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
+                    {Number(collection.totalMinted) >=
                     Number(collection.maxSupply)
-                  }
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
-                  {Number(collection.totalMinted) >=
-                  Number(collection.maxSupply)
-                    ? "Sold Out"
-                    : "Mint NFT"}
-                </PepeButton>
+                      ? "Sold Out"
+                      : !collection.mintingEnabled
+                      ? "Minting Not Live"
+                      : "Mint NFT"}
+                  </PepeButton>
+                </div>
+              ) : (
+                <div className="relative">
+                  <PepeButton
+                    variant="primary"
+                    className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={!collection.mintingEnabled}
+                    aria-label={
+                      !collection.mintingEnabled
+                        ? "Minting is not live yet"
+                        : "Connect Wallet to Mint"
+                    }
+                    onClick={() => {
+                      // This will trigger the wallet connection dialog through the header button
+                      const connectBtn = document.querySelector(
+                        "[data-wallet-connect]"
+                      );
+                      if (connectBtn instanceof HTMLElement) {
+                        connectBtn.click();
+                      }
+                    }}
+                  >
+                    {!collection.mintingEnabled
+                      ? "Minting Not Live"
+                      : "Connect Wallet to Mint"}
+                  </PepeButton>
+                </div>
               )}
 
-              {/* Connect Wallet Button (when not connected) */}
-              {collection.mintingEnabled && !isConnected && (
-                <PepeButton
-                  variant="primary"
-                  className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                  onClick={() => {
-                    // This will trigger the wallet connection dialog through the header button
-                    const connectBtn = document.querySelector(
-                      "[data-wallet-connect]"
-                    );
-                    if (connectBtn instanceof HTMLElement) {
-                      connectBtn.click();
-                    }
-                  }}
-                >
-                  Connect Wallet to Mint
-                </PepeButton>
-              )}
               <Link
                 href={`https://explorer.getbased.ai/address/${collection.address}`}
                 target="_blank"

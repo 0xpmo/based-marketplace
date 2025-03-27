@@ -161,6 +161,15 @@ contract BasedNFTCollection is ERC721, Ownable, ReentrancyGuard, Pausable {
         return (owner(), amount);
     }
 
+    // ERC721 standards for totalSupply
+    function totalSupply() public view returns (uint256) {
+        return totalMinted;
+    }
+
+    function getContractBalance() public view onlyOwner returns (uint256) {
+        return address(this).balance;
+    }
+
     // Base URI for computing {tokenURI}
     function _baseURI() internal view override returns (string memory) {
         return baseURI;

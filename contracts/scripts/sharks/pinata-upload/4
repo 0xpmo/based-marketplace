@@ -1,0 +1,16 @@
+{
+  "name": "#4",
+  "image": "ipfs://QmSR4xpv7zb8Rbq2ecDurVfKbCaLmnT4fP1zZi8CpF8BQh",
+  "attributes": [
+    {
+      "trait_type": "Eyes",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Tier",
+      "value": "Legendary"
+    }
+  ],
+  "description": "Based shark #4",
+  "external_url": "https://basedsea.xyz"
+}

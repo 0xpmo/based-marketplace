@@ -30,7 +30,7 @@ async function main() {
     FACTORY_PROXY_ADDRESS!
   );
 
-  const DEFAULT_FEE = ethers.parseEther("0.001");
+  const DEFAULT_FEE = ethers.parseEther("5");
 
   console.log("\n🚀 Creating collection...");
   const tx = await factory.createCollection(
@@ -38,10 +38,10 @@ async function main() {
     "WHALE",
     baseURI,
     contractURI,
-    ethers.parseEther("0.05"),
+    ethers.parseEther("100"),
     4,
     500,
-    true,
+    false,
     { value: DEFAULT_FEE }
   );
 
