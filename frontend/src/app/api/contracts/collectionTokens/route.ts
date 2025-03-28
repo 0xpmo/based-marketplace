@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import CollectionABI from "@/contracts/BasedNFTCollection.json";
+import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import { getActiveChain } from "@/config/chains";
 
 export async function GET(request: NextRequest) {
@@ -21,41 +21,41 @@ export async function GET(request: NextRequest) {
       transport: http(),
     });
 
-    // Get total minted instead of supply
-    let totalMinted;
+    // Get total supply using ERC721Enumerable
+    let totalSupply;
     try {
-      totalMinted = await client.readContract({
+      totalSupply = await client.readContract({
         address: collection as `0x${string}`,
         abi: CollectionABI.abi,
-        functionName: "totalMinted",
+        functionName: "totalSupply",
         args: [],
       });
     } catch (err) {
-      console.error("Error getting totalMinted:", err);
+      console.error("Error getting totalSupply:", err);
       return NextResponse.json(
-        { error: "Failed to get total minted" },
+        { error: "Failed to get total supply" },
         { status: 500 }
       );
     }
 
-    // Get all token IDs - tokens start at ID 1
+    // Get all token IDs using ERC721Enumerable
     const tokenIds = [];
-    const totalTokens = Number(totalMinted);
+    const totalTokensCount = Number(totalSupply);
 
-    for (let tokenId = 1; tokenId <= totalTokens; tokenId++) {
+    for (let i = 0; i < totalTokensCount; i++) {
       try {
-        // Check if token exists by trying to get its owner
-        await client.readContract({
+        // Use tokenByIndex from ERC721Enumerable
+        const tokenId = await client.readContract({
           address: collection as `0x${string}`,
           abi: CollectionABI.abi,
-          functionName: "ownerOf",
-          args: [BigInt(tokenId)],
+          functionName: "tokenByIndex",
+          args: [BigInt(i)],
         });
 
-        // If we get here, the token exists
-        tokenIds.push(tokenId);
+        // Add the token ID to our list
+        tokenIds.push(Number(tokenId));
       } catch (err) {
-        console.error(`Error checking token ${tokenId}:`, err);
+        console.error(`Error getting token at index ${i}:`, err);
         // Continue to next token
       }
     }

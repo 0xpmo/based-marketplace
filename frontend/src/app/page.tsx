@@ -328,7 +328,7 @@ export default function Home() {
         </div>
       </section>
 
-      <motion.div
+      {/* <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.5 }}
@@ -374,7 +374,7 @@ export default function Home() {
             </svg>
           </PepeButton>
         </a>
-      </motion.div>
+      </motion.div> */}
     </main>
   );
 }

@@ -13,6 +13,7 @@ interface CollectionCardProps {
 export default function CollectionCard({ collection }: CollectionCardProps) {
   const { address, name, metadata, totalMinted, maxSupply, source } =
     collection;
+  console.log("collection", collection);
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );

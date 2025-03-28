@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import CollectionABI from "@/contracts/BasedNFTCollection.json";
+import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import { getActiveChain } from "@/config/chains";
 
 export async function GET(request: NextRequest) {
@@ -45,49 +45,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tokenIds: [] });
     }
 
-    // Since tokenOfOwnerByIndex is not available, we need to check each token
-    // First get the total minted
-    let totalMinted;
-    try {
-      totalMinted = await client.readContract({
-        address: collection as `0x${string}`,
-        abi: CollectionABI.abi,
-        functionName: "totalMinted",
-        args: [],
-      });
-    } catch (err) {
-      console.error("Error getting totalMinted:", err);
-      return NextResponse.json(
-        { error: "Failed to get total minted" },
-        { status: 500 }
-      );
-    }
-
-    // Check each token to see if the user owns it
+    // Use ERC721Enumerable's tokenOfOwnerByIndex function to get all tokens
     const userTokenIds = [];
-    const totalTokens = Number(totalMinted);
 
-    for (let tokenId = 1; tokenId <= totalTokens; tokenId++) {
+    for (let i = 0; i < tokenCount; i++) {
       try {
-        const tokenOwner = await client.readContract({
+        const tokenId = await client.readContract({
           address: collection as `0x${string}`,
           abi: CollectionABI.abi,
-          functionName: "ownerOf",
-          args: [BigInt(tokenId)],
+          functionName: "tokenOfOwnerByIndex",
+          args: [owner as `0x${string}`, BigInt(i)],
         });
 
-        if (
-          (tokenOwner as `0x${string}`).toLowerCase() === owner.toLowerCase()
-        ) {
-          userTokenIds.push(tokenId);
-        }
-
-        // If we've found all the tokens the user owns, we can stop checking
-        if (userTokenIds.length >= tokenCount) {
-          break;
-        }
+        userTokenIds.push(Number(tokenId));
       } catch (err) {
-        console.error(`Error checking ownership of token ${tokenId}:`, err);
+        console.error(`Error getting token at owner index ${i}:`, err);
         // Continue to next token
       }
     }

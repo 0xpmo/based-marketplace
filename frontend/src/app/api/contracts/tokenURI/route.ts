@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http } from "viem";
-import CollectionABI from "@/contracts/BasedNFTCollection.json";
+import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import { getActiveChain } from "@/config/chains";
 
 export async function GET(request: NextRequest) {

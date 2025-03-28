@@ -1,0 +1,10 @@
+{
+  "name": "Mariner the Stormy",
+  "image": "ipfs://QmSJi9BMh5gbGnqfzWPgeHvUy3cqot3UKrf9gXE66NYJda",
+  "attributes": [
+    {
+      "trait_type": "Whale",
+      "value": "Blubber"
+    }
+  ]
+}

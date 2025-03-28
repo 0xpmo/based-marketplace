@@ -1,0 +1,10 @@
+{
+  "name": "Mister Tidal",
+  "image": "ipfs://QmXJWCnWtq5hEUViULUkNPHPMjQwDXEtP9FZJ3FfwLSvHv",
+  "attributes": [
+    {
+      "trait_type": "Whale",
+      "value": "Tidal"
+    }
+  ]
+}

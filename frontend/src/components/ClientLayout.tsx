@@ -118,7 +118,7 @@ export default function ClientLayout({
     <ClientOnly>
       <div className="flex flex-col min-h-screen">
         <Navbar />
-        <main className="flex-grow mb-40">{children}</main>
+        <main className="flex-grow">{children}</main>
         <Footer />
         <ToastContainer position="bottom-right" theme="dark" />
       </div>

@@ -24,9 +24,9 @@ import {
 } from "@/lib/contracts";
 
 // Import ABIs (you'll need to generate these from your compiled contracts)
-import FactoryABI from "@/contracts/BasedCollectionFactory.json";
-import CollectionABI from "@/contracts/BasedNFTCollection.json";
-import MarketplaceABI from "@/contracts/BasedMarketplace.json";
+import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
+import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
+import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 
 // Hook for fetching based collections from factory
 export function useBasedCollections() {
@@ -79,7 +79,7 @@ export function useBasedCollections() {
           );
           const maxSupply = await readCollectionProperty(
             address,
-            "maxSupply",
+            "MAX_SUPPLY",
             false
           );
           const totalMinted = await readCollectionProperty(
@@ -87,10 +87,16 @@ export function useBasedCollections() {
             "totalMinted",
             false
           );
-          const royaltyFee = await readCollectionProperty(
+          const totalSupply = await readCollectionProperty(
             address,
-            "royaltyFee",
+            "totalSupply",
             false
+          );
+          const royaltyInfo = await readCollectionProperty(
+            address,
+            "royaltyInfo",
+            false,
+            [0, 10000] // Use tokenId 0 and sample price of 10000
           );
           const owner = await readCollectionProperty(address, "owner", false);
           const mintingEnabled = await readCollectionProperty(
@@ -98,6 +104,12 @@ export function useBasedCollections() {
             "mintingEnabled",
             false
           );
+
+          // Extract royalty fee from royaltyInfo (if using ERC2981)
+          const royaltyFee =
+            royaltyInfo && Array.isArray(royaltyInfo) && royaltyInfo.length > 1
+              ? Number(royaltyInfo[1])
+              : 0;
 
           // Fetch metadata from IPFS
           let metadata = undefined;
@@ -116,7 +128,7 @@ export function useBasedCollections() {
             : "0";
           const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
           const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
-          const formattedRoyaltyFee = royaltyFee ? Number(royaltyFee) : 0;
+          const formattedRoyaltyFee = royaltyFee;
 
           collectionsData.push({
             address,
@@ -246,7 +258,21 @@ export function useExternalCollections() {
           try {
             royaltyFee =
               (await readCollectionProperty(address, "royaltyFee", true)) ||
-              (await readCollectionProperty(address, "royaltyInfo", true));
+              (await readCollectionProperty(
+                address,
+                "royaltyInfo",
+                true,
+                [0, 10000]
+              ));
+
+            // If royaltyInfo was returned, extract the royalty fee from it
+            if (
+              royaltyFee &&
+              Array.isArray(royaltyFee) &&
+              royaltyFee.length > 1
+            ) {
+              royaltyFee = royaltyFee[1];
+            }
           } catch (e) {
             console.log(`Collection ${address} doesn't have royalty info`);
             royaltyFee = 0;
@@ -407,7 +433,8 @@ export async function isValidNFTCollection(collectionAddress: string) {
 async function readCollectionProperty(
   collectionAddress: string,
   propertyName: string,
-  isExternalCollection: boolean = false
+  isExternalCollection: boolean = false,
+  args: unknown[] = []
 ) {
   try {
     const publicClient = createPublicClient({
@@ -460,7 +487,7 @@ async function readCollectionProperty(
       address: collectionAddress as `0x${string}`,
       abi,
       functionName: propertyName,
-      args: [],
+      args,
     });
 
     return data;
@@ -483,10 +510,15 @@ export function useCreateCollection() {
   const createCollection = async (
     name: string,
     symbol: string,
+    baseURI: string,
+    unrevealedURI: string,
     contractURI: string,
     mintPrice: number,
     maxSupply: number,
-    royaltyFee: number
+    maxTokensPerWallet: number,
+    royaltyFee: number,
+    mintingEnabled: boolean = false,
+    startRevealed: boolean = true
   ) => {
     setIsLoading(true);
     setError(null);
@@ -503,9 +535,10 @@ export function useCreateCollection() {
 
       // Set creation fee to 10,000 BASED
       // const creationFee = parseEther("10000"); // 10,000 BASED (𝔹)
-      const creationFee = parseEther("0.001"); // Default to 0.001 ETH
+      // Set creation fee to 0.001 ETH
+      const creationFee = parseEther("0.001");
 
-      // Use wagmi's writeContract
+      // Use wagmi's writeContract with the updated parameters
       const hash = await walletClient.writeContract({
         address: NFT_FACTORY_ADDRESS as `0x${string}`,
         abi: FactoryABI.abi,
@@ -513,10 +546,15 @@ export function useCreateCollection() {
         args: [
           name,
           symbol,
+          baseURI,
+          unrevealedURI,
           contractURI,
           mintPriceInWei,
           BigInt(maxSupply),
+          BigInt(maxTokensPerWallet),
           BigInt(royaltyFee),
+          mintingEnabled,
+          startRevealed,
         ],
         value: creationFee,
       });
@@ -534,8 +572,6 @@ export function useCreateCollection() {
       let collectionAddress = null;
 
       // Get collection address from the event logs
-      // The CollectionCreated event has: address indexed creator, address collection, string name, string symbol
-      // Parse the logs directly using decodeEventLog
       for (const log of receipt.logs) {
         try {
           const event = decodeEventLog({
@@ -548,8 +584,6 @@ export function useCreateCollection() {
           if (event.eventName === "CollectionCreated") {
             // Access the collection address directly from the event
             collectionAddress = event.args?.[1]; // Second parameter in the event
-            // Or access by parameter name if your viem version supports it
-            // const collectionAddress = event.args.collection;
 
             console.log("Collection created at:", collectionAddress);
             return collectionAddress;
@@ -758,6 +792,184 @@ export function useBuyNFT() {
   };
 }
 
+// New hook for creating and executing offers with signatures
+export function useOffers() {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { writeContract, data, isError, error } = useWriteContract();
+  const { isLoading, isSuccess } = useTransaction({ hash: data });
+
+  // Get offer hash for signing
+  const getOfferHash = async (
+    nftContract: string,
+    tokenId: number,
+    price: string,
+    buyer: string,
+    expiration: number
+  ) => {
+    if (!publicClient) throw new Error("Client not available");
+
+    const priceInWei = parseEther(price);
+
+    return await publicClient.readContract({
+      address: MARKETPLACE_ADDRESS as `0x${string}`,
+      abi: MarketplaceABI.abi,
+      functionName: "getOfferHash",
+      args: [
+        nftContract as `0x${string}`,
+        BigInt(tokenId),
+        priceInWei,
+        buyer as `0x${string}`,
+        BigInt(expiration),
+      ],
+    });
+  };
+
+  // Execute an offer with signature
+  const executeOffer = async (
+    nftContract: string,
+    tokenId: number,
+    price: string,
+    seller: string,
+    expiration: number,
+    signature: string
+  ) => {
+    if (!address) throw new Error("Wallet not connected");
+
+    const priceInWei = parseEther(price);
+
+    writeContract({
+      address: MARKETPLACE_ADDRESS as `0x${string}`,
+      abi: MarketplaceABI.abi,
+      functionName: "executeOffer",
+      args: [
+        nftContract as `0x${string}`,
+        BigInt(tokenId),
+        priceInWei,
+        seller as `0x${string}`,
+        BigInt(expiration),
+        signature as `0x${string}`,
+      ],
+      value: priceInWei,
+    });
+  };
+
+  return {
+    getOfferHash,
+    executeOffer,
+    isLoading,
+    isSuccess,
+    isError,
+    error,
+    txHash: data,
+  };
+}
+
+// Hook for creating private listings
+export function usePrivateListing() {
+  const { address } = useAccount();
+  const { writeContract, data, isError, error } = useWriteContract();
+  const { isLoading, isSuccess } = useTransaction({ hash: data });
+
+  const createPrivateListing = async (
+    nftContract: string,
+    tokenId: number,
+    price: string,
+    allowedBuyer: string
+  ) => {
+    if (!address) throw new Error("Wallet not connected");
+
+    const priceInWei = parseEther(price);
+
+    writeContract({
+      address: MARKETPLACE_ADDRESS as `0x${string}`,
+      abi: MarketplaceABI.abi,
+      functionName: "createPrivateListing",
+      args: [
+        nftContract as `0x${string}`,
+        BigInt(tokenId),
+        priceInWei,
+        allowedBuyer as `0x${string}`,
+      ],
+    });
+  };
+
+  return {
+    createPrivateListing,
+    isLoading,
+    isSuccess,
+    isError,
+    error,
+    txHash: data,
+  };
+}
+
+// Hook for fetching tokens owned by the current user (using ERC721Enumerable)
+export function useOwnedTokens(collectionAddress: string) {
+  const { address } = useAccount();
+  const [tokens, setTokens] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchOwnedTokens = async () => {
+      if (!address || !collectionAddress) {
+        setTokens([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const publicClient = createPublicClient({
+          chain: getActiveChain(),
+          transport: http(),
+        });
+
+        // First try to get the balance of the user
+        const balance = await publicClient.readContract({
+          address: collectionAddress as `0x${string}`,
+          abi: CollectionABI.abi,
+          functionName: "balanceOf",
+          args: [address],
+        });
+
+        const tokenCount = Number(balance);
+        const tokenIds: number[] = [];
+
+        // Then fetch each token ID using tokenOfOwnerByIndex
+        for (let i = 0; i < tokenCount; i++) {
+          try {
+            const tokenId = await publicClient.readContract({
+              address: collectionAddress as `0x${string}`,
+              abi: CollectionABI.abi,
+              functionName: "tokenOfOwnerByIndex",
+              args: [address, BigInt(i)],
+            });
+
+            tokenIds.push(Number(tokenId));
+          } catch (err) {
+            console.error(`Error fetching token at index ${i}:`, err);
+          }
+        }
+
+        setTokens(tokenIds);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching owned tokens:", err);
+        setError("Failed to fetch owned tokens");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOwnedTokens();
+  }, [address, collectionAddress]);
+
+  return { tokens, loading, error };
+}
+
 // Hook for fetching a single collection
 export function useCollection(collectionAddress: string) {
   const [collection, setCollection] = useState<Collection | null>(null);
@@ -805,7 +1017,7 @@ export function useCollection(collectionAddress: string) {
         );
         const maxSupply = await readCollectionProperty(
           collectionAddress,
-          "maxSupply",
+          "MAX_SUPPLY",
           isExternal
         );
         const totalMinted =
@@ -819,11 +1031,30 @@ export function useCollection(collectionAddress: string) {
             "totalSupply",
             isExternal
           ));
+        // const royaltyFee =
+        //   (await readCollectionProperty(
+        //     collectionAddress,
+        //     "royaltyFee",
+        //     isExternal
+        //   )) ||
         const royaltyFee = await readCollectionProperty(
           collectionAddress,
-          "royaltyFee",
-          isExternal
+          "royaltyInfo",
+          isExternal,
+          [0, 10000]
         );
+
+        // Extract royalty fee from royaltyInfo if it's in that format
+        let formattedRoyaltyFee = 0;
+        if (royaltyFee) {
+          if (Array.isArray(royaltyFee) && royaltyFee.length > 1) {
+            // Handle royaltyInfo [address, amount] tuple format
+            formattedRoyaltyFee = Number(royaltyFee[1]);
+          } else {
+            // Handle direct royaltyFee format
+            formattedRoyaltyFee = Number(royaltyFee);
+          }
+        }
         const owner = await readCollectionProperty(
           collectionAddress,
           "owner",
@@ -852,7 +1083,6 @@ export function useCollection(collectionAddress: string) {
           : "0";
         const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
         const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
-        const formattedRoyaltyFee = royaltyFee ? Number(royaltyFee) : 0;
 
         setCollection({
           address: collectionAddress,

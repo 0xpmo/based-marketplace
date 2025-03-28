@@ -3,8 +3,8 @@ import { MARKETPLACE_ADDRESS } from "@/constants/addresses";
 import { getDefaultProvider } from "./web3";
 // import { MarketplaceABI } from "@/contracts/abis/MarketplaceABI";
 // import { CollectionABI } from "@/contracts/abis/CollectionABI";
-import CollectionABI from "@/contracts/BasedNFTCollection.json";
-import MarketplaceABI from "@/contracts/BasedMarketplace.json";
+import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
+import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 
 // Get provider
 export const getProvider = async () => {

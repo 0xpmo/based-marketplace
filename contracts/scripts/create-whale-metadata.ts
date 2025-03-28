@@ -12,21 +12,27 @@ import { parse } from "csv-parse/sync";
 const PINATA_API_KEY = process.env.PINATA_API_KEY;
 const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
 
+// Add this as a configurable constant at the top of the file
+const COLLECTION_PREFIX = "whales-"; // Change this for each collection
+
 async function uploadToPinataWithRetry(
   content: any,
   fileName: string,
   isRawFile = false,
   retries = 3
 ): Promise<string> {
+  // Add the collection prefix to the filename for Pinata
+  const prefixedFileName = COLLECTION_PREFIX + fileName;
+
   for (let i = 0; i < retries; i++) {
     try {
       if (isRawFile) {
-        // For raw files like images, use pinFileToIPFS
+        // For raw files like images, use pinFileToIPFS with prefixed filename
         const formData = new FormData();
-        formData.append("file", content, fileName);
+        formData.append("file", content, prefixedFileName);
 
         console.log(
-          `Uploading file ${fileName}... (attempt ${i + 1}/${retries})`
+          `Uploading file ${prefixedFileName}... (attempt ${i + 1}/${retries})`
         );
         const response = await axios.post(
           "https://api.pinata.cloud/pinning/pinFileToIPFS",
@@ -40,12 +46,12 @@ async function uploadToPinataWithRetry(
             maxBodyLength: Infinity,
           }
         );
-        console.log(`✓ Successfully uploaded ${fileName}`);
+        console.log(`✓ Successfully uploaded ${prefixedFileName}`);
         return response.data.IpfsHash;
       } else {
         // For JSON data, use pinJSONToIPFS
         console.log(
-          `Uploading JSON ${fileName}... (attempt ${i + 1}/${retries})`
+          `Uploading JSON ${prefixedFileName}... (attempt ${i + 1}/${retries})`
         );
         const response = await axios.post(
           "https://api.pinata.cloud/pinning/pinJSONToIPFS",
@@ -58,15 +64,17 @@ async function uploadToPinataWithRetry(
             },
           }
         );
-        console.log(`✓ Successfully uploaded ${fileName}`);
+        console.log(`✓ Successfully uploaded ${prefixedFileName}`);
         return response.data.IpfsHash;
       }
     } catch (error) {
-      console.log(`✗ Failed to upload ${fileName} (attempt ${i + 1})`);
+      console.log(`✗ Failed to upload ${prefixedFileName} (attempt ${i + 1})`);
       if (i === retries - 1) throw error;
     }
   }
-  throw new Error(`Failed to upload ${fileName} after ${retries} attempts`);
+  throw new Error(
+    `Failed to upload ${prefixedFileName} after ${retries} attempts`
+  );
 }
 
 async function main() {
@@ -75,7 +83,10 @@ async function main() {
 
   // Parse metadata from CSV
   console.log("\n📑 Parsing metadata from CSV...");
-  const metadataPath = path.join(__dirname, "./whales/whale-metadata-file.csv");
+  const metadataPath = path.join(
+    __dirname,
+    "./whales/final-whale-metadata.csv"
+  );
   const tokenMetadata = await parseMetadataCSV(metadataPath);
   console.log(`✓ Found ${tokenMetadata.length} tokens in CSV`);
 
@@ -116,7 +127,7 @@ async function main() {
   // Create collection metadata with IPFS paths
   const collectionMetadata = {
     name: "Based Whales",
-    description: "The first whales on Based. Based.",
+    description: "The first NFT collection on BasedSea. Based.",
     image: `ipfs://${logoHash}`,
     banner_image_url: `ipfs://${bannerHash}`,
   };
@@ -142,6 +153,21 @@ async function main() {
     );
   });
 
+  // Create unrevealed metadata JSON
+  // const unrevealedMetadata = {
+  //   name: "Mystery Based Whale",
+  //   description:
+  //     "This Based Whale is currently hidden. Collection will be revealed soon!",
+  //   image: `ipfs://${logoHash}`, // Or upload a special placeholder image
+  //   attributes: [],
+  // };
+
+  // // Save unrevealed metadata
+  // fs.writeFileSync(
+  //   path.join(outputDir, "unrevealed"),
+  //   JSON.stringify(unrevealedMetadata, null, 2)
+  // );
+
   console.log("\n✅ Folder structure created at:", outputDir);
   console.log("You can now upload this folder to Pinata manually.");
   console.log("\nAfter uploading, use these URIs in your contract:");
@@ -154,15 +180,6 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
-
-type MetadataRow = {
-  tokenID: string;
-  name?: string;
-  description?: string;
-  file_name: string;
-  external_url?: string;
-  attributes: { [key: string]: string };
-};
 
 type MetadataOutput = {
   name: string;
@@ -224,66 +241,3 @@ async function parseMetadataCSV(csvPath: string): Promise<MetadataOutput[]> {
 
   return metadata;
 }
-
-// Function to upload to Pinata
-// async function uploadToPinata(
-//     data: any,
-//     isFile: boolean = false
-//   ): Promise<string> {
-//     const url = `https://api.pinata.cloud/pinning/pinJSONToIPFS`;
-//     const formData = new FormData();
-
-//     if (isFile) {
-//       formData.append("file", JSON.stringify(data));
-//     } else {
-//       formData.append("pinataContent", data);
-//     }
-
-//     const response = await axios.post(url, formData, {
-//       headers: {
-//         "Content-Type": `multipart/form-data;`,
-//         pinata_api_key: PINATA_API_KEY!,
-//         pinata_secret_api_key: PINATA_SECRET_KEY!,
-//       },
-//     });
-
-//     return `ipfs://${response.data.IpfsHash}`;
-//   }
-
-// Function to upload a file to Pinata
-// async function uploadFileToPinata(filePath: string): Promise<string> {
-//     const formData = new FormData();
-//     const fileStream = fs.createReadStream(filePath);
-
-//     formData.append("file", fileStream);
-
-//     const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-//     const response = await axios.post(url, formData, {
-//       headers: {
-//         "Content-Type": "multipart/form-data",
-//         pinata_api_key: PINATA_API_KEY!,
-//         pinata_secret_api_key: PINATA_SECRET_KEY!,
-//       },
-//       maxBodyLength: Infinity,
-//     });
-
-//     return `ipfs://${response.data.IpfsHash}`;
-//   }
-
-// Add this new function to handle folder uploads
-// async function uploadFolderToPinata(folder: any): Promise<string> {
-//   const formData = new FormData();
-//   formData.append("file", JSON.stringify(folder));
-
-//   const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-//   const response = await axios.post(url, formData, {
-//     headers: {
-//       "Content-Type": "multipart/form-data",
-//       pinata_api_key: PINATA_API_KEY!,
-//       pinata_secret_api_key: PINATA_SECRET_KEY!,
-//     },
-//     maxBodyLength: Infinity,
-//   });
-
-//   return `ipfs://${response.data.IpfsHash}`;
-// }
