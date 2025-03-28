@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 async function main() {
-  console.log("Deploying the entire BasedMarketplace ecosystem...");
+  console.log("Deploying the entire BasedSeaMarketplace ecosystem...");
 
   // Configuration parameters
   const DEFAULT_FEE = ethers.parseEther("0.001"); // 0.001 ETH factory creation fee
@@ -13,14 +13,14 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
 
-  // 1. Deploy Upgradeable BasedCollectionFactory
-  console.log("\n1. Deploying upgradeable BasedCollectionFactory...");
-  const BasedCollectionFactory = await ethers.getContractFactory(
-    "BasedCollectionFactory"
+  // 1. Deploy Upgradeable BasedSeaCollectionFactory
+  console.log("\n1. Deploying upgradeable BasedSeaCollectionFactory...");
+  const BasedSeaCollectionFactory = await ethers.getContractFactory(
+    "BasedSeaCollectionFactory"
   );
 
   const factoryProxy = await upgrades.deployProxy(
-    BasedCollectionFactory,
+    BasedSeaCollectionFactory,
     [DEFAULT_FEE, deployer.address],
     { initializer: "initialize" }
   );
@@ -28,13 +28,16 @@ async function main() {
   await factoryProxy.waitForDeployment();
 
   const factoryProxyAddress = await factoryProxy.getAddress();
-  console.log("BasedCollectionFactory proxy deployed to:", factoryProxyAddress);
+  console.log(
+    "BasedSeaCollectionFactory proxy deployed to:",
+    factoryProxyAddress
+  );
 
   // Get the implementation address
   const factoryImplementationAddress =
     await upgrades.erc1967.getImplementationAddress(factoryProxyAddress);
   console.log(
-    "BasedCollectionFactory implementation deployed to:",
+    "BasedSeaCollectionFactory implementation deployed to:",
     factoryImplementationAddress
   );
 
@@ -44,38 +47,44 @@ async function main() {
   );
   console.log("ProxyAdmin deployed to:", factoryAdminAddress);
 
-  // 2. Deploy Upgradeable BasedMarketplaceStorage
-  console.log("\n2. Deploying upgradeable BasedMarketplaceStorage...");
-  const BasedMarketplaceStorage = await ethers.getContractFactory(
-    "BasedMarketplaceStorage"
+  // 2. Deploy Upgradeable BasedSeaMarketplaceStorage
+  console.log("\n2. Deploying upgradeable BasedSeaMarketplaceStorage...");
+  const BasedSeaMarketplaceStorage = await ethers.getContractFactory(
+    "BasedSeaMarketplaceStorage"
   );
 
-  const storageProxy = await upgrades.deployProxy(BasedMarketplaceStorage, [], {
-    initializer: "initialize",
-    kind: "uups",
-  });
+  // Initialize with fee recipient (deployer address)
+  const storageProxy = await upgrades.deployProxy(
+    BasedSeaMarketplaceStorage,
+    [deployer.address], // Pass fee recipient
+    {
+      initializer: "initialize",
+      kind: "uups",
+    }
+  );
 
   await storageProxy.waitForDeployment();
 
   const storageAddress = await storageProxy.getAddress();
-  console.log("BasedMarketplaceStorage proxy deployed to:", storageAddress);
+  console.log("BasedSeaMarketplaceStorage proxy deployed to:", storageAddress);
 
   // Get the implementation address
   const storageImplementationAddress =
     await upgrades.erc1967.getImplementationAddress(storageAddress);
   console.log(
-    "BasedMarketplaceStorage implementation deployed to:",
+    "BasedSeaMarketplaceStorage implementation deployed to:",
     storageImplementationAddress
   );
 
-  // 3. Deploy Upgradeable BasedMarketplace - with MODIFIED initialization
-  console.log("\n3. Deploying upgradeable BasedMarketplace...");
-  const BasedMarketplace = await ethers.getContractFactory("BasedMarketplace");
+  // 3. Deploy Upgradeable BasedSeaMarketplace
+  console.log("\n3. Deploying upgradeable BasedSeaMarketplace...");
+  const BasedSeaMarketplace = await ethers.getContractFactory(
+    "BasedSeaMarketplace"
+  );
 
-  // Create a custom initialize function that doesn't try to modify storage
   const marketplaceProxy = await upgrades.deployProxy(
-    BasedMarketplace,
-    [storageAddress],
+    BasedSeaMarketplace,
+    [storageAddress], // Pass storage address
     {
       initializer: "initialize",
       kind: "uups",
@@ -85,13 +94,13 @@ async function main() {
   await marketplaceProxy.waitForDeployment();
 
   const marketplaceAddress = await marketplaceProxy.getAddress();
-  console.log("BasedMarketplace proxy deployed to:", marketplaceAddress);
+  console.log("BasedSeaMarketplace proxy deployed to:", marketplaceAddress);
 
   // Get the implementation address
   const marketplaceImplementationAddress =
     await upgrades.erc1967.getImplementationAddress(marketplaceAddress);
   console.log(
-    "BasedMarketplace implementation deployed to:",
+    "BasedSeaMarketplace implementation deployed to:",
     marketplaceImplementationAddress
   );
 
@@ -101,9 +110,6 @@ async function main() {
   await storageProxy.setPaused(false);
   await storageProxy.setRoyaltiesDisabled(false);
   console.log("Storage values configured");
-  console.log(
-    "Note: The marketplace now uses a pull payment pattern for all payments"
-  );
   console.log(
     "Market fees are accumulated in the contract until withdrawn by the owner"
   );
@@ -135,17 +141,17 @@ async function main() {
   console.log("===================");
   console.log("BasedCollectionFactory Proxy: ", factoryProxyAddress);
   console.log(
-    "BasedCollectionFactory Implementation: ",
+    "BasedSeaCollectionFactory Implementation: ",
     factoryImplementationAddress
   );
-  console.log("BasedMarketplaceStorage Proxy: ", storageAddress);
+  console.log("BasedSeaMarketplaceStorage Proxy: ", storageAddress);
   console.log(
-    "BasedMarketplaceStorage Implementation: ",
+    "BasedSeaMarketplaceStorage Implementation: ",
     storageImplementationAddress
   );
-  console.log("BasedMarketplace Proxy: ", marketplaceAddress);
+  console.log("BasedSeaMarketplace Proxy: ", marketplaceAddress);
   console.log(
-    "BasedMarketplace Implementation: ",
+    "BasedSeaMarketplace Implementation: ",
     marketplaceImplementationAddress
   );
   console.log("\nDeployment completed successfully");
@@ -153,7 +159,12 @@ async function main() {
   // Update .env file with new addresses
   console.log("\nUpdating .env file...");
   const envPath = path.join(__dirname, "../.env");
-  let envContent = fs.readFileSync(envPath, "utf-8");
+  let envContent = "";
+
+  // Read existing .env file if it exists
+  if (fs.existsSync(envPath)) {
+    envContent = fs.readFileSync(envPath, "utf-8");
+  }
 
   // Update or add each address
   const updates = {

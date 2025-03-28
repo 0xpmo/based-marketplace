@@ -10,13 +10,14 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./IBasedMarketplaceStorage.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "./IBasedSeaMarketplaceStorage.sol";
 
 /**
- * @title SimplifiedBasedMarketplace
- * @dev Simplified NFT marketplace with no fund escrow, using a separate storage contract
+ * @title BasedSeaMarketplace
+ * @dev NFT marketplace for BasedSea
  */
-contract SimplifiedBasedMarketplace is
+contract BasedSeaMarketplace is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
@@ -27,7 +28,7 @@ contract SimplifiedBasedMarketplace is
     // ===== STATE VARIABLES =====
 
     // Reference to storage contract (via interface)
-    IBasedMarketplaceStorage public marketplaceStorage;
+    IBasedSeaMarketplaceStorage public marketplaceStorage;
 
     // ===== TYPE DEFINITIONS =====
 
@@ -86,6 +87,14 @@ contract SimplifiedBasedMarketplace is
         bytes32 offerId
     );
 
+    event SaleCompletedWithPaymentIssue(
+        address indexed seller,
+        address indexed buyer,
+        address indexed nftContract,
+        uint256 tokenId,
+        uint256 amount
+    );
+
     // Fee events
     event MarketFeeUpdated(uint256 newFee);
     event FeeRecipientUpdated(address newRecipient);
@@ -107,6 +116,7 @@ contract SimplifiedBasedMarketplace is
         uint256 amount,
         string paymentType
     );
+
     event FailedPaymentStored(address indexed recipient, uint256 amount);
     event FailedPaymentClaimed(address indexed recipient, uint256 amount);
 
@@ -129,7 +139,7 @@ contract SimplifiedBasedMarketplace is
         __ReentrancyGuard_init();
 
         // Connect to storage contract via interface
-        marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
+        marketplaceStorage = IBasedSeaMarketplaceStorage(storageAddress);
     }
 
     // Required for UUPS upgradeable pattern
@@ -155,7 +165,7 @@ contract SimplifiedBasedMarketplace is
      */
     function setStorageContract(address storageAddress) external onlyOwner {
         require(storageAddress != address(0), "Invalid storage address");
-        marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
+        marketplaceStorage = IBasedSeaMarketplaceStorage(storageAddress);
     }
 
     /**
@@ -296,19 +306,12 @@ contract SimplifiedBasedMarketplace is
      */
     function cancelListing(address nftContract, uint256 tokenId) external {
         // Get listing details
-        (
-            address seller,
-            ,
-            ,
-            ,
-            ,
-            ,
-            IBasedMarketplaceStorage.ListingStatus status
-        ) = marketplaceStorage.getListing(nftContract, tokenId);
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, tokenId);
 
-        require(seller == msg.sender, "Not the seller");
+        require(listing.seller == msg.sender, "Not the seller");
         require(
-            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
             "Listing not active"
         );
 
@@ -316,7 +319,7 @@ contract SimplifiedBasedMarketplace is
         marketplaceStorage.updateListingStatus(
             nftContract,
             tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Canceled
+            IBasedSeaMarketplaceStorage.ListingStatus.Canceled
         );
 
         emit ItemCanceled(msg.sender, nftContract, tokenId);
@@ -334,19 +337,12 @@ contract SimplifiedBasedMarketplace is
         uint256 newPrice
     ) external whenNotPaused {
         // Get listing details
-        (
-            address seller,
-            ,
-            ,
-            ,
-            ,
-            ,
-            IBasedMarketplaceStorage.ListingStatus status
-        ) = marketplaceStorage.getListing(nftContract, tokenId);
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, tokenId);
 
-        require(seller == msg.sender, "Not the seller");
+        require(listing.seller == msg.sender, "Not the seller");
         require(
-            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
             "Listing not active"
         );
         require(newPrice > 0, "Price must be greater than zero");
@@ -376,34 +372,27 @@ contract SimplifiedBasedMarketplace is
         uint256 tokenId
     ) external payable nonReentrant whenNotPaused {
         // Get listing details
-        (
-            address seller,
-            address nftContractAddress,
-            uint256 tokenIdValue,
-            uint256 price,
-            bool isPrivate,
-            address allowedBuyer,
-            IBasedMarketplaceStorage.ListingStatus status
-        ) = marketplaceStorage.getListing(nftContract, tokenId);
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, tokenId);
 
         require(
-            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
             "Item not active"
         );
-        require(msg.value >= price, "Insufficient funds");
+        require(msg.value >= listing.price, "Insufficient funds");
 
         // Check if this is a private listing
-        if (isPrivate) {
+        if (listing.isPrivate) {
             require(
-                msg.sender == allowedBuyer,
+                msg.sender == listing.allowedBuyer,
                 "Not authorized for this private listing"
             );
         }
 
         // Verify seller still owns the NFT
-        IERC721 nft = IERC721(nftContractAddress);
+        IERC721 nft = IERC721(listing.nftContract);
         require(
-            nft.ownerOf(tokenIdValue) == seller,
+            nft.ownerOf(listing.tokenId) == listing.seller,
             "Seller no longer owns this NFT"
         );
 
@@ -411,28 +400,28 @@ contract SimplifiedBasedMarketplace is
         marketplaceStorage.updateListingStatus(
             nftContract,
             tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Sold
+            IBasedSeaMarketplaceStorage.ListingStatus.Sold
         );
 
         // Process the payment and distribute funds
         _processSale(
-            nftContractAddress,
-            tokenIdValue,
-            seller,
+            listing.nftContract,
+            listing.tokenId,
+            listing.seller,
             msg.sender,
-            price
+            listing.price
         );
 
         emit ItemSold(
-            seller,
+            listing.seller,
             msg.sender,
-            nftContractAddress,
-            tokenIdValue,
-            price
+            listing.nftContract,
+            listing.tokenId,
+            listing.price
         );
 
         // Refund any excess payment
-        uint256 excess = msg.value - price;
+        uint256 excess = msg.value - listing.price;
         if (excess > 0) {
             (bool success, ) = payable(msg.sender).call{value: excess}("");
             if (!success) {
@@ -514,13 +503,18 @@ contract SimplifiedBasedMarketplace is
                 msg.sender, // buyer
                 expiration,
                 address(this), // contract address
-                block.chainid // Add chain ID to message hash
+                block.chainid
             )
         );
 
-        // Verify the signature came from the seller
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        address recoveredSigner = ethSignedMessageHash.recover(signature);
+        // Verify the signature fcame from the seller
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
+            messageHash
+        );
+        address recoveredSigner = ECDSA.recover(
+            ethSignedMessageHash,
+            signature
+        );
         require(recoveredSigner == seller, "Invalid seller signature");
 
         // Check if NFT is approved for marketplace
@@ -534,24 +528,18 @@ contract SimplifiedBasedMarketplace is
         marketplaceStorage.markOfferAsUsed(offerId);
 
         // Update listing if it exists
-        (
-            address listingSeller,
-            ,
-            ,
-            ,
-            ,
-            ,
-            IBasedMarketplaceStorage.ListingStatus status
-        ) = marketplaceStorage.getListing(nftContract, tokenId);
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, tokenId);
 
         if (
-            status == IBasedMarketplaceStorage.ListingStatus.Active &&
-            listingSeller == seller
+            listing.status ==
+            IBasedSeaMarketplaceStorage.ListingStatus.Active &&
+            listing.seller == seller
         ) {
             marketplaceStorage.updateListingStatus(
                 nftContract,
                 tokenId,
-                IBasedMarketplaceStorage.ListingStatus.Sold
+                IBasedSeaMarketplaceStorage.ListingStatus.Sold
             );
         }
 

@@ -2,10 +2,10 @@
 pragma solidity ^0.8.22;
 
 /**
- * @title IBasedMarketplaceStorage
+ * @title IBasedSeaMarketplaceStorage
  * @dev Interface for marketplace storage functions
  */
-interface IBasedMarketplaceStorage {
+interface IBasedSeaMarketplaceStorage {
     // ===== TYPE DEFINITIONS =====
 
     /**
@@ -56,18 +56,7 @@ interface IBasedMarketplaceStorage {
     function getListing(
         address nftContract,
         uint256 tokenId
-    )
-        external
-        view
-        returns (
-            address seller,
-            address nftContractAddress,
-            uint256 tokenIdValue,
-            uint256 price,
-            bool isPrivate,
-            address allowedBuyer,
-            ListingStatus status
-        );
+    ) external view returns (Listing memory);
 
     function setListing(
         address nftContract,

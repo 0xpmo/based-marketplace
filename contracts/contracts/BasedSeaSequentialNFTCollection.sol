@@ -10,10 +10,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
- * @title BasedRandomizedNFTCollection
- * @dev NFT Collection with randomized token ID minting
+ * @title BasedSeaSequentialNFTCollection
+ * @dev NFT Collection with sequential minting (tokens minted in order 1, 2, 3, etc.)
  */
-contract BasedRandomizedNFTCollection is
+contract BasedSeaSequentialNFTCollection is
     ERC721Enumerable,
     ERC2981,
     Ownable,
@@ -34,11 +34,6 @@ contract BasedRandomizedNFTCollection is
 
     // Reveal settings
     bool public revealed;
-
-    // Randomization settings
-    uint256[] private _availableTokens;
-    bytes32 private _lastRandomnessBlockHash;
-    uint256 private _randomnessCounter;
 
     // Collection stats
     uint256 public totalMinted = 0;
@@ -69,94 +64,16 @@ contract BasedRandomizedNFTCollection is
         contractURI = _initialContractURI;
         mintPrice = _mintPrice;
         MAX_SUPPLY = _maxSupply;
-        maxTokensPerWallet = _maxTokensPerWallet;
         mintingEnabled = _mintingEnabled;
         revealed = _startRevealed;
+        maxTokensPerWallet = _maxTokensPerWallet;
 
         // Set default royalty
         _setDefaultRoyalty(initialOwner, _royaltyFee);
-
-        // Initialize the randomization pool
-        _initializeRandomMinting();
-
-        // Initialize randomness components
-        _lastRandomnessBlockHash = blockhash(block.number - 1);
-        _randomnessCounter = 0;
     }
 
     /**
-     * @dev Initialize the randomization pool
-     * Note: For large collections, consider using a lazy initialization approach
-     */
-    function _initializeRandomMinting() private {
-        require(_availableTokens.length == 0, "Already initialized");
-
-        for (uint256 i = 1; i <= MAX_SUPPLY; i++) {
-            _availableTokens.push(i);
-        }
-    }
-
-    /**
-     * @dev Get a random token ID from the available pool
-     * @param minter Address of the minter (used in randomization)
-     * @return tokenId The random token ID
-     */
-    /**
-     * @dev Generate a more secure pseudo-random index
-     * Uses a combination of block hash, a counter, sender info, and unique salt
-     * Much harder to predict or manipulate than simple block.timestamp
-     */
-    function _getRandomToken(address minter) private returns (uint256) {
-        require(_availableTokens.length > 0, "No tokens available");
-
-        // Update the randomness source with the current block hash if it has changed
-        if (_lastRandomnessBlockHash != blockhash(block.number - 1)) {
-            _lastRandomnessBlockHash = blockhash(block.number - 1);
-        }
-
-        // Increment counter to ensure uniqueness for each call
-        _randomnessCounter++;
-
-        // Create a unique salt based on call-specific data
-        bytes32 uniqueSalt = keccak256(
-            abi.encodePacked(
-                minter,
-                block.number,
-                block.timestamp,
-                tx.gasprice,
-                tx.origin,
-                gasleft(),
-                address(this).balance,
-                _randomnessCounter
-            )
-        );
-
-        // Mix multiple sources of entropy for better randomness
-        uint256 randomIndex = uint256(
-            keccak256(
-                abi.encodePacked(
-                    _lastRandomnessBlockHash, // Hard to predict future block hash
-                    block.prevrandao, // Adds unpredictability
-                    uniqueSalt, // Transaction-specific entropy
-                    _availableTokens.length // Changes with each mint
-                )
-            )
-        ) % _availableTokens.length;
-
-        // Get the token at the random index
-        uint256 tokenId = _availableTokens[randomIndex];
-
-        // Replace the selected token with the last one and remove it
-        _availableTokens[randomIndex] = _availableTokens[
-            _availableTokens.length - 1
-        ];
-        _availableTokens.pop();
-
-        return tokenId;
-    }
-
-    /**
-     * @dev Mint a single token with randomized ID
+     * @dev Mint a single token with sequential ID
      * @param to Address to mint the token to
      * @return tokenId The ID of the minted token
      */
@@ -182,8 +99,8 @@ contract BasedRandomizedNFTCollection is
             require(success, "Refund failed");
         }
 
-        // Get a random token ID
-        uint256 tokenId = _getRandomToken(to);
+        // Sequential minting - tokens are minted in order from 1 to MAX_SUPPLY
+        uint256 tokenId = totalMinted + 1;
 
         _safeMint(to, tokenId);
         totalMinted++;
@@ -192,7 +109,7 @@ contract BasedRandomizedNFTCollection is
     }
 
     /**
-     * @dev Mint multiple tokens with randomized IDs (owner only)
+     * @dev Mint multiple tokens with sequential IDs (owner only)
      * @param to Address to mint the token to
      * @param quantity Number of tokens to mint
      * @return tokenIds Array of minted token IDs
@@ -211,21 +128,13 @@ contract BasedRandomizedNFTCollection is
 
         uint256[] memory tokenIds = new uint256[](quantity);
         for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = _getRandomToken(to);
+            uint256 tokenId = totalMinted + 1;
             _safeMint(to, tokenId);
             tokenIds[i] = tokenId;
             totalMinted++;
         }
 
         return tokenIds;
-    }
-
-    /**
-     * @dev Get the count of remaining tokens in the random pool
-     * @return count The number of tokens available
-     */
-    function availableTokensCount() public view returns (uint256) {
-        return _availableTokens.length;
     }
 
     // Reveal functions
@@ -272,16 +181,7 @@ contract BasedRandomizedNFTCollection is
         require(balance > 0, "No balance to withdraw");
 
         (bool success, ) = payable(owner()).call{value: balance}("");
-        (bool success, ) = payable(owner()).call{value: balance}("");
         require(success, "Withdrawal failed");
-    }
-
-    // Royalty info - EIP2981
-    function royaltyInfo(
-        uint256 _tokenId,
-        uint256 _salePrice
-    ) external view override returns (address receiver, uint256 royaltyAmount) {
-        return super.royaltyInfo(_tokenId, _salePrice);
     }
 
     // Base URI for computing {tokenURI}

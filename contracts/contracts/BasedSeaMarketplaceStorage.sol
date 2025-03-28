@@ -4,17 +4,17 @@ pragma solidity ^0.8.22;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./IBasedMarketplaceStorage.sol";
+import "./IBasedSeaMarketplaceStorage.sol";
 
 /**
- * @title SimplifiedBasedMarketplaceStorage
- * @dev Minimized storage contract for the SimplifiedBasedMarketplace.
+ * @title BasedSeaMarketplaceStorage
+ * @dev Storage contract for the BasedSeaMarketplace.
  */
-contract SimplifiedBasedMarketplaceStorage is
+contract BasedSeaMarketplaceStorage is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    IBasedMarketplaceStorage
+    IBasedSeaMarketplaceStorage
 {
     // ===== STATE VARIABLES =====
 
@@ -67,30 +67,23 @@ contract SimplifiedBasedMarketplaceStorage is
         _disableInitializers();
     }
 
-    // ===== FAILED PAYMENT FUNCTIONS =====
+    function initialize(address _feeRecipient) public initializer {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
 
-    /**
-     * @dev Add a failed payment for a recipient
-     * @param recipient Address of the recipient
-     * @param amount Amount to add
-     */
-    function addFailedPayment(
-        address recipient,
-        uint256 amount
-    ) external onlyOwner {
-        failedPayments[recipient] += amount;
-        emit FailedPaymentAdded(recipient, amount);
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+
+        marketFee = 250; // Default 2.5%
+        feeRecipient = _feeRecipient;
+        paused = false;
+        royaltiesDisabled = false;
+        accumulatedFees = 0;
     }
 
-    /**
-     * @dev Clear a failed payment (after successful claim)
-     * @param recipient Address of the recipient
-     */
-    function clearFailedPayment(address recipient) external onlyOwner {
-        uint256 amount = failedPayments[recipient];
-        failedPayments[recipient] = 0;
-        emit FailedPaymentCleared(recipient, amount);
-    }
+    // Required for UUPS upgradeable pattern
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     // ===== MARKET FEE FUNCTIONS =====
 
@@ -110,24 +103,6 @@ contract SimplifiedBasedMarketplaceStorage is
         accumulatedFees = 0;
         emit FeesReset();
     }
-
-    function initialize(address _feeRecipient) public initializer {
-        require(_feeRecipient != address(0), "Invalid fee recipient");
-
-        __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-
-        marketFee = 250; // Default 2.5%
-        feeRecipient = _feeRecipient;
-        paused = false;
-        royaltiesDisabled = false;
-        accumulatedFees = 0;
-    }
-
-    // Required for UUPS upgradeable pattern
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
 
     // ===== MARKETPLACE SETTINGS FUNCTIONS =====
 
@@ -174,34 +149,13 @@ contract SimplifiedBasedMarketplaceStorage is
      * @dev Retrieve details of a listing
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token
-     * @return Full listing details
+     * @return The full listing details as a struct
      */
     function getListing(
         address nftContract,
         uint256 tokenId
-    )
-        external
-        view
-        returns (
-            address seller,
-            address nftContractAddress,
-            uint256 tokenIdValue,
-            uint256 price,
-            bool isPrivate,
-            address allowedBuyer,
-            ListingStatus status
-        )
-    {
-        Listing storage listing = listings[nftContract][tokenId];
-        return (
-            listing.seller,
-            listing.nftContract,
-            listing.tokenId,
-            listing.price,
-            listing.isPrivate,
-            listing.allowedBuyer,
-            listing.status
-        );
+    ) external view returns (Listing memory) {
+        return listings[nftContract][tokenId];
     }
 
     /**
@@ -293,5 +247,30 @@ contract SimplifiedBasedMarketplaceStorage is
         uint256 tokenId
     ) external view returns (bool) {
         return listings[nftContract][tokenId].status == ListingStatus.Active;
+    }
+
+    // ===== FAILED PAYMENT FUNCTIONS =====
+
+    /**
+     * @dev Add a failed payment for a recipient
+     * @param recipient Address of the recipient
+     * @param amount Amount to add
+     */
+    function addFailedPayment(
+        address recipient,
+        uint256 amount
+    ) external onlyOwner {
+        failedPayments[recipient] += amount;
+        emit FailedPaymentAdded(recipient, amount);
+    }
+
+    /**
+     * @dev Clear a failed payment (after successful claim)
+     * @param recipient Address of the recipient
+     */
+    function clearFailedPayment(address recipient) external onlyOwner {
+        uint256 amount = failedPayments[recipient];
+        failedPayments[recipient] = 0;
+        emit FailedPaymentCleared(recipient, amount);
     }
 }

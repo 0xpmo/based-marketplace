@@ -3,10 +3,10 @@ import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
 import * as dotenv from "dotenv";
-import BasedCollectionFactoryArtifact from "../artifacts/contracts/BasedCollectionFactory.sol/BasedCollectionFactory.json";
-import BasedMarketplaceArtifact from "../artifacts/contracts/BasedMarketplace.sol/BasedMarketplace.json";
-import BasedMarketplaceStorageArtifact from "../artifacts/contracts/BasedMarketplaceStorage.sol/BasedMarketplaceStorage.json";
-import BasedNFTCollectionArtifact from "../artifacts/contracts/BasedNFTCollection.sol/BasedNFTCollection.json";
+import BasedSeaCollectionFactoryArtifact from "../artifacts/contracts/BasedCollectionFactory.sol/BasedSeaCollectionFactory.json";
+import BasedSeaMarketplaceArtifact from "../artifacts/contracts/BasedMarketplace.sol/BasedSeaMarketplace.json";
+import BasedSeaMarketplaceStorageArtifact from "../artifacts/contracts/BasedMarketplaceStorage.sol/BasedSeaMarketplaceStorage.json";
+import BasedSeaNFTCollectionArtifact from "../artifacts/contracts/BasedNFTCollection.sol/BasedSeaNFTCollection.json";
 
 // Load environment variables from .env.deployment if it exists
 // const deploymentEnvPath = path.join(__dirname, "../.env.deployment");
@@ -54,9 +54,9 @@ async function main() {
       factoryAddress =
         deployments["BasedMarketplace#BasedCollectionFactory"] || "";
       marketplaceAddress =
-        deployments["BasedMarketplace#BasedMarketplace"] || "";
+        deployments["BasedSeaMarketplace#BasedSeaMarketplace"] || "";
       storageAddress =
-        deployments["BasedMarketplace#BasedMarketplaceStorage"] || "";
+        deployments["BasedSeaMarketplace#BasedSeaMarketplaceStorage"] || "";
 
       console.log("Using addresses from Ignition deployment");
     } else {
@@ -84,19 +84,19 @@ async function main() {
 
   const factory = new ethers.Contract(
     factoryAddress,
-    BasedCollectionFactoryArtifact.abi,
+    BasedSeaCollectionFactoryArtifact.abi,
     provider
   );
 
   const marketplaceStorage = new ethers.Contract(
     storageAddress,
-    BasedMarketplaceStorageArtifact.abi,
+    BasedSeaMarketplaceStorageArtifact.abi,
     provider
   );
 
   const marketplace = new ethers.Contract(
     marketplaceAddress,
-    BasedMarketplaceArtifact.abi,
+    BasedSeaMarketplaceArtifact.abi,
     provider
   );
 
@@ -111,7 +111,7 @@ async function main() {
   console.log(`- Collection Count: ${await factory.getCollectionCount()}`);
 
   // Verify marketplace storage
-  console.log("\nBasedMarketplaceStorage:");
+  console.log("\nBasedSeaMarketplaceStorage:");
   console.log(`- Address: ${await marketplaceStorage.getAddress()}`);
   console.log(
     `- Market Fee: ${await marketplaceStorage.marketFee()} basis points (${Number(
@@ -128,21 +128,15 @@ async function main() {
       await marketplaceStorage.accumulatedFees()
     )} ETH`
   );
+  console.log(`- Fee Recipient: ${await marketplaceStorage.feeRecipient()}`);
 
   // Verify marketplace
-  console.log("\nBasedMarketplace:");
+  console.log("\nBasedSeaMarketplace:");
   console.log(`- Address: ${await marketplace.getAddress()}`);
   console.log(`- Storage Contract: ${await marketplace.marketplaceStorage()}`);
   console.log(`- Owner: ${await marketplace.owner()}`);
-  console.log(`- Payment System: Pull Payment Pattern`);
 
-  // Check if owner has any pending withdrawals (should be 0 on fresh deployment)
-  const ownerAddress = await marketplace.owner();
-  console.log(
-    `- Owner Pending Withdrawals: ${ethers.formatEther(
-      await marketplace.getPendingWithdrawal(ownerAddress)
-    )} ETH`
-  );
+  // Check accumulated fees
   console.log(
     `- Accumulated Market Fees: ${ethers.formatEther(
       await marketplace.getAccumulatedFees()
@@ -153,31 +147,35 @@ async function main() {
   const collections = await factory.getCollections();
   console.log("\nDeployed Collections:");
 
-  for (let i = 0; i < collections.length; i++) {
-    const collectionAddress = collections[i];
-    const collection = new ethers.Contract(
-      collectionAddress,
-      BasedNFTCollectionArtifact.abi,
-      provider
-    );
+  if (collections.length === 0) {
+    console.log("No collections deployed yet");
+  } else {
+    for (let i = 0; i < collections.length; i++) {
+      const collectionAddress = collections[i];
+      const collection = new ethers.Contract(
+        collectionAddress,
+        BasedSeaNFTCollectionArtifact.abi,
+        provider
+      );
 
-    console.log(`\nCollection ${i + 1}:`);
-    console.log(`- Address: ${collectionAddress}`);
-    console.log(`- Name: ${await collection.name()}`);
-    console.log(`- Symbol: ${await collection.symbol()}`);
-    console.log(`- Collection URI: ${await collection.contractURI()}`);
-    console.log(
-      `- Mint Price: ${ethers.formatEther(await collection.mintPrice())} ETH`
-    );
-    console.log(`- Max Supply: ${await collection.maxSupply()}`);
-    console.log(`- Total Minted: ${await collection.totalMinted()}`);
-    console.log(
-      `- Royalty Fee: ${await collection.royaltyFee()} basis points (${Number(
-        ((await collection.royaltyFee()) * BigInt(100)) / BigInt(10000)
-      )}%)`
-    );
-    console.log(`- Minting Enabled: ${await collection.mintingEnabled()}`);
-    console.log(`- Owner: ${await collection.owner()}`);
+      console.log(`\nCollection ${i + 1}:`);
+      console.log(`- Address: ${collectionAddress}`);
+      console.log(`- Name: ${await collection.name()}`);
+      console.log(`- Symbol: ${await collection.symbol()}`);
+      console.log(`- Collection URI: ${await collection.contractURI()}`);
+      console.log(
+        `- Mint Price: ${ethers.formatEther(await collection.mintPrice())} ETH`
+      );
+      console.log(`- Max Supply: ${await collection.maxSupply()}`);
+      console.log(`- Total Minted: ${await collection.totalMinted()}`);
+      console.log(
+        `- Royalty Fee: ${await collection.royaltyFee()} basis points (${Number(
+          ((await collection.royaltyFee()) * BigInt(100)) / BigInt(10000)
+        )}%)`
+      );
+      console.log(`- Minting Enabled: ${await collection.mintingEnabled()}`);
+      console.log(`- Owner: ${await collection.owner()}`);
+    }
   }
 
   console.log("\nDeployment verification completed successfully!");

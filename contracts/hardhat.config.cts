@@ -21,6 +21,7 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
       },
+      viaIR: true, // Enable IR-based compilation
     },
   },
   networks: {
