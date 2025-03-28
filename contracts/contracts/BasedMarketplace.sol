@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -8,18 +9,43 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./IBasedMarketplaceStorage.sol";
 
-contract BasedMarketplace is
+/**
+ * @title SimplifiedBasedMarketplace
+ * @dev Simplified NFT marketplace with no fund escrow, using a separate storage contract
+ */
+contract SimplifiedBasedMarketplace is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    using ECDSA for bytes32;
+
+    // ===== STATE VARIABLES =====
+
     // Reference to storage contract (via interface)
     IBasedMarketplaceStorage public marketplaceStorage;
 
-    // Events
+    // ===== TYPE DEFINITIONS =====
+
+    /**
+     * @dev Structure representing an offer to buy an NFT
+     */
+    struct SellerOffer {
+        bytes32 offerId; // Unique identifier for the offer
+        address nftContract; // NFT contract address
+        uint256 tokenId; // NFT token ID
+        uint256 price; // Offer price
+        address buyer; // Address of the intended buyer (address(0) for public offers)
+        uint256 expiration; // Timestamp when this offer expires
+    }
+
+    // ===== EVENTS =====
+
+    // Listing events
     event ItemListed(
         address indexed seller,
         address indexed nftContract,
@@ -28,6 +54,7 @@ contract BasedMarketplace is
         bool isPrivate,
         address allowedBuyer
     );
+
     event ItemSold(
         address indexed seller,
         address indexed buyer,
@@ -35,65 +62,74 @@ contract BasedMarketplace is
         uint256 tokenId,
         uint256 price
     );
+
     event ItemCanceled(
         address indexed seller,
         address indexed nftContract,
         uint256 tokenId
     );
-    event MarketFeeUpdated(uint256 newFee);
-    event BidPlaced(
-        address indexed bidder,
-        address indexed nftContract,
-        uint256 tokenId,
-        uint256 amount
-    );
-    event BidAccepted(
-        address indexed seller,
-        address indexed bidder,
-        address indexed nftContract,
-        uint256 tokenId,
-        uint256 amount
-    );
-    event BidWithdrawn(
-        address indexed bidder,
-        address indexed nftContract,
-        uint256 tokenId,
-        uint256 amount
-    );
+
     event UpdatedListing(
         address indexed seller,
         address indexed nftContract,
         uint256 tokenId,
         uint256 newPrice
     );
+
+    // Bid events
+    event OfferExecuted(
+        address indexed seller,
+        address indexed buyer,
+        address indexed nftContract,
+        uint256 tokenId,
+        uint256 price,
+        bytes32 offerId
+    );
+
+    // Fee events
+    event MarketFeeUpdated(uint256 newFee);
+    event FeeRecipientUpdated(address newRecipient);
+    event RoyaltiesStatusChanged(bool disabled);
+    event FeesWithdrawn(address indexed recipient, uint256 amount);
+
+    // Emergency events
     event EmergencyPaused(address indexed triggeredBy);
     event EmergencyUnpaused(address indexed triggeredBy);
-    event RoyaltyTransferFailed(
-        address indexed nft,
-        uint256 indexed tokenId,
-        address receiver,
-        uint256 amount
+
+    // Payment events
+    event PaymentSent(
+        address indexed recipient,
+        uint256 amount,
+        string paymentType
     );
-    event FeesWithdrawn(address indexed owner, uint256 amount);
-    event FundsAddedToWithdraw(address indexed user, uint256 amount);
+    event PaymentFailed(
+        address indexed recipient,
+        uint256 amount,
+        string paymentType
+    );
+    event FailedPaymentStored(address indexed recipient, uint256 amount);
+    event FailedPaymentClaimed(address indexed recipient, uint256 amount);
+
+    // ===== INITIALIZER =====
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
+    /**
+     * @dev Initialize the contract, setting up the storage connection
+     * @param storageAddress Address of the storage contract
+     */
     function initialize(address storageAddress) public initializer {
         require(storageAddress != address(0), "Invalid storage address");
+
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
 
         // Connect to storage contract via interface
         marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
-
-        // NOTE: Storage configuration values should be set by the deployer before
-        // transferring ownership to this contract, as this contract doesn't
-        // own the storage contract during initialization
     }
 
     // Required for UUPS upgradeable pattern
@@ -101,23 +137,82 @@ contract BasedMarketplace is
         address newImplementation
     ) internal override onlyOwner {}
 
-    // Update storage contract reference
-    function setStorageContract(address storageAddress) external onlyOwner {
-        require(storageAddress != address(0), "Invalid storage address");
-        marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
-    }
+    // ===== MODIFIERS =====
 
-    // Modifier to prevent actions when contract is paused
+    /**
+     * @dev Modifier to prevent actions when contract is paused
+     */
     modifier whenNotPaused() {
         require(!marketplaceStorage.paused(), "Contract is paused");
         _;
     }
 
+    // ===== ADMINISTRATION FUNCTIONS =====
+
+    /**
+     * @dev Update storage contract reference
+     * @param storageAddress New storage contract address
+     */
+    function setStorageContract(address storageAddress) external onlyOwner {
+        require(storageAddress != address(0), "Invalid storage address");
+        marketplaceStorage = IBasedMarketplaceStorage(storageAddress);
+    }
+
+    /**
+     * @dev Set the marketplace fee
+     * @param _marketFee New fee in basis points (e.g., 250 = 2.5%)
+     */
+    function setMarketFee(uint256 _marketFee) external onlyOwner {
+        require(_marketFee >= 0, "Fee must be >= 0");
+        require(_marketFee <= 1000, "Fee cannot exceed 10%");
+        marketplaceStorage.setMarketFee(_marketFee);
+        emit MarketFeeUpdated(_marketFee);
+    }
+
+    /**
+     * @dev Set the fee recipient address
+     * @param _feeRecipient New fee recipient address
+     */
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        marketplaceStorage.setFeeRecipient(_feeRecipient);
+        emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /**
+     * @dev Toggle royalty payments
+     * @param _disabled Whether to disable royalties
+     */
+    function setRoyaltiesDisabled(bool _disabled) external onlyOwner {
+        marketplaceStorage.setRoyaltiesDisabled(_disabled);
+        emit RoyaltiesStatusChanged(_disabled);
+    }
+
+    /**
+     * @dev Allow contract owner to pause all marketplace operations in emergency
+     * @param _paused Whether to pause the contract
+     */
+    function setPaused(bool _paused) external onlyOwner {
+        marketplaceStorage.setPaused(_paused);
+        if (_paused) {
+            emit EmergencyPaused(msg.sender);
+        } else {
+            emit EmergencyUnpaused(msg.sender);
+        }
+    }
+
+    // ===== LISTING FUNCTIONS =====
+
+    /**
+     * @dev List an NFT for sale
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token to list
+     * @param price Listing price in wei
+     */
     function listItem(
         address nftContract,
         uint256 tokenId,
         uint256 price
-    ) public whenNotPaused {
+    ) external whenNotPaused {
         IERC721 nft = IERC721(nftContract);
         require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
         require(
@@ -127,20 +222,14 @@ contract BasedMarketplace is
         );
         require(price > 0, "Price must be greater than zero");
 
+        // Create listing in storage
         marketplaceStorage.setListing(
             nftContract,
             tokenId,
             msg.sender,
             price,
-            true,
             false,
             address(0)
-        );
-
-        marketplaceStorage.updateListingStatus(
-            nftContract,
-            tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Active
         );
 
         emit ItemListed(
@@ -153,13 +242,19 @@ contract BasedMarketplace is
         );
     }
 
-    // Create a private listing for a specific buyer
+    /**
+     * @dev Create a private listing for a specific buyer
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param price Listing price in wei
+     * @param allowedBuyer Address of the allowed buyer
+     */
     function createPrivateListing(
         address nftContract,
         uint256 tokenId,
         uint256 price,
         address allowedBuyer
-    ) public whenNotPaused {
+    ) external whenNotPaused {
         IERC721 nft = IERC721(nftContract);
         require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
         require(
@@ -174,20 +269,14 @@ contract BasedMarketplace is
             "Cannot create private listing for yourself"
         );
 
+        // Create listing in storage
         marketplaceStorage.setListing(
             nftContract,
             tokenId,
             msg.sender,
             price,
             true,
-            true,
             allowedBuyer
-        );
-
-        marketplaceStorage.updateListingStatus(
-            nftContract,
-            tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Active
         );
 
         emit ItemListed(
@@ -200,134 +289,30 @@ contract BasedMarketplace is
         );
     }
 
-    function buyItem(
-        address nftContract,
-        uint256 tokenId
-    ) public payable nonReentrant whenNotPaused {
-        // Get the full listing directly as a struct
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        require(listing.active, "Item not active");
-        require(msg.value >= listing.price, "Insufficient funds");
-
-        // Check if this is a private listing
-        if (listing.isPrivate) {
-            require(
-                msg.sender == listing.allowedBuyer,
-                "Not authorized for this private listing"
-            );
-        }
-
-        // Ownership verification
-        IERC721 nft = IERC721(listing.nftContract);
-        require(
-            nft.ownerOf(listing.tokenId) == listing.seller,
-            "Seller no longer owns this NFT"
-        );
-
-        // Refund previous bidder if there was a bid using pull payment pattern
-        _refundHighestBidder(nftContract, tokenId);
-
-        // Update listing to sold status
-        marketplaceStorage.updateListingStatus(
-            nftContract,
-            tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Sold
-        );
-
-        // Process the sale payment using our helper
-        _processSaleFunds(
-            listing.nftContract,
-            listing.tokenId,
-            listing.seller,
-            msg.sender,
-            listing.price
-        );
-
-        // Refund excess payment to buyer
-        if (msg.value > listing.price) {
-            // Add excess payment to pending withdrawals instead of immediate refund
-            marketplaceStorage.addPendingWithdrawal(
-                msg.sender,
-                msg.value - listing.price
-            );
-            emit FundsAddedToWithdraw(msg.sender, msg.value - listing.price);
-        }
-
-        emit ItemSold(
-            listing.seller,
-            msg.sender,
-            listing.nftContract,
-            listing.tokenId,
-            listing.price
-        );
-    }
-
-    // Helper to get a full listing as a struct
-    function _getListingAsStruct(
-        address nftContract,
-        uint256 tokenId
-    ) private view returns (IBasedMarketplaceStorage.Listing memory) {
+    /**
+     * @dev Cancel a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     */
+    function cancelListing(address nftContract, uint256 tokenId) external {
+        // Get listing details
         (
             address seller,
-            address nftContractAddress,
-            uint256 tokenIdValue,
-            uint256 price,
-            bool active,
-            bool isPrivate,
-            address allowedBuyer,
+            ,
+            ,
+            ,
+            ,
+            ,
             IBasedMarketplaceStorage.ListingStatus status
         ) = marketplaceStorage.getListing(nftContract, tokenId);
 
-        return
-            IBasedMarketplaceStorage.Listing({
-                seller: seller,
-                nftContract: nftContractAddress,
-                tokenId: tokenIdValue,
-                price: price,
-                active: active,
-                isPrivate: isPrivate,
-                allowedBuyer: allowedBuyer,
-                status: status
-            });
-    }
-
-    // Helper to get a full bid as a struct
-    function _getBidAsStruct(
-        address nftContract,
-        uint256 tokenId
-    ) private view returns (IBasedMarketplaceStorage.Bid memory) {
-        (address bidder, uint256 amount, uint256 timestamp) = marketplaceStorage
-            .getHighestBid(nftContract, tokenId);
-
-        return
-            IBasedMarketplaceStorage.Bid({
-                bidder: bidder,
-                amount: amount,
-                timestamp: timestamp
-            });
-    }
-
-    function cancelListing(
-        address nftContract,
-        uint256 tokenId
-    ) public nonReentrant {
-        // Get listing struct
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
+        require(seller == msg.sender, "Not the seller");
+        require(
+            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            "Listing not active"
         );
 
-        require(listing.seller == msg.sender, "Not the seller");
-        require(listing.active, "Listing not active");
-
-        // Refund highest bidder if there is one using pull payment pattern
-        _refundHighestBidder(nftContract, tokenId);
-
-        // Update listing to canceled status
+        // Update listing status
         marketplaceStorage.updateListingStatus(
             nftContract,
             tokenId,
@@ -337,216 +322,40 @@ contract BasedMarketplace is
         emit ItemCanceled(msg.sender, nftContract, tokenId);
     }
 
-    // New function to place a bid on a listed item
-    function placeBid(
-        address nftContract,
-        uint256 tokenId
-    ) public payable nonReentrant whenNotPaused {
-        // Get listing struct
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        require(listing.active, "Item not active");
-        require(listing.seller != msg.sender, "Cannot bid on your own item");
-        require(msg.value > 0, "Bid must be greater than zero");
-        require(
-            msg.value < listing.price,
-            "Bid must be less than buy now price"
-        );
-
-        // Check if this is a private listing
-        if (listing.isPrivate) {
-            require(
-                msg.sender == listing.allowedBuyer,
-                "Not authorized for this private listing"
-            );
-        }
-
-        // Verify the NFT is still owned by the seller
-        IERC721 nft = IERC721(listing.nftContract);
-        require(
-            nft.ownerOf(listing.tokenId) == listing.seller,
-            "Seller no longer owns this NFT"
-        );
-
-        // Get current bid
-        IBasedMarketplaceStorage.Bid memory currentBid = _getBidAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        require(
-            msg.value > currentBid.amount,
-            "Bid must be higher than current bid"
-        );
-
-        // Refund the previous highest bidder using pull payment pattern
-        if (currentBid.amount > 0) {
-            // Add to pending withdrawals
-            marketplaceStorage.addPendingWithdrawal(
-                currentBid.bidder,
-                currentBid.amount
-            );
-
-            emit FundsAddedToWithdraw(currentBid.bidder, currentBid.amount);
-            emit BidWithdrawn(
-                currentBid.bidder,
-                nftContract,
-                tokenId,
-                currentBid.amount
-            );
-        }
-
-        // Store the new bid
-        marketplaceStorage.setHighestBid(
-            nftContract,
-            tokenId,
-            msg.sender,
-            msg.value,
-            block.timestamp
-        );
-
-        emit BidPlaced(msg.sender, nftContract, tokenId, msg.value);
-    }
-
-    // Helper function to process funds for a sale
-    function _processSaleFunds(
-        address nftContract,
-        uint256 tokenId,
-        address seller,
-        address buyer,
-        uint256 amount
-    ) private {
-        // Calculate fees
-        uint256 marketFeeAmount = (amount * marketplaceStorage.marketFee()) /
-            10000;
-        uint256 sellerAmount = amount - marketFeeAmount;
-
-        // Calculate royalty
-        (address royaltyReceiver, uint256 royaltyAmount) = _getRoyaltyInfo(
-            nftContract,
-            tokenId,
-            amount
-        );
-
-        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
-            sellerAmount -= royaltyAmount;
-        }
-
-        // Transfer NFT to buyer
-        IERC721(nftContract).safeTransferFrom(seller, buyer, tokenId);
-
-        // Add seller funds to pending withdrawals using pull payment pattern
-        marketplaceStorage.addPendingWithdrawal(seller, sellerAmount);
-        emit FundsAddedToWithdraw(seller, sellerAmount);
-
-        // Handle royalty using pull payment pattern
-        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
-            marketplaceStorage.addPendingWithdrawal(
-                royaltyReceiver,
-                royaltyAmount
-            );
-            emit FundsAddedToWithdraw(royaltyReceiver, royaltyAmount);
-        }
-
-        // Update accumulated market fees
-        marketplaceStorage.addAccumulatedFees(marketFeeAmount);
-    }
-
-    // Function to withdraw accumulated marketplace fees
-    function withdrawAccumulatedFees() external onlyOwner nonReentrant {
-        uint256 amount = marketplaceStorage.accumulatedFees();
-        require(amount > 0, "No fees accumulated");
-
-        // Reset accumulated fees to 0 before transfer to prevent reentrancy
-        marketplaceStorage.resetAccumulatedFees();
-
-        // Direct transfer to owner
-        (bool success, ) = payable(owner()).call{value: amount}("");
-        require(success, "Transfer failed");
-
-        emit FeesWithdrawn(owner(), amount);
-    }
-
-    // Allow a bidder to withdraw their bid
-    function withdrawBid(
-        address nftContract,
-        uint256 tokenId
-    ) public nonReentrant {
-        // Get bid struct
-        IBasedMarketplaceStorage.Bid memory bid = _getBidAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        require(bid.bidder == msg.sender, "Not the bidder");
-        require(bid.amount > 0, "No bid to withdraw");
-
-        // Clear the bid
-        marketplaceStorage.clearHighestBid(nftContract, tokenId);
-
-        // Add to pending withdrawals using pull payment pattern
-        marketplaceStorage.addPendingWithdrawal(msg.sender, bid.amount);
-        emit FundsAddedToWithdraw(msg.sender, bid.amount);
-
-        emit BidWithdrawn(msg.sender, nftContract, tokenId, bid.amount);
-    }
-
-    // Allow users to withdraw funds from pending withdrawals
-    function withdrawPendingFunds() public nonReentrant {
-        uint256 amount = marketplaceStorage.pendingWithdrawals(msg.sender);
-        require(amount > 0, "No funds to withdraw");
-
-        // Reset pending withdrawal before transfer to prevent reentrancy
-        marketplaceStorage.setPendingWithdrawal(msg.sender, 0);
-
-        // Transfer the funds
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
-        require(success, "Transfer failed");
-    }
-
-    // Allow receivers to claim their failed royalty payments
-    function claimFailedRoyalties() public nonReentrant {
-        uint256 amount = marketplaceStorage.failedRoyalties(msg.sender);
-        require(amount > 0, "No failed royalties to claim");
-
-        // Reset failed royalties before transfer to prevent reentrancy
-        marketplaceStorage.setFailedRoyalty(msg.sender, 0);
-
-        // Transfer the funds
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
-        require(success, "Transfer failed");
-    }
-
-    // Allow sellers to update the price of their listing
+    /**
+     * @dev Update the price of a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param newPrice New listing price
+     */
     function updateListingPrice(
         address nftContract,
         uint256 tokenId,
         uint256 newPrice
-    ) public whenNotPaused {
-        // Get listing struct
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
+    ) external whenNotPaused {
+        // Get listing details
+        (
+            address seller,
+            ,
+            ,
+            ,
+            ,
+            ,
+            IBasedMarketplaceStorage.ListingStatus status
+        ) = marketplaceStorage.getListing(nftContract, tokenId);
 
-        require(listing.seller == msg.sender, "Not the seller");
-        require(listing.active, "Listing not active");
+        require(seller == msg.sender, "Not the seller");
+        require(
+            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            "Listing not active"
+        );
         require(newPrice > 0, "Price must be greater than zero");
 
-        // Get current bid
-        IBasedMarketplaceStorage.Bid memory currentBid = _getBidAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        if (currentBid.amount > 0) {
-            require(
-                newPrice > currentBid.amount,
-                "New price must be higher than current bid"
-            );
+        // Verify seller still owns the NFT
+        try IERC721(nftContract).ownerOf(tokenId) returns (address owner) {
+            require(owner == msg.sender, "Seller no longer owns this NFT");
+        } catch {
+            revert("Failed to verify NFT ownership");
         }
 
         // Update listing price
@@ -555,30 +364,407 @@ contract BasedMarketplace is
         emit UpdatedListing(msg.sender, nftContract, tokenId, newPrice);
     }
 
-    // Helper function to refund the highest bidder using pull payment pattern
-    function _refundHighestBidder(
+    // ===== PURCHASE FUNCTIONS =====
+
+    /**
+     * @dev Buy a listed NFT
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     */
+    function buyItem(
         address nftContract,
         uint256 tokenId
-    ) private {
-        // Get bid struct
-        IBasedMarketplaceStorage.Bid memory bid = _getBidAsStruct(
-            nftContract,
-            tokenId
+    ) external payable nonReentrant whenNotPaused {
+        // Get listing details
+        (
+            address seller,
+            address nftContractAddress,
+            uint256 tokenIdValue,
+            uint256 price,
+            bool isPrivate,
+            address allowedBuyer,
+            IBasedMarketplaceStorage.ListingStatus status
+        ) = marketplaceStorage.getListing(nftContract, tokenId);
+
+        require(
+            status == IBasedMarketplaceStorage.ListingStatus.Active,
+            "Item not active"
+        );
+        require(msg.value >= price, "Insufficient funds");
+
+        // Check if this is a private listing
+        if (isPrivate) {
+            require(
+                msg.sender == allowedBuyer,
+                "Not authorized for this private listing"
+            );
+        }
+
+        // Verify seller still owns the NFT
+        IERC721 nft = IERC721(nftContractAddress);
+        require(
+            nft.ownerOf(tokenIdValue) == seller,
+            "Seller no longer owns this NFT"
         );
 
-        if (bid.amount > 0) {
-            // Clear the bid
-            marketplaceStorage.clearHighestBid(nftContract, tokenId);
+        // Mark as sold
+        marketplaceStorage.updateListingStatus(
+            nftContract,
+            tokenId,
+            IBasedMarketplaceStorage.ListingStatus.Sold
+        );
 
-            // Add to pending withdrawals using pull payment pattern
-            marketplaceStorage.addPendingWithdrawal(bid.bidder, bid.amount);
-            emit FundsAddedToWithdraw(bid.bidder, bid.amount);
+        // Process the payment and distribute funds
+        _processSale(
+            nftContractAddress,
+            tokenIdValue,
+            seller,
+            msg.sender,
+            price
+        );
 
-            emit BidWithdrawn(bid.bidder, nftContract, tokenId, bid.amount);
+        emit ItemSold(
+            seller,
+            msg.sender,
+            nftContractAddress,
+            tokenIdValue,
+            price
+        );
+
+        // Refund any excess payment
+        uint256 excess = msg.value - price;
+        if (excess > 0) {
+            (bool success, ) = payable(msg.sender).call{value: excess}("");
+            if (!success) {
+                emit PaymentFailed(msg.sender, excess, "Excess refund");
+            } else {
+                emit PaymentSent(msg.sender, excess, "Excess refund");
+            }
         }
     }
 
-    // Get royalty information for an NFT
+    // ===== BID/OFFER EXECUTION FUNCTION =====
+
+    /**
+     * @dev Execute an offer that was signed by a seller
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param price Offered price
+     * @param seller Address of the seller
+     * @param expiration Expiration timestamp for the offer
+     * @param signature Signature from the seller
+     */
+    function executeOffer(
+        address nftContract,
+        uint256 tokenId,
+        uint256 price,
+        address seller,
+        uint256 expiration,
+        bytes calldata signature
+    ) external payable nonReentrant whenNotPaused {
+        require(nftContract != address(0), "Invalid NFT contract address");
+        require(seller != address(0), "Invalid seller address");
+        require(seller != msg.sender, "Seller cannot be buyer");
+        require(price > 0, "Price must be greater than zero");
+        require(
+            expiration > block.timestamp,
+            "Expiration must be in the future"
+        );
+
+        // Verify contract exists and is an NFT contract
+        require(
+            IERC165(nftContract).supportsInterface(0x80ac58cd), // ERC721 interface ID
+            "Address is not an ERC721 contract"
+        );
+
+        // Vrify the NFT exists and seller still owns it
+        IERC721 nft = IERC721(nftContract);
+        require(nft.ownerOf(tokenId) == seller, "Seller doesn't own NFT");
+
+        // Generate a unique offer ID - now including chain ID to prevent
+        // replay attacks across chains
+        bytes32 offerId = keccak256(
+            abi.encode( // Changed from abi.encodePacked to abi.encode for safer encoding
+                nftContract,
+                tokenId,
+                price,
+                seller,
+                msg.sender, // buyer
+                expiration,
+                block.chainid // Add chain ID to prevent cross-chain replay attacks
+            )
+        );
+
+        // Verify the offer hasn't been used before
+        require(!marketplaceStorage.isOfferUsed(offerId), "Offer already used");
+
+        // Verify offer hasn't expired
+        require(block.timestamp <= expiration, "Offer expired");
+
+        // Verify correct payment amount
+        require(msg.value >= price, "Insufficient payment");
+
+        // Create the message hash that the seller would have signed
+        // Including chain ID in the message hash
+        bytes32 messageHash = keccak256(
+            abi.encode( // Changed from abi.encodePacked for safer encoding
+                nftContract,
+                tokenId,
+                price,
+                msg.sender, // buyer
+                expiration,
+                address(this), // contract address
+                block.chainid // Add chain ID to message hash
+            )
+        );
+
+        // Verify the signature came from the seller
+        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+        address recoveredSigner = ethSignedMessageHash.recover(signature);
+        require(recoveredSigner == seller, "Invalid seller signature");
+
+        // Check if NFT is approved for marketplace
+        require(
+            nft.isApprovedForAll(seller, address(this)) ||
+                nft.getApproved(tokenId) == address(this),
+            "NFT not approved for marketplace"
+        );
+
+        // Mark offer as used to prevent replay
+        marketplaceStorage.markOfferAsUsed(offerId);
+
+        // Update listing if it exists
+        (
+            address listingSeller,
+            ,
+            ,
+            ,
+            ,
+            ,
+            IBasedMarketplaceStorage.ListingStatus status
+        ) = marketplaceStorage.getListing(nftContract, tokenId);
+
+        if (
+            status == IBasedMarketplaceStorage.ListingStatus.Active &&
+            listingSeller == seller
+        ) {
+            marketplaceStorage.updateListingStatus(
+                nftContract,
+                tokenId,
+                IBasedMarketplaceStorage.ListingStatus.Sold
+            );
+        }
+
+        // Process the payment and transfer
+        _processSale(nftContract, tokenId, seller, msg.sender, price);
+
+        // Emit events
+        emit OfferExecuted(
+            seller,
+            msg.sender,
+            nftContract,
+            tokenId,
+            price,
+            offerId
+        );
+
+        emit ItemSold(seller, msg.sender, nftContract, tokenId, price);
+
+        // Refund any excess payment
+        uint256 excess = msg.value - price;
+        if (excess > 0) {
+            (bool success, ) = payable(msg.sender).call{value: excess}("");
+            if (!success) {
+                emit PaymentFailed(msg.sender, excess, "Excess refund");
+            } else {
+                emit PaymentSent(msg.sender, excess, "Excess refund");
+            }
+        }
+    }
+
+    /**
+     * @dev Get the message hash for creating an offer signature
+     * @param nftContract NFT contract address
+     * @param tokenId NFT token ID
+     * @param price Offer price
+     * @param buyer Address of the buyer
+     * @param expiration Expiration timestamp
+     * @return The hash that should be signed by the seller
+     */
+    function getOfferHash(
+        address nftContract,
+        uint256 tokenId,
+        uint256 price,
+        address buyer,
+        uint256 expiration
+    ) external view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    nftContract,
+                    tokenId,
+                    price,
+                    buyer,
+                    expiration,
+                    address(this),
+                    block.chainid
+                )
+            );
+    }
+
+    // ===== HELPER FUNCTIONS =====
+
+    /**
+     * @dev Process the sale payment and distribute funds
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param seller Address of the seller
+     * @param buyer Address of the buyer
+     * @param amount Total payment amount
+     */
+    function _processSale(
+        address nftContract,
+        uint256 tokenId,
+        address seller,
+        address buyer,
+        uint256 amount
+    ) internal {
+        // CHECKS - Calculate all values first
+        uint256 marketFeeAmount = (amount * marketplaceStorage.marketFee()) /
+            10000;
+
+        // Get royalty information
+        (address royaltyReceiver, uint256 royaltyAmount) = _getRoyaltyInfo(
+            nftContract,
+            tokenId,
+            amount
+        );
+
+        // Actual amount the seller receives
+        uint256 sellerAmount = amount - marketFeeAmount;
+        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
+            sellerAmount -= royaltyAmount;
+        }
+
+        // EFFECTS - Update all state before external calls
+        // Accumulate marketplace fees in storage
+        marketplaceStorage.addAccumulatedFees(marketFeeAmount);
+
+        // INTERACTIONS - External calls last
+        // 1. Transfer the NFT with proper error handling
+        try IERC721(nftContract).safeTransferFrom(seller, buyer, tokenId) {
+            // NFT transfer successful, proceed with payments
+        } catch Error(string memory reason) {
+            // Revert with the reason
+            revert(string(abi.encodePacked("NFT transfer failed: ", reason)));
+        } catch {
+            // Revert with a generic message if no reason was provided
+            revert("NFT transfer failed");
+        }
+
+        // 2. Pay royalties if applicable
+        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
+            (bool royaltySuccess, ) = payable(royaltyReceiver).call{
+                value: royaltyAmount
+            }("");
+
+            if (!royaltySuccess) {
+                // Store the failed payment for later claiming
+                marketplaceStorage.addFailedPayment(
+                    royaltyReceiver,
+                    royaltyAmount
+                );
+                emit PaymentFailed(royaltyReceiver, royaltyAmount, "Royalty");
+            } else {
+                emit PaymentSent(royaltyReceiver, royaltyAmount, "Royalty");
+            }
+        }
+
+        // 3. Send marketplace fee - implicit as we've only updated the storage
+        emit PaymentSent(address(this), marketFeeAmount, "Marketplace fee");
+
+        // 4. Send remaining amount to seller
+        (bool sellerSuccess, ) = payable(seller).call{value: sellerAmount}("");
+        if (!sellerSuccess) {
+            // Instead of reverting, store for later claiming
+            marketplaceStorage.addFailedPayment(seller, sellerAmount);
+            emit PaymentFailed(seller, sellerAmount, "Sale proceeds");
+            // Emit event for monitoring
+            emit SaleCompletedWithPaymentIssue(
+                seller,
+                buyer,
+                nftContract,
+                tokenId,
+                sellerAmount
+            );
+        } else {
+            emit PaymentSent(seller, sellerAmount, "Sale proceeds");
+        }
+    }
+
+    /**
+     * @dev Allow users to claim their failed payments
+     */
+    function claimFailedPayment() external nonReentrant {
+        uint256 amount = marketplaceStorage.failedPayments(msg.sender);
+        require(amount > 0, "No failed payments to claim");
+
+        // Update state before external call to prevent reentrancy
+        marketplaceStorage.clearFailedPayment(msg.sender);
+
+        // Send the payment
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Transfer failed");
+
+        emit FailedPaymentClaimed(msg.sender, amount);
+    }
+
+    /**
+     * @dev Check the amount of failed payments for a recipient
+     * @param recipient Address to check
+     * @return amount Amount of failed payments
+     */
+    function getFailedPaymentAmount(
+        address recipient
+    ) external view returns (uint256) {
+        return marketplaceStorage.failedPayments(recipient);
+    }
+
+    /**
+     * @dev Allow contract owner to withdraw accumulated marketplace fees
+     */
+    function withdrawAccumulatedFees() external onlyOwner nonReentrant {
+        uint256 amount = marketplaceStorage.accumulatedFees();
+        require(amount > 0, "No fees accumulated");
+
+        // Reset accumulated fees to 0 before transfer to prevent reentrancy
+        marketplaceStorage.resetAccumulatedFees();
+
+        // Direct transfer to fee recipient
+        (bool success, ) = payable(marketplaceStorage.feeRecipient()).call{
+            value: amount
+        }("");
+        require(success, "Transfer failed");
+
+        emit FeesWithdrawn(marketplaceStorage.feeRecipient(), amount);
+    }
+
+    /**
+     * @dev Get the current amount of accumulated fees
+     * @return Amount of accumulated fees
+     */
+    function getAccumulatedFees() external view returns (uint256) {
+        return marketplaceStorage.accumulatedFees();
+    }
+
+    /**
+     * @dev Get royalty information for an NFT
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param salePrice Price of the sale
+     * @return receiver Address of the royalty receiver
+     * @return royaltyAmount Amount of the royalty
+     */
     function _getRoyaltyInfo(
         address nftContract,
         uint256 tokenId,
@@ -588,7 +774,7 @@ contract BasedMarketplace is
             return (address(0), 0);
         }
 
-        // Try ERC2981 interface first
+        // Try ERC2981 interface
         if (
             IERC165(nftContract).supportsInterface(type(IERC2981).interfaceId)
         ) {
@@ -598,161 +784,8 @@ contract BasedMarketplace is
         return (address(0), 0);
     }
 
-    // Allow contract owner to pause all marketplace operations in case of emergency
-    function setPaused(bool _paused) public onlyOwner {
-        marketplaceStorage.setPaused(_paused);
-        if (_paused) {
-            emit EmergencyPaused(msg.sender);
-        } else {
-            emit EmergencyUnpaused(msg.sender);
-        }
-    }
-
-    // Toggle royalty payments
-    function setRoyaltiesDisabled(bool _disabled) public onlyOwner {
-        marketplaceStorage.setRoyaltiesDisabled(_disabled);
-    }
-
-    // Check if a listing is valid
-    function isListingValid(
-        address nftContract,
-        uint256 tokenId
-    ) public view returns (bool) {
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        if (!listing.active) return false;
-
-        try IERC721(nftContract).ownerOf(tokenId) returns (address owner) {
-            return owner == listing.seller;
-        } catch {
-            return false;
-        }
-    }
-
-    function setMarketFee(uint256 _marketFee) public onlyOwner {
-        require(_marketFee <= 1000, "Fee cannot exceed 10%"); // Maximum 10% fee
-        marketplaceStorage.setMarketFee(_marketFee);
-        emit MarketFeeUpdated(_marketFee);
-    }
-
-    function isListed(
-        address nftContract,
-        uint256 tokenId
-    ) public view returns (bool) {
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
-        return listing.active;
-    }
-
-    function getListing(
-        address nftContract,
-        uint256 tokenId
-    )
-        public
-        view
-        returns (
-            address seller,
-            address nftContractAddress,
-            uint256 tokenIdValue,
-            uint256 price,
-            bool active,
-            bool isPrivate,
-            address allowedBuyer,
-            IBasedMarketplaceStorage.ListingStatus status
-        )
-    {
-        return marketplaceStorage.getListing(nftContract, tokenId);
-    }
-
-    function getCurrentBid(
-        address nftContract,
-        uint256 tokenId
-    ) public view returns (address bidder, uint256 amount, uint256 timestamp) {
-        return marketplaceStorage.getHighestBid(nftContract, tokenId);
-    }
-
-    // Function to directly get the status of a listing
-    function getListingStatus(
-        address nftContract,
-        uint256 tokenId
-    ) public view returns (IBasedMarketplaceStorage.ListingStatus) {
-        return marketplaceStorage.getListingStatus(nftContract, tokenId);
-    }
-
-    // Allow a seller to accept the highest bid
-    function acceptBid(
-        address nftContract,
-        uint256 tokenId
-    ) public nonReentrant whenNotPaused {
-        // Get the full listing and bid structs
-        IBasedMarketplaceStorage.Listing memory listing = _getListingAsStruct(
-            nftContract,
-            tokenId
-        );
-        IBasedMarketplaceStorage.Bid memory highestBid = _getBidAsStruct(
-            nftContract,
-            tokenId
-        );
-
-        require(listing.seller == msg.sender, "Not the seller");
-        require(listing.active, "Listing not active");
-        require(highestBid.amount > 0, "No bids to accept");
-
-        // Verify the NFT is still owned by the seller
-        IERC721 nft = IERC721(listing.nftContract);
-        require(
-            nft.ownerOf(listing.tokenId) == listing.seller,
-            "Seller no longer owns this NFT"
-        );
-
-        // Deactivate the listing and mark as sold
-        marketplaceStorage.updateListingStatus(
-            nftContract,
-            tokenId,
-            IBasedMarketplaceStorage.ListingStatus.Sold
-        );
-
-        // Reset the bid
-        marketplaceStorage.clearHighestBid(nftContract, tokenId);
-
-        // Process payment
-        _processSaleFunds(
-            listing.nftContract,
-            listing.tokenId,
-            listing.seller,
-            highestBid.bidder,
-            highestBid.amount
-        );
-
-        emit BidAccepted(
-            listing.seller,
-            highestBid.bidder,
-            listing.nftContract,
-            listing.tokenId,
-            highestBid.amount
-        );
-
-        emit ItemSold(
-            listing.seller,
-            highestBid.bidder,
-            listing.nftContract,
-            listing.tokenId,
-            highestBid.amount
-        );
-    }
-
-    // Get the current amount of accumulated fees
-    function getAccumulatedFees() public view returns (uint256) {
-        return marketplaceStorage.accumulatedFees();
-    }
-
-    // Check if a user has pending withdrawals
-    function getPendingWithdrawal(address user) public view returns (uint256) {
-        return marketplaceStorage.pendingWithdrawals(user);
-    }
+    /**
+     * @dev Receive function to accept payments
+     */
+    receive() external payable {}
 }

@@ -3,12 +3,14 @@ pragma solidity ^0.8.22;
 
 /**
  * @title IBasedMarketplaceStorage
- * @dev Combined interface for marketplace types and storage functions
+ * @dev Interface for marketplace storage functions
  */
 interface IBasedMarketplaceStorage {
-    // ===== Type Definitions =====
+    // ===== TYPE DEFINITIONS =====
 
-    // Listing status enum
+    /**
+     * @dev Enum representing the possible states of a listing
+     */
     enum ListingStatus {
         None,
         Active,
@@ -16,40 +18,40 @@ interface IBasedMarketplaceStorage {
         Canceled
     }
 
-    // Listing structure type definition
+    /**
+     * @dev Structure representing an NFT listing
+     */
     struct Listing {
-        address seller;
-        address nftContract;
-        uint256 tokenId;
-        uint256 price;
-        bool active;
-        bool isPrivate;
-        address allowedBuyer;
-        ListingStatus status;
+        address seller; // Address of the seller
+        address nftContract; // Address of the NFT contract
+        uint256 tokenId; // ID of the token being sold
+        uint256 price; // Price in wei
+        bool isPrivate; // Whether the listing is private
+        address allowedBuyer; // Address of the allowed buyer (for private listings)
+        ListingStatus status; // Current status of the listing
     }
 
-    // Bid structure type definition
-    struct Bid {
-        address bidder;
-        uint256 amount;
-        uint256 timestamp;
-    }
-
-    // ===== State Query Functions =====
+    // ===== CONFIGURATION VIEW FUNCTIONS =====
 
     function marketFee() external view returns (uint256);
-
-    function accumulatedFees() external view returns (uint256);
 
     function paused() external view returns (bool);
 
     function royaltiesDisabled() external view returns (bool);
 
-    function pendingWithdrawals(address user) external view returns (uint256);
+    function feeRecipient() external view returns (address);
 
-    function failedRoyalties(address user) external view returns (uint256);
+    // ===== CONFIGURATION SETTER FUNCTIONS =====
 
-    // ===== Listing Functions =====
+    function setMarketFee(uint256 _marketFee) external;
+
+    function setFeeRecipient(address _feeRecipient) external;
+
+    function setPaused(bool _paused) external;
+
+    function setRoyaltiesDisabled(bool _disabled) external;
+
+    // ===== LISTING MANAGEMENT FUNCTIONS =====
 
     function getListing(
         address nftContract,
@@ -62,7 +64,6 @@ interface IBasedMarketplaceStorage {
             address nftContractAddress,
             uint256 tokenIdValue,
             uint256 price,
-            bool active,
             bool isPrivate,
             address allowedBuyer,
             ListingStatus status
@@ -73,15 +74,8 @@ interface IBasedMarketplaceStorage {
         uint256 tokenId,
         address seller,
         uint256 price,
-        bool active,
         bool isPrivate,
         address allowedBuyer
-    ) external;
-
-    function updateListingActive(
-        address nftContract,
-        uint256 tokenId,
-        bool active
     ) external;
 
     function updateListingStatus(
@@ -90,53 +84,36 @@ interface IBasedMarketplaceStorage {
         ListingStatus status
     ) external;
 
-    function getListingStatus(
-        address nftContract,
-        uint256 tokenId
-    ) external view returns (ListingStatus);
-
     function updateListingPrice(
         address nftContract,
         uint256 tokenId,
         uint256 price
     ) external;
 
-    // ===== Bid Functions =====
-
-    function getHighestBid(
+    function isListed(
         address nftContract,
         uint256 tokenId
-    ) external view returns (address bidder, uint256 amount, uint256 timestamp);
+    ) external view returns (bool);
 
-    function setHighestBid(
-        address nftContract,
-        uint256 tokenId,
-        address bidder,
-        uint256 amount,
-        uint256 timestamp
-    ) external;
+    // ===== BID/OFFER MANAGEMENT FUNCTIONS =====
 
-    function clearHighestBid(address nftContract, uint256 tokenId) external;
+    function isOfferUsed(bytes32 offerId) external view returns (bool);
 
-    // ===== Fund Management Functions =====
+    function markOfferAsUsed(bytes32 offerId) external;
 
-    function addPendingWithdrawal(address recipient, uint256 amount) external;
+    // ===== FAILED PAYMENT FUNCTIONS =====
 
-    function setPendingWithdrawal(address recipient, uint256 amount) external;
+    function failedPayments(address recipient) external view returns (uint256);
 
-    function addFailedRoyalty(address recipient, uint256 amount) external;
+    function addFailedPayment(address recipient, uint256 amount) external;
 
-    function setFailedRoyalty(address recipient, uint256 amount) external;
+    function clearFailedPayment(address recipient) external;
+
+    // ===== MARKET FEE FUNCTIONS =====
+
+    function accumulatedFees() external view returns (uint256);
 
     function addAccumulatedFees(uint256 amount) external;
 
     function resetAccumulatedFees() external;
-
-    // ===== Settings Functions =====
-
-    function setMarketFee(uint256 _marketFee) external;
-
-    function setPaused(bool _paused) external;
-
-    function setRoyaltiesDisabled(bool _disabled) external;
 }

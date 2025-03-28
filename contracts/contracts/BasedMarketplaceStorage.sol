@@ -7,46 +7,121 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./IBasedMarketplaceStorage.sol";
 
 /**
- * @title BasedMarketplaceStorage
- * @dev This contract serves as a dedicated storage contract for the BasedMarketplace.
- * It contains all the state variables and provides getter/setter functions for the marketplace contract.
+ * @title SimplifiedBasedMarketplaceStorage
+ * @dev Minimized storage contract for the SimplifiedBasedMarketplace.
  */
-contract BasedMarketplaceStorage is
+contract SimplifiedBasedMarketplaceStorage is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
     IBasedMarketplaceStorage
 {
-    // Market fees
+    // ===== STATE VARIABLES =====
+
+    // Market configuration
     uint256 public marketFee; // basis points (e.g., 250 = 2.5%)
-    uint256 public accumulatedFees; // Total fees accumulated in the contract (in wei)
-
-    // Mappings
-    mapping(address => mapping(uint256 => Listing)) private listings;
-    mapping(address => mapping(uint256 => Bid)) private highestBids;
-    mapping(address => uint256) public pendingWithdrawals;
-    mapping(address => uint256) public failedRoyalties;
-
-    // Flag for emergency pause and royalty control
     bool public paused;
     bool public royaltiesDisabled;
+    address public feeRecipient;
+    uint256 public accumulatedFees; // Total fees accumulated in the contract
+
+    // Mappings for marketplace data
+    mapping(address => mapping(uint256 => Listing)) private listings;
+    mapping(bytes32 => bool) public usedOfferIds;
+    mapping(address => uint256) public failedPayments;
 
     // Reserved space for future storage variables
-    uint256[49] private __gap;
+    uint256[44] private __gap;
+
+    // ===== EVENTS =====
+    event MarketFeeUpdated(uint256 newFee);
+    event FeeRecipientUpdated(address newRecipient);
+    event ContractPaused(bool isPaused);
+    event RoyaltiesStatusChanged(bool disabled);
+    event ListingCreated(
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        address seller,
+        uint256 price
+    );
+    event ListingUpdated(
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        uint256 newPrice
+    );
+    event ListingStatusChanged(
+        address indexed nftContract,
+        uint256 indexed tokenId,
+        ListingStatus status
+    );
+    event OfferMarkedUsed(bytes32 indexed offerId);
+    event FailedPaymentAdded(address indexed recipient, uint256 amount);
+    event FailedPaymentCleared(address indexed recipient, uint256 amount);
+    event FeesAccumulated(uint256 amount);
+    event FeesReset();
+
+    // ===== CONSTRUCTOR & INITIALIZER =====
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize() public initializer {
+    // ===== FAILED PAYMENT FUNCTIONS =====
+
+    /**
+     * @dev Add a failed payment for a recipient
+     * @param recipient Address of the recipient
+     * @param amount Amount to add
+     */
+    function addFailedPayment(
+        address recipient,
+        uint256 amount
+    ) external onlyOwner {
+        failedPayments[recipient] += amount;
+        emit FailedPaymentAdded(recipient, amount);
+    }
+
+    /**
+     * @dev Clear a failed payment (after successful claim)
+     * @param recipient Address of the recipient
+     */
+    function clearFailedPayment(address recipient) external onlyOwner {
+        uint256 amount = failedPayments[recipient];
+        failedPayments[recipient] = 0;
+        emit FailedPaymentCleared(recipient, amount);
+    }
+
+    // ===== MARKET FEE FUNCTIONS =====
+
+    /**
+     * @dev Add to accumulated fees
+     * @param amount Amount to add
+     */
+    function addAccumulatedFees(uint256 amount) external onlyOwner {
+        accumulatedFees += amount;
+        emit FeesAccumulated(amount);
+    }
+
+    /**
+     * @dev Reset accumulated fees (after withdrawal)
+     */
+    function resetAccumulatedFees() external onlyOwner {
+        accumulatedFees = 0;
+        emit FeesReset();
+    }
+
+    function initialize(address _feeRecipient) public initializer {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
+
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        marketFee = 450; // Default 4.5%
-        accumulatedFees = 0;
+        marketFee = 250; // Default 2.5%
+        feeRecipient = _feeRecipient;
         paused = false;
         royaltiesDisabled = false;
+        accumulatedFees = 0;
     }
 
     // Required for UUPS upgradeable pattern
@@ -54,7 +129,53 @@ contract BasedMarketplaceStorage is
         address newImplementation
     ) internal override onlyOwner {}
 
-    // Getter for a listing
+    // ===== MARKETPLACE SETTINGS FUNCTIONS =====
+
+    /**
+     * @dev Set the marketplace fee (in basis points)
+     * @param _marketFee New fee amount (e.g., 250 = 2.5%)
+     */
+    function setMarketFee(uint256 _marketFee) external onlyOwner {
+        marketFee = _marketFee;
+        emit MarketFeeUpdated(_marketFee);
+    }
+
+    /**
+     * @dev Set the fee recipient address
+     * @param _feeRecipient New fee recipient address
+     */
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /**
+     * @dev Set the paused status of the marketplace
+     * @param _paused Whether the marketplace should be paused
+     */
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
+        emit ContractPaused(_paused);
+    }
+
+    /**
+     * @dev Set whether royalty payments are disabled
+     * @param _disabled Whether royalties should be disabled
+     */
+    function setRoyaltiesDisabled(bool _disabled) external onlyOwner {
+        royaltiesDisabled = _disabled;
+        emit RoyaltiesStatusChanged(_disabled);
+    }
+
+    // ===== LISTING MANAGEMENT FUNCTIONS =====
+
+    /**
+     * @dev Retrieve details of a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @return Full listing details
+     */
     function getListing(
         address nftContract,
         uint256 tokenId
@@ -66,7 +187,6 @@ contract BasedMarketplaceStorage is
             address nftContractAddress,
             uint256 tokenIdValue,
             uint256 price,
-            bool active,
             bool isPrivate,
             address allowedBuyer,
             ListingStatus status
@@ -78,20 +198,26 @@ contract BasedMarketplaceStorage is
             listing.nftContract,
             listing.tokenId,
             listing.price,
-            listing.active,
             listing.isPrivate,
             listing.allowedBuyer,
             listing.status
         );
     }
 
-    // Setter for a listing
+    /**
+     * @dev Create or update a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param seller Address of the seller
+     * @param price Listing price
+     * @param isPrivate Whether the listing is private
+     * @param allowedBuyer Address of the allowed buyer (for private listings)
+     */
     function setListing(
         address nftContract,
         uint256 tokenId,
         address seller,
         uint256 price,
-        bool active,
         bool isPrivate,
         address allowedBuyer
     ) external onlyOwner {
@@ -100,142 +226,72 @@ contract BasedMarketplaceStorage is
             nftContract: nftContract,
             tokenId: tokenId,
             price: price,
-            active: active,
             isPrivate: isPrivate,
             allowedBuyer: allowedBuyer,
-            status: active ? ListingStatus.Active : ListingStatus.None
+            status: ListingStatus.Active
         });
+
+        emit ListingCreated(nftContract, tokenId, seller, price);
     }
 
-    // Update listing active status
-    function updateListingActive(
-        address nftContract,
-        uint256 tokenId,
-        bool active
-    ) external onlyOwner {
-        listings[nftContract][tokenId].active = active;
-    }
-
-    // Update listing status
+    /**
+     * @dev Update the status of a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param status New listing status
+     */
     function updateListingStatus(
         address nftContract,
         uint256 tokenId,
         ListingStatus status
     ) external onlyOwner {
         listings[nftContract][tokenId].status = status;
-        // If status is Sold or Canceled, also set active to false
-        if (status == ListingStatus.Sold || status == ListingStatus.Canceled) {
-            listings[nftContract][tokenId].active = false;
-        }
+        emit ListingStatusChanged(nftContract, tokenId, status);
     }
 
-    // Get listing status
-    function getListingStatus(
-        address nftContract,
-        uint256 tokenId
-    ) external view returns (ListingStatus) {
-        return listings[nftContract][tokenId].status;
-    }
-
-    // Update listing price
+    /**
+     * @dev Update the price of a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param price New listing price
+     */
     function updateListingPrice(
         address nftContract,
         uint256 tokenId,
         uint256 price
     ) external onlyOwner {
         listings[nftContract][tokenId].price = price;
+        emit ListingUpdated(nftContract, tokenId, price);
     }
 
-    // Getter for a bid
-    function getHighestBid(
+    /**
+     * @dev Check if an offer ID has been used
+     * @param offerId Offer ID to check
+     * @return Whether the offer ID has been used
+     */
+    function isOfferUsed(bytes32 offerId) external view returns (bool) {
+        return usedOfferIds[offerId];
+    }
+
+    /**
+     * @dev Mark an offer ID as used
+     * @param offerId Offer ID to mark
+     */
+    function markOfferAsUsed(bytes32 offerId) external onlyOwner {
+        usedOfferIds[offerId] = true;
+        emit OfferMarkedUsed(offerId);
+    }
+
+    /**
+     * @dev Check if item is listed and active
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @return Whether the item is listed and active
+     */
+    function isListed(
         address nftContract,
         uint256 tokenId
-    )
-        external
-        view
-        returns (address bidder, uint256 amount, uint256 timestamp)
-    {
-        Bid storage bid = highestBids[nftContract][tokenId];
-        return (bid.bidder, bid.amount, bid.timestamp);
-    }
-
-    // Setter for a bid
-    function setHighestBid(
-        address nftContract,
-        uint256 tokenId,
-        address bidder,
-        uint256 amount,
-        uint256 timestamp
-    ) external onlyOwner {
-        highestBids[nftContract][tokenId] = Bid({
-            bidder: bidder,
-            amount: amount,
-            timestamp: timestamp
-        });
-    }
-
-    // Clear a bid
-    function clearHighestBid(
-        address nftContract,
-        uint256 tokenId
-    ) external onlyOwner {
-        delete highestBids[nftContract][tokenId];
-    }
-
-    // Add to pending withdrawals
-    function addPendingWithdrawal(
-        address recipient,
-        uint256 amount
-    ) external onlyOwner {
-        pendingWithdrawals[recipient] += amount;
-    }
-
-    // Set pending withdrawal
-    function setPendingWithdrawal(
-        address recipient,
-        uint256 amount
-    ) external onlyOwner {
-        pendingWithdrawals[recipient] = amount;
-    }
-
-    // Add to failed royalties
-    function addFailedRoyalty(
-        address recipient,
-        uint256 amount
-    ) external onlyOwner {
-        failedRoyalties[recipient] += amount;
-    }
-
-    // Set failed royalty
-    function setFailedRoyalty(
-        address recipient,
-        uint256 amount
-    ) external onlyOwner {
-        failedRoyalties[recipient] = amount;
-    }
-
-    // Set market fee
-    function setMarketFee(uint256 _marketFee) external onlyOwner {
-        marketFee = _marketFee;
-    }
-
-    // Set paused status
-    function setPaused(bool _paused) external onlyOwner {
-        paused = _paused;
-    }
-
-    // Set royalties disabled
-    function setRoyaltiesDisabled(bool _disabled) external onlyOwner {
-        royaltiesDisabled = _disabled;
-    }
-
-    // Add to accumulated fees
-    function addAccumulatedFees(uint256 amount) external onlyOwner {
-        accumulatedFees += amount;
-    }
-
-    // Reset accumulated fees (after withdrawal)
-    function resetAccumulatedFees() external onlyOwner {
-        accumulatedFees = 0;
+    ) external view returns (bool) {
+        return listings[nftContract][tokenId].status == ListingStatus.Active;
     }
 }

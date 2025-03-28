@@ -3,7 +3,7 @@
 pragma solidity ^0.8.22;
 import "hardhat/console.sol";
 
-import "./BasedNFTCollection.sol";
+import "./BasedSequentialNFTCollection.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -50,25 +50,31 @@ contract BasedCollectionFactory is Initializable, OwnableUpgradeable {
         string memory name,
         string memory symbol,
         string memory baseURI,
+        string memory unrevealedURI,
         string memory contractURI,
         uint256 mintPrice,
         uint256 maxSupply,
+        uint256 maxTokensPerWallet,
         uint256 royaltyFee,
-        bool mintingEnabled
+        bool mintingEnabled,
+        bool startRevealed
     ) public payable returns (address) {
         console.log("createCollection", msg.value, creationFee);
         require(msg.value >= creationFee, "Insufficient creation fee");
 
         // Create new collection
-        BasedNFTCollection collection = new BasedNFTCollection(
+        BasedSequentialNFTCollection collection = new BasedSequentialNFTCollection(
             name,
             symbol,
             baseURI,
+            unrevealedURI,
             contractURI,
             mintPrice,
             maxSupply,
+            maxTokensPerWallet,
             royaltyFee,
             mintingEnabled,
+            startRevealed,
             msg.sender // Set creator as the owner
         );
 
