@@ -245,119 +245,120 @@ describe("BasedMarketplace", function () {
         )} ETH`
       );
 
-      // Get initial balances
-      const initialSellerBalance = await ethers.provider.getBalance(
-        seller.address
-      );
-      const initialOwnerBalance = await ethers.provider.getBalance(
-        owner.address
-      );
-      const initialBuyerBalance = await ethers.provider.getBalance(
-        buyer.address
-      );
-
-      console.log("\n----- INITIAL BALANCES -----");
-      console.log(`Seller: ${ethers.formatEther(initialSellerBalance)} ETH`);
-      console.log(`Owner: ${ethers.formatEther(initialOwnerBalance)} ETH`);
-      console.log(`Buyer: ${ethers.formatEther(initialBuyerBalance)} ETH`);
-
       // Buy the NFT
       const tx = await marketplace
         .connect(buyer)
         .buyItem(await nftCollection.getAddress(), 1, { value: listingPrice });
       const receipt = await tx.wait();
 
-      // Calculate gas cost
-      const gasCost = receipt!.gasUsed * receipt!.gasPrice;
-      console.log(`\nGas Cost: ${ethers.formatEther(gasCost)} ETH`);
+      // Verify accumulated fees
+      const accumulatedFees = await marketplace.getAccumulatedFees();
+      expect(accumulatedFees).to.equal(marketFeeAmount);
 
-      // Get final balances
+      // Verify pending withdrawals for seller
+      const sellerPendingWithdrawal = await marketplace.getPendingWithdrawal(
+        seller.address
+      );
+      expect(sellerPendingWithdrawal).to.equal(expectedTotalToSeller);
+
+      console.log("\n----- PENDING WITHDRAWALS -----");
+      console.log(
+        `Seller pending withdrawal: ${ethers.formatEther(
+          sellerPendingWithdrawal
+        )} ETH`
+      );
+      console.log(
+        `Accumulated marketplace fees: ${ethers.formatEther(
+          accumulatedFees
+        )} ETH`
+      );
+
+      // Now test withdrawal
+      const initialSellerBalance = await ethers.provider.getBalance(
+        seller.address
+      );
+
+      const withdrawTx = await marketplace
+        .connect(seller)
+        .withdrawPendingFunds();
+      const withdrawReceipt = await withdrawTx.wait();
+      const withdrawGasCost =
+        withdrawReceipt!.gasUsed * withdrawReceipt!.gasPrice;
+
       const finalSellerBalance = await ethers.provider.getBalance(
         seller.address
       );
+
+      console.log("\n----- AFTER WITHDRAWAL -----");
+      console.log(
+        `Seller balance change: ${ethers.formatEther(
+          finalSellerBalance - initialSellerBalance
+        )} ETH`
+      );
+      console.log(
+        `Gas cost for withdrawal: ${ethers.formatEther(withdrawGasCost)} ETH`
+      );
+
+      // Verify seller received their funds (minus gas costs for the withdrawal transaction)
+      expect(finalSellerBalance).to.be.closeTo(
+        initialSellerBalance + sellerPendingWithdrawal - withdrawGasCost,
+        ethers.parseEther("0.0001") // Small buffer
+      );
+
+      // Verify pending withdrawal is now zero
+      expect(await marketplace.getPendingWithdrawal(seller.address)).to.equal(
+        0
+      );
+    });
+
+    // Add a new test for owner withdrawing fees
+    it("Should allow owner to withdraw accumulated fees", async function () {
+      // List and sell an NFT to generate fees
+      await marketplace
+        .connect(seller)
+        .listItem(await nftCollection.getAddress(), 1, listingPrice);
+
+      await marketplace
+        .connect(buyer)
+        .buyItem(await nftCollection.getAddress(), 1, { value: listingPrice });
+
+      // Calculate market fee
+      const marketFeeAmount =
+        (listingPrice * BigInt(marketFee)) / BigInt(10000);
+
+      // Verify accumulated fees
+      expect(await marketplace.getAccumulatedFees()).to.equal(marketFeeAmount);
+
+      // Owner withdraws fees
+      await marketplace.connect(owner).withdrawAccumulatedFees();
+
+      // Check owner's pending withdrawal
+      const ownerPendingWithdrawal = await marketplace.getPendingWithdrawal(
+        owner.address
+      );
+      expect(ownerPendingWithdrawal).to.equal(marketFeeAmount);
+
+      // Check accumulated fees are reset
+      expect(await marketplace.getAccumulatedFees()).to.equal(0);
+
+      // Owner withdraws funds
+      const initialOwnerBalance = await ethers.provider.getBalance(
+        owner.address
+      );
+
+      const withdrawTx = await marketplace
+        .connect(owner)
+        .withdrawPendingFunds();
+      const withdrawReceipt = await withdrawTx.wait();
+      const withdrawGasCost =
+        withdrawReceipt!.gasUsed * withdrawReceipt!.gasPrice;
+
       const finalOwnerBalance = await ethers.provider.getBalance(owner.address);
-      const finalBuyerBalance = await ethers.provider.getBalance(buyer.address);
 
-      console.log("\n----- FINAL BALANCES -----");
-      console.log(`Seller: ${ethers.formatEther(finalSellerBalance)} ETH`);
-      console.log(`Owner: ${ethers.formatEther(finalOwnerBalance)} ETH`);
-      console.log(`Buyer: ${ethers.formatEther(finalBuyerBalance)} ETH`);
-
-      // Calculate actual changes in balances
-      const actualSellerChange = finalSellerBalance - initialSellerBalance;
-      const actualOwnerChange = finalOwnerBalance - initialOwnerBalance;
-      const actualBuyerChange = initialBuyerBalance - finalBuyerBalance;
-
-      console.log("\n----- ACTUAL BALANCE CHANGES -----");
-      console.log(
-        `Seller received: ${ethers.formatEther(actualSellerChange)} ETH`
-      );
-      console.log(
-        `Owner received: ${ethers.formatEther(actualOwnerChange)} ETH`
-      );
-      console.log(`Buyer spent: ${ethers.formatEther(actualBuyerChange)} ETH`);
-      console.log(
-        `Buyer spent (minus gas): ${ethers.formatEther(
-          actualBuyerChange - gasCost
-        )} ETH`
-      );
-
-      console.log("\n----- COMPARISON -----");
-      console.log(
-        `Expected seller to receive: ${ethers.formatEther(
-          expectedTotalToSeller
-        )} ETH`
-      );
-      console.log(
-        `Actual seller received: ${ethers.formatEther(actualSellerChange)} ETH`
-      );
-      console.log(
-        `Difference: ${ethers.formatEther(
-          actualSellerChange - expectedTotalToSeller
-        )} ETH`
-      );
-
-      console.log(
-        `Expected owner to receive: ${ethers.formatEther(marketFeeAmount)} ETH`
-      );
-      console.log(
-        `Actual owner received: ${ethers.formatEther(actualOwnerChange)} ETH`
-      );
-      console.log(
-        `Difference: ${ethers.formatEther(
-          actualOwnerChange - marketFeeAmount
-        )} ETH`
-      );
-
-      // Now let's do the actual test assertions with a small buffer to account for potential rounding
-      // or gas optimization differences
-      const buffer = ethers.parseEther("0.0001"); // Small buffer of 0.0001 ETH
-
-      // Check that owner received the market fee exactly
-      expect(actualOwnerChange).to.equal(marketFeeAmount);
-
-      // Check that buyer spent the listing price (plus gas which is handled separately)
-      expect(actualBuyerChange - gasCost).to.equal(listingPrice);
-
-      // Check seller's balance with a buffer
-      expect(actualSellerChange).to.be.closeTo(expectedTotalToSeller, buffer);
-
-      console.log("\n----- TEST RESULTS -----");
-      const sellerCloseEnough =
-        actualSellerChange >= expectedTotalToSeller - buffer &&
-        actualSellerChange <= expectedTotalToSeller + buffer;
-      console.log(
-        `Seller received close enough to expected amount: ${sellerCloseEnough}`
-      );
-      console.log(
-        `Owner received exact market fee: ${
-          actualOwnerChange === marketFeeAmount
-        }`
-      );
-      console.log(
-        `Buyer spent exact listing price (plus gas): ${
-          actualBuyerChange - gasCost === listingPrice
-        }`
+      // Verify owner received the fees (minus gas costs)
+      expect(finalOwnerBalance).to.be.closeTo(
+        initialOwnerBalance + marketFeeAmount - withdrawGasCost,
+        ethers.parseEther("0.0001") // Small buffer
       );
     });
 
@@ -372,23 +373,38 @@ describe("BasedMarketplace", function () {
       const sellerAmount =
         listingPrice - marketFeeAmount - royaltyAmount + royaltyAmount; // Seller gets royalty too
 
-      // Get initial balances
-      const initialSellerBalance = await ethers.provider.getBalance(
-        seller.address
-      );
-
       // Buy the NFT
       await marketplace
         .connect(buyer)
         .buyItem(await nftCollection.getAddress(), 1, { value: listingPrice });
 
-      // Get final balance
+      // Check pending withdrawal for seller
+      const sellerPendingWithdrawal = await marketplace.getPendingWithdrawal(
+        seller.address
+      );
+      expect(sellerPendingWithdrawal).to.equal(sellerAmount);
+
+      // Withdraw and verify
+      const initialSellerBalance = await ethers.provider.getBalance(
+        seller.address
+      );
+
+      const withdrawTx = await marketplace
+        .connect(seller)
+        .withdrawPendingFunds();
+      const withdrawReceipt = await withdrawTx.wait();
+      const withdrawGasCost =
+        withdrawReceipt!.gasUsed * withdrawReceipt!.gasPrice;
+
       const finalSellerBalance = await ethers.provider.getBalance(
         seller.address
       );
 
-      // Check balance
-      expect(finalSellerBalance).to.equal(initialSellerBalance + sellerAmount);
+      // Verify seller received their funds (minus gas costs for the withdrawal transaction)
+      expect(finalSellerBalance).to.be.closeTo(
+        initialSellerBalance + sellerPendingWithdrawal - withdrawGasCost,
+        ethers.parseEther("0.0001") // Small buffer
+      );
     });
 
     it("Should not allow buying an unlisted NFT", async function () {
@@ -492,6 +508,88 @@ describe("BasedMarketplace", function () {
           .connect(seller)
           .cancelListing(await nftCollection.getAddress(), 1)
       ).to.be.revertedWith("Listing not active");
+    });
+  });
+
+  describe("Bidding with Pull Payment", function () {
+    beforeEach(async function () {
+      // List the NFT
+      await marketplace
+        .connect(seller)
+        .listItem(await nftCollection.getAddress(), 1, listingPrice);
+    });
+
+    it("Should handle bid refunds correctly with pull payment", async function () {
+      const bidAmount1 = ethers.parseEther("0.1");
+      const bidAmount2 = ethers.parseEther("0.15");
+
+      // Place first bid
+      await marketplace
+        .connect(buyer)
+        .placeBid(await nftCollection.getAddress(), 1, { value: bidAmount1 });
+
+      // Get another bidder to outbid
+      const [_, __, ___, bidder2] = await ethers.getSigners();
+
+      // Place higher bid
+      await marketplace
+        .connect(bidder2)
+        .placeBid(await nftCollection.getAddress(), 1, { value: bidAmount2 });
+
+      // Check buyer's pending withdrawal
+      const buyerPendingWithdrawal = await marketplace.getPendingWithdrawal(
+        buyer.address
+      );
+      expect(buyerPendingWithdrawal).to.equal(bidAmount1);
+
+      // Withdraw funds and verify
+      const initialBuyerBalance = await ethers.provider.getBalance(
+        buyer.address
+      );
+
+      const withdrawTx = await marketplace
+        .connect(buyer)
+        .withdrawPendingFunds();
+      const withdrawReceipt = await withdrawTx.wait();
+      const withdrawGasCost =
+        withdrawReceipt!.gasUsed * withdrawReceipt!.gasPrice;
+
+      const finalBuyerBalance = await ethers.provider.getBalance(buyer.address);
+
+      // Verify buyer received their bid refund (minus gas costs)
+      expect(finalBuyerBalance).to.be.closeTo(
+        initialBuyerBalance + bidAmount1 - withdrawGasCost,
+        ethers.parseEther("0.0001") // Small buffer
+      );
+    });
+
+    it("Should handle accepted bids correctly with pull payment", async function () {
+      const bidAmount = ethers.parseEther("0.15");
+
+      // Place bid
+      await marketplace
+        .connect(buyer)
+        .placeBid(await nftCollection.getAddress(), 1, { value: bidAmount });
+
+      // Accept bid
+      await marketplace
+        .connect(seller)
+        .acceptBid(await nftCollection.getAddress(), 1);
+
+      // Calculate expected amounts
+      const marketFeeAmount = (bidAmount * BigInt(marketFee)) / BigInt(10000);
+      const royaltyAmount = (bidAmount * BigInt(royaltyFee)) / BigInt(10000);
+      const expectedSellerAmount =
+        bidAmount - marketFeeAmount - royaltyAmount + royaltyAmount; // Seller gets royalty too
+
+      // Check seller's pending withdrawal
+      const sellerPendingWithdrawal = await marketplace.getPendingWithdrawal(
+        seller.address
+      );
+      expect(sellerPendingWithdrawal).to.equal(expectedSellerAmount);
+
+      // Verify ownership transferred
+      expect(await nftCollection.ownerOf(1)).to.equal(buyer.address);
     });
   });
 

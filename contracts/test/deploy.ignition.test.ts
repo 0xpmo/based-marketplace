@@ -51,6 +51,10 @@ describe("BasedMarketplace Ignition Deployment (Test Only)", function () {
         await marketplaceStorage.getAddress()
       );
 
+      console.log("Checking pull payment and fees configuration...");
+      expect(await marketplaceStorage.accumulatedFees()).to.equal(0);
+      console.log("Default accumulated fees is 0");
+
       // Verify the sample collection was created
       console.log("Verifying sample collection was created...");
       expect(await factory.getCollectionCount()).to.equal(1);

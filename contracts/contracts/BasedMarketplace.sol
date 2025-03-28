@@ -1,4 +1,3 @@
-// contracts/contracts/BasedMarketplace.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
@@ -9,7 +8,6 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "./IBasedNFTCollection.sol";
 import "./IBasedMarketplaceStorage.sol";
 
 contract BasedMarketplace is
@@ -76,6 +74,8 @@ contract BasedMarketplace is
         address receiver,
         uint256 amount
     );
+    event FeesWithdrawn(address indexed owner, uint256 amount);
+    event FundsAddedToWithdraw(address indexed user, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -228,7 +228,7 @@ contract BasedMarketplace is
             "Seller no longer owns this NFT"
         );
 
-        // Refund previous bidder if there was a bid
+        // Refund previous bidder if there was a bid using pull payment pattern
         _refundHighestBidder(nftContract, tokenId);
 
         // Update listing to sold status
@@ -249,10 +249,12 @@ contract BasedMarketplace is
 
         // Refund excess payment to buyer
         if (msg.value > listing.price) {
-            (bool refundSuccess, ) = payable(msg.sender).call{
-                value: msg.value - listing.price
-            }("");
-            require(refundSuccess, "Failed to refund excess payment");
+            // Add excess payment to pending withdrawals instead of immediate refund
+            marketplaceStorage.addPendingWithdrawal(
+                msg.sender,
+                msg.value - listing.price
+            );
+            emit FundsAddedToWithdraw(msg.sender, msg.value - listing.price);
         }
 
         emit ItemSold(
@@ -322,7 +324,7 @@ contract BasedMarketplace is
         require(listing.seller == msg.sender, "Not the seller");
         require(listing.active, "Listing not active");
 
-        // Refund highest bidder if there is one
+        // Refund highest bidder if there is one using pull payment pattern
         _refundHighestBidder(nftContract, tokenId);
 
         // Update listing to canceled status
@@ -380,7 +382,7 @@ contract BasedMarketplace is
             "Bid must be higher than current bid"
         );
 
-        // Refund the previous highest bidder
+        // Refund the previous highest bidder using pull payment pattern
         if (currentBid.amount > 0) {
             // Add to pending withdrawals
             marketplaceStorage.addPendingWithdrawal(
@@ -388,6 +390,7 @@ contract BasedMarketplace is
                 currentBid.amount
             );
 
+            emit FundsAddedToWithdraw(currentBid.bidder, currentBid.amount);
             emit BidWithdrawn(
                 currentBid.bidder,
                 nftContract,
@@ -435,40 +438,36 @@ contract BasedMarketplace is
         // Transfer NFT to buyer
         IERC721(nftContract).safeTransferFrom(seller, buyer, tokenId);
 
-        // Transfer funds to seller
-        (bool sellerTransferSuccess, ) = payable(seller).call{
-            value: sellerAmount
-        }("");
-        require(sellerTransferSuccess, "Failed to send funds to seller");
+        // Add seller funds to pending withdrawals using pull payment pattern
+        marketplaceStorage.addPendingWithdrawal(seller, sellerAmount);
+        emit FundsAddedToWithdraw(seller, sellerAmount);
 
-        // Transfer royalty to receiver if applicable
+        // Handle royalty using pull payment pattern
         if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
-            (bool royaltyTransferSuccess, ) = payable(royaltyReceiver).call{
-                value: royaltyAmount
-            }("");
-
-            if (!royaltyTransferSuccess) {
-                // Store failed royalty for later withdrawal
-                marketplaceStorage.addFailedRoyalty(
-                    royaltyReceiver,
-                    royaltyAmount
-                );
-                emit RoyaltyTransferFailed(
-                    nftContract,
-                    tokenId,
-                    royaltyReceiver,
-                    royaltyAmount
-                );
-            }
+            marketplaceStorage.addPendingWithdrawal(
+                royaltyReceiver,
+                royaltyAmount
+            );
+            emit FundsAddedToWithdraw(royaltyReceiver, royaltyAmount);
         }
 
-        // Transfer market fee to the owner
-        if (marketFeeAmount > 0) {
-            (bool ownerTransferSuccess, ) = payable(owner()).call{
-                value: marketFeeAmount
-            }("");
-            require(ownerTransferSuccess, "Failed to send market fee to owner");
-        }
+        // Update accumulated market fees
+        marketplaceStorage.addAccumulatedFees(marketFeeAmount);
+    }
+
+    // Function to withdraw accumulated marketplace fees
+    function withdrawAccumulatedFees() external onlyOwner nonReentrant {
+        uint256 amount = marketplaceStorage.accumulatedFees();
+        require(amount > 0, "No fees accumulated");
+
+        // Reset accumulated fees to 0 before transfer to prevent reentrancy
+        marketplaceStorage.resetAccumulatedFees();
+
+        // Direct transfer to owner
+        (bool success, ) = payable(owner()).call{value: amount}("");
+        require(success, "Transfer failed");
+
+        emit FeesWithdrawn(owner(), amount);
     }
 
     // Allow a bidder to withdraw their bid
@@ -488,13 +487,9 @@ contract BasedMarketplace is
         // Clear the bid
         marketplaceStorage.clearHighestBid(nftContract, tokenId);
 
-        // Transfer the bid amount back to the bidder
-        (bool success, ) = payable(msg.sender).call{value: bid.amount}("");
-
-        // If transfer fails, add to pending withdrawals
-        if (!success) {
-            marketplaceStorage.addPendingWithdrawal(msg.sender, bid.amount);
-        }
+        // Add to pending withdrawals using pull payment pattern
+        marketplaceStorage.addPendingWithdrawal(msg.sender, bid.amount);
+        emit FundsAddedToWithdraw(msg.sender, bid.amount);
 
         emit BidWithdrawn(msg.sender, nftContract, tokenId, bid.amount);
     }
@@ -560,7 +555,7 @@ contract BasedMarketplace is
         emit UpdatedListing(msg.sender, nftContract, tokenId, newPrice);
     }
 
-    // Helper function to refund the highest bidder
+    // Helper function to refund the highest bidder using pull payment pattern
     function _refundHighestBidder(
         address nftContract,
         uint256 tokenId
@@ -575,11 +570,9 @@ contract BasedMarketplace is
             // Clear the bid
             marketplaceStorage.clearHighestBid(nftContract, tokenId);
 
-            // Try to send the funds back, if it fails, store in pending withdrawals
-            (bool success, ) = payable(bid.bidder).call{value: bid.amount}("");
-            if (!success) {
-                marketplaceStorage.addPendingWithdrawal(bid.bidder, bid.amount);
-            }
+            // Add to pending withdrawals using pull payment pattern
+            marketplaceStorage.addPendingWithdrawal(bid.bidder, bid.amount);
+            emit FundsAddedToWithdraw(bid.bidder, bid.amount);
 
             emit BidWithdrawn(bid.bidder, nftContract, tokenId, bid.amount);
         }
@@ -602,21 +595,7 @@ contract BasedMarketplace is
             return IERC2981(nftContract).royaltyInfo(tokenId, salePrice);
         }
 
-        // Fallback to our custom BasedNFTCollection royalty mechanism
-        try IBasedNFTCollection(nftContract).royaltyFee() returns (
-            uint256 royaltyFee
-        ) {
-            royaltyAmount = (salePrice * royaltyFee) / 10000;
-            try IBasedNFTCollection(nftContract).owner() returns (
-                address creator
-            ) {
-                return (creator, royaltyAmount);
-            } catch {
-                return (address(0), 0);
-            }
-        } catch {
-            return (address(0), 0);
-        }
+        return (address(0), 0);
     }
 
     // Allow contract owner to pause all marketplace operations in case of emergency
@@ -654,6 +633,7 @@ contract BasedMarketplace is
     }
 
     function setMarketFee(uint256 _marketFee) public onlyOwner {
+        require(_marketFee <= 1000, "Fee cannot exceed 10%"); // Maximum 10% fee
         marketplaceStorage.setMarketFee(_marketFee);
         emit MarketFeeUpdated(_marketFee);
     }
@@ -764,5 +744,15 @@ contract BasedMarketplace is
             listing.tokenId,
             highestBid.amount
         );
+    }
+
+    // Get the current amount of accumulated fees
+    function getAccumulatedFees() public view returns (uint256) {
+        return marketplaceStorage.accumulatedFees();
+    }
+
+    // Check if a user has pending withdrawals
+    function getPendingWithdrawal(address user) public view returns (uint256) {
+        return marketplaceStorage.pendingWithdrawals(user);
     }
 }

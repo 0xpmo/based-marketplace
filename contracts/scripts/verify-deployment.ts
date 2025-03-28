@@ -123,12 +123,31 @@ async function main() {
   console.log(
     `- Royalties Disabled: ${await marketplaceStorage.royaltiesDisabled()}`
   );
+  console.log(
+    `- Accumulated Fees: ${ethers.formatEther(
+      await marketplaceStorage.accumulatedFees()
+    )} ETH`
+  );
 
   // Verify marketplace
   console.log("\nBasedMarketplace:");
   console.log(`- Address: ${await marketplace.getAddress()}`);
   console.log(`- Storage Contract: ${await marketplace.marketplaceStorage()}`);
   console.log(`- Owner: ${await marketplace.owner()}`);
+  console.log(`- Payment System: Pull Payment Pattern`);
+
+  // Check if owner has any pending withdrawals (should be 0 on fresh deployment)
+  const ownerAddress = await marketplace.owner();
+  console.log(
+    `- Owner Pending Withdrawals: ${ethers.formatEther(
+      await marketplace.getPendingWithdrawal(ownerAddress)
+    )} ETH`
+  );
+  console.log(
+    `- Accumulated Market Fees: ${ethers.formatEther(
+      await marketplace.getAccumulatedFees()
+    )} ETH`
+  );
 
   // Verify collections
   const collections = await factory.getCollections();

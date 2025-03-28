@@ -1,4 +1,3 @@
-// contracts/contracts/BasedMarketplaceStorage.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
@@ -20,6 +19,7 @@ contract BasedMarketplaceStorage is
 {
     // Market fees
     uint256 public marketFee; // basis points (e.g., 250 = 2.5%)
+    uint256 public accumulatedFees; // Total fees accumulated in the contract (in wei)
 
     // Mappings
     mapping(address => mapping(uint256 => Listing)) private listings;
@@ -32,7 +32,7 @@ contract BasedMarketplaceStorage is
     bool public royaltiesDisabled;
 
     // Reserved space for future storage variables
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -43,7 +43,8 @@ contract BasedMarketplaceStorage is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        marketFee = 250; // Default 2.5%
+        marketFee = 450; // Default 4.5%
+        accumulatedFees = 0;
         paused = false;
         royaltiesDisabled = false;
     }
@@ -226,5 +227,15 @@ contract BasedMarketplaceStorage is
     // Set royalties disabled
     function setRoyaltiesDisabled(bool _disabled) external onlyOwner {
         royaltiesDisabled = _disabled;
+    }
+
+    // Add to accumulated fees
+    function addAccumulatedFees(uint256 amount) external onlyOwner {
+        accumulatedFees += amount;
+    }
+
+    // Reset accumulated fees (after withdrawal)
+    function resetAccumulatedFees() external onlyOwner {
+        accumulatedFees = 0;
     }
 }

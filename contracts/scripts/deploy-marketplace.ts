@@ -101,6 +101,12 @@ async function main() {
   await storageProxy.setPaused(false);
   await storageProxy.setRoyaltiesDisabled(false);
   console.log("Storage values configured");
+  console.log(
+    "Note: The marketplace now uses a pull payment pattern for all payments"
+  );
+  console.log(
+    "Market fees are accumulated in the contract until withdrawn by the owner"
+  );
 
   // 5. Transfer ownership of storage to marketplace
   console.log("\n5. Transferring ownership of storage to marketplace...");
@@ -108,18 +114,20 @@ async function main() {
   console.log("Storage ownership transferred to marketplace");
 
   // 6. Create a sample collection (optional)
-  //   console.log("\n6. Creating a sample collection...");
-  //   await factoryProxy.createCollection(
-  //     "Based Originals",
-  //     "BASED",
-  //     "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW",
-  //     "ipfs://QmCollectionMetadata",
-  //     ethers.parseEther("0.05"), // 0.05 ETH mint price
-  //     100, // Max supply
-  //     500, // 5% royalty
-  //     true, // Enable minting
-  //     { value: DEFAULT_FEE }
-  //   );
+  // console.log("\n6. Creating a sample collection...");
+  // await factoryProxy.createCollection(
+  //   "Based Originals",
+  //   "BASED",
+  //   "ipfs://QmaSnsrEapbbgmhUmsQn74phTvuyNouicT9XWFaWGcJPeW",
+  //   "ipfs://QmCollectionMetadata",
+  //   ethers.parseEther("0.05"), // 0.05 ETH mint price
+  //   100, // Max supply
+  //   10, // Max tokens per wallet (new parameter)
+  //   500, // 5% royalty - now expecting uint96
+  //   true, // Enable minting
+  //   true, // Start revealed
+  //   { value: DEFAULT_FEE }
+  // );
   //   console.log("Sample collection created");
 
   // Summary

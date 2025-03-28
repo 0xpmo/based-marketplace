@@ -43,18 +43,6 @@ contract BasedRandomizedNFTCollection is
     // Collection stats
     uint256 public totalMinted = 0;
 
-    // Events
-    event BaseURIUpdated(string newURI);
-    event UnrevealedURIUpdated(string newURI);
-    event ContractURIUpdated(string newURI);
-    event MintingStatusUpdated(bool enabled);
-    event NFTMinted(address to, uint256 tokenId);
-    event MaxTokensPerWalletUpdated(uint256 newLimit);
-    event MintPriceUpdated(uint256 newPrice);
-    event WithdrawExecuted(address to, uint256 amount);
-    event CollectionRevealed(bool revealed);
-    event RandomizationInitialized(uint256 totalTokens);
-
     constructor(
         string memory _name,
         string memory _symbol,
@@ -63,6 +51,7 @@ contract BasedRandomizedNFTCollection is
         string memory _initialContractURI,
         uint256 _mintPrice,
         uint256 _maxSupply,
+        uint256 _maxTokensPerWallet,
         uint96 _royaltyFee,
         bool _mintingEnabled,
         bool _startRevealed,
@@ -80,6 +69,7 @@ contract BasedRandomizedNFTCollection is
         contractURI = _initialContractURI;
         mintPrice = _mintPrice;
         MAX_SUPPLY = _maxSupply;
+        maxTokensPerWallet = _maxTokensPerWallet;
         mintingEnabled = _mintingEnabled;
         revealed = _startRevealed;
 
@@ -104,8 +94,6 @@ contract BasedRandomizedNFTCollection is
         for (uint256 i = 1; i <= MAX_SUPPLY; i++) {
             _availableTokens.push(i);
         }
-
-        emit RandomizationInitialized(MAX_SUPPLY);
     }
 
     /**
@@ -200,7 +188,6 @@ contract BasedRandomizedNFTCollection is
         _safeMint(to, tokenId);
         totalMinted++;
 
-        emit NFTMinted(to, tokenId);
         return tokenId;
     }
 
@@ -228,8 +215,6 @@ contract BasedRandomizedNFTCollection is
             _safeMint(to, tokenId);
             tokenIds[i] = tokenId;
             totalMinted++;
-
-            emit NFTMinted(to, tokenId);
         }
 
         return tokenIds;
@@ -246,39 +231,32 @@ contract BasedRandomizedNFTCollection is
     // Reveal functions
     function setRevealed(bool _revealed) public onlyOwner {
         revealed = _revealed;
-        emit CollectionRevealed(_revealed);
     }
 
     function setUnrevealedURI(string memory _unrevealedURI) public onlyOwner {
         unrevealedURI = _unrevealedURI;
-        emit UnrevealedURIUpdated(_unrevealedURI);
     }
 
     function setBaseURI(string memory _newBaseURI) public onlyOwner {
         baseURI = _newBaseURI;
-        emit BaseURIUpdated(_newBaseURI);
     }
 
     function setContractURI(string memory _contractURI) public onlyOwner {
         contractURI = _contractURI;
-        emit ContractURIUpdated(_contractURI);
     }
 
     function setMintingEnabled(bool _enabled) public onlyOwner {
         mintingEnabled = _enabled;
-        emit MintingStatusUpdated(_enabled);
     }
 
     function setMaxTokensPerWallet(
         uint256 _maxTokensPerWallet
     ) public onlyOwner {
         maxTokensPerWallet = _maxTokensPerWallet;
-        emit MaxTokensPerWalletUpdated(_maxTokensPerWallet);
     }
 
     function setMintPrice(uint256 _mintPrice) public onlyOwner {
         mintPrice = _mintPrice;
-        emit MintPriceUpdated(_mintPrice);
     }
 
     function pause() public onlyOwner {
@@ -294,9 +272,8 @@ contract BasedRandomizedNFTCollection is
         require(balance > 0, "No balance to withdraw");
 
         (bool success, ) = payable(owner()).call{value: balance}("");
+        (bool success, ) = payable(owner()).call{value: balance}("");
         require(success, "Withdrawal failed");
-
-        emit WithdrawExecuted(owner(), balance);
     }
 
     // Royalty info - EIP2981
@@ -316,7 +293,8 @@ contract BasedRandomizedNFTCollection is
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
+        // Check if token exists
+        _requireOwned(tokenId);
 
         if (!revealed) {
             return unrevealedURI;
@@ -329,14 +307,17 @@ contract BasedRandomizedNFTCollection is
                 : "";
     }
 
-    // Override required function
-    function _beforeTokenTransfer(
-        address from,
+    /**
+     * @dev Override _update to check for paused state
+     * This will block transfers when the contract is paused
+     * Using _update instead of _beforeTokenTransfer for OpenZeppelin v5 compatibility
+     */
+    function _update(
         address to,
-        uint256 firstTokenId,
-        uint256 batchSize
-    ) internal override(ERC721Enumerable) whenNotPaused {
-        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        uint256 tokenId,
+        address auth
+    ) internal override(ERC721Enumerable) whenNotPaused returns (address) {
+        return super._update(to, tokenId, auth);
     }
 
     function supportsInterface(

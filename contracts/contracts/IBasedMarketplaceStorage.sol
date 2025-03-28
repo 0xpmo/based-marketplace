@@ -2,7 +2,7 @@
 pragma solidity ^0.8.22;
 
 /**
- * @title IBasedMarketplace
+ * @title IBasedMarketplaceStorage
  * @dev Combined interface for marketplace types and storage functions
  */
 interface IBasedMarketplaceStorage {
@@ -38,6 +38,8 @@ interface IBasedMarketplaceStorage {
     // ===== State Query Functions =====
 
     function marketFee() external view returns (uint256);
+
+    function accumulatedFees() external view returns (uint256);
 
     function paused() external view returns (bool);
 
@@ -125,6 +127,10 @@ interface IBasedMarketplaceStorage {
     function addFailedRoyalty(address recipient, uint256 amount) external;
 
     function setFailedRoyalty(address recipient, uint256 amount) external;
+
+    function addAccumulatedFees(uint256 amount) external;
+
+    function resetAccumulatedFees() external;
 
     // ===== Settings Functions =====
 
