@@ -183,6 +183,11 @@
         },
         {
           "internalType": "string",
+          "name": "unrevealedURI",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
           "name": "contractURI",
           "type": "string"
         },
@@ -198,12 +203,22 @@
         },
         {
           "internalType": "uint256",
-          "name": "royaltyFee",
+          "name": "maxTokensPerWallet",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint96",
+          "name": "royaltyFee",
+          "type": "uint96"
         },
         {
           "internalType": "bool",
           "name": "mintingEnabled",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "startRevealed",
           "type": "bool"
         }
       ],

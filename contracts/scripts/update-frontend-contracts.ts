@@ -48,8 +48,9 @@ async function main() {
     const deployments = JSON.parse(fs.readFileSync(deploymentsPath, "utf8"));
 
     // Extract contract addresses
-    factoryAddress = deployments["BasedMarketplace#BasedCollectionFactory"];
-    marketplaceAddress = deployments["BasedMarketplace#BasedMarketplace"];
+    factoryAddress =
+      deployments["BasedSeaMarketplace#BasedSeaCollectionFactory"];
+    marketplaceAddress = deployments["BasedSeaMarketplace#BasedSeaMarketplace"];
 
     console.log("Using addresses from Ignition deployment");
   } else {

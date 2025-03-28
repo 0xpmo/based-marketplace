@@ -5,8 +5,13 @@ import "hardhat/console.sol";
 import "./BasedSeaSequentialNFTCollection.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract BasedSeaCollectionFactory is Initializable, OwnableUpgradeable {
+contract BasedSeaCollectionFactory is
+    Initializable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
     // Collection creation fee
     uint256 public creationFee;
 
@@ -44,6 +49,11 @@ contract BasedSeaCollectionFactory is Initializable, OwnableUpgradeable {
         creationFee = _creationFee;
         feeRecipient = initialOwner;
     }
+
+    // Required for UUPS upgradeable pattern
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     function createCollection(
         string memory name,

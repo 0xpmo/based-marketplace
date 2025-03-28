@@ -90,12 +90,202 @@
       "inputs": [
         {
           "indexed": false,
+          "internalType": "bool",
+          "name": "isPaused",
+          "type": "bool"
+        }
+      ],
+      "name": "ContractPaused",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "FailedPaymentAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "FailedPaymentCleared",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "newRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "FeeRecipientUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "FeesAccumulated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [],
+      "name": "FeesReset",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
           "internalType": "uint64",
           "name": "version",
           "type": "uint64"
         }
       ],
       "name": "Initialized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "nftContract",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "seller",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        }
+      ],
+      "name": "ListingCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "nftContract",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum IBasedSeaMarketplaceStorage.ListingStatus",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "name": "ListingStatusChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "nftContract",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "ListingUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "MarketFeeUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "offerId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "OfferMarkedUsed",
       "type": "event"
     },
     {
@@ -115,6 +305,19 @@
         }
       ],
       "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "disabled",
+          "type": "bool"
+        }
+      ],
+      "name": "RoyaltiesStatusChanged",
       "type": "event"
     },
     {
@@ -144,68 +347,8 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "recipient",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "addFailedRoyalty",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "recipient",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "addPendingWithdrawal",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "nftContract",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        }
-      ],
-      "name": "clearHighestBid",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "failedRoyalties",
+      "inputs": [],
+      "name": "accumulatedFees",
       "outputs": [
         {
           "internalType": "uint256",
@@ -219,32 +362,74 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "nftContract",
-          "type": "address"
-        },
-        {
           "internalType": "uint256",
-          "name": "tokenId",
+          "name": "amount",
           "type": "uint256"
         }
       ],
-      "name": "getHighestBid",
-      "outputs": [
+      "name": "addAccumulatedFees",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
         {
           "internalType": "address",
-          "name": "bidder",
+          "name": "recipient",
           "type": "address"
         },
         {
           "internalType": "uint256",
           "name": "amount",
           "type": "uint256"
-        },
+        }
+      ],
+      "name": "addFailedPayment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        }
+      ],
+      "name": "clearFailedPayment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "failedPayments",
+      "outputs": [
         {
           "internalType": "uint256",
-          "name": "timestamp",
+          "name": "",
           "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "feeRecipient",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
       "stateMutability": "view",
@@ -266,47 +451,62 @@
       "name": "getListing",
       "outputs": [
         {
-          "internalType": "address",
-          "name": "seller",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "nftContractAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "tokenIdValue",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "price",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        },
-        {
-          "internalType": "bool",
-          "name": "isPrivate",
-          "type": "bool"
-        },
-        {
-          "internalType": "address",
-          "name": "allowedBuyer",
-          "type": "address"
-        },
-        {
-          "internalType": "enum IBasedMarketplaceStorage.ListingStatus",
-          "name": "status",
-          "type": "uint8"
+          "components": [
+            {
+              "internalType": "address",
+              "name": "seller",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "nftContract",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "tokenId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "price",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "isPrivate",
+              "type": "bool"
+            },
+            {
+              "internalType": "address",
+              "name": "allowedBuyer",
+              "type": "address"
+            },
+            {
+              "internalType": "enum IBasedSeaMarketplaceStorage.ListingStatus",
+              "name": "status",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct IBasedSeaMarketplaceStorage.Listing",
+          "name": "",
+          "type": "tuple"
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_feeRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "initialize",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -322,20 +522,45 @@
           "type": "uint256"
         }
       ],
-      "name": "getListingStatus",
+      "name": "isListed",
       "outputs": [
         {
-          "internalType": "enum IBasedMarketplaceStorage.ListingStatus",
+          "internalType": "bool",
           "name": "",
-          "type": "uint8"
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "initialize",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "offerId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "isOfferUsed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "offerId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "markOfferAsUsed",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -380,25 +605,6 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "pendingWithdrawals",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [],
       "name": "proxiableUUID",
       "outputs": [
@@ -420,6 +626,13 @@
     },
     {
       "inputs": [],
+      "name": "resetAccumulatedFees",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "royaltiesDisabled",
       "outputs": [
         {
@@ -435,49 +648,11 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "recipient",
+          "name": "_feeRecipient",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
         }
       ],
-      "name": "setFailedRoyalty",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "nftContract",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "bidder",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
-        }
-      ],
-      "name": "setHighestBid",
+      "name": "setFeeRecipient",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -503,11 +678,6 @@
           "internalType": "uint256",
           "name": "price",
           "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
         },
         {
           "internalType": "bool",
@@ -554,24 +724,6 @@
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "recipient",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "setPendingWithdrawal",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "bool",
           "name": "_disabled",
           "type": "bool"
@@ -591,29 +743,6 @@
         }
       ],
       "name": "transferOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "nftContract",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        }
-      ],
-      "name": "updateListingActive",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -654,7 +783,7 @@
           "type": "uint256"
         },
         {
-          "internalType": "enum IBasedMarketplaceStorage.ListingStatus",
+          "internalType": "enum IBasedSeaMarketplaceStorage.ListingStatus",
           "name": "status",
           "type": "uint8"
         }
@@ -680,6 +809,25 @@
       "name": "upgradeToAndCall",
       "outputs": [],
       "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "usedOfferIds",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     }
   ]

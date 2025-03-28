@@ -4,10 +4,11 @@ import path from "path";
 
 // Contract names
 const contracts = [
-  "BasedNFTCollection",
-  "BasedCollectionFactory",
-  "BasedMarketplace",
-  "BasedMarketplaceStorage",
+  "BasedSeaCollectionFactory",
+  "BasedSeaMarketplace",
+  "BasedSeaMarketplaceStorage",
+  "BasedSeaSequentialNFTCollection",
+  "BasedSeaRandomizedNFTCollection",
 ];
 
 // Paths

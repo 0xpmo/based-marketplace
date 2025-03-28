@@ -3,10 +3,10 @@ import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
 import * as dotenv from "dotenv";
-import BasedSeaCollectionFactoryArtifact from "../artifacts/contracts/BasedCollectionFactory.sol/BasedSeaCollectionFactory.json";
-import BasedSeaMarketplaceArtifact from "../artifacts/contracts/BasedMarketplace.sol/BasedSeaMarketplace.json";
-import BasedSeaMarketplaceStorageArtifact from "../artifacts/contracts/BasedMarketplaceStorage.sol/BasedSeaMarketplaceStorage.json";
-import BasedSeaNFTCollectionArtifact from "../artifacts/contracts/BasedNFTCollection.sol/BasedSeaNFTCollection.json";
+import BasedSeaCollectionFactoryArtifact from "../artifacts/contracts/BasedSeaCollectionFactory.sol/BasedSeaCollectionFactory.json";
+import BasedSeaMarketplaceArtifact from "../artifacts/contracts/BasedSeaMarketplace.sol/BasedSeaMarketplace.json";
+import BasedSeaMarketplaceStorageArtifact from "../artifacts/contracts/BasedSeaMarketplaceStorage.sol/BasedSeaMarketplaceStorage.json";
+import BasedSeaNFTCollectionArtifact from "../artifacts/contracts/BasedSeaSequentialNFTCollection.sol/BasedSeaSequentialNFTCollection.json";
 
 // Load environment variables from .env.deployment if it exists
 // const deploymentEnvPath = path.join(__dirname, "../.env.deployment");
