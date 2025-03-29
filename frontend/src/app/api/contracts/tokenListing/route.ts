@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketplaceContractReadOnly } from "@/lib/contracts";
 import { ethers } from "ethers";
+// import { ListingStatus } from "@/contracts/IBasedSeaMarketplaceStorage.json";
+
+const ListingStatus = {
+  Inactive: 0,
+  Active: 1,
+  Sold: 2,
+  Canceled: 3,
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,12 +34,12 @@ export async function GET(request: NextRequest) {
       const formattedListing = {
         price: ethers.formatEther(listing.price),
         seller: listing.seller,
-        active: listing.active,
+        active: Number(listing.status) === ListingStatus.Active,
       };
 
       // Return listing details
       return NextResponse.json({
-        listing: listing.active ? formattedListing : null,
+        listing: Number(listing.status) ? formattedListing : null,
       });
     } catch (contractError) {
       console.log(

@@ -37,6 +37,8 @@ export default function CollectionDetailsPage() {
   const [isCollectionImageLoading, setIsCollectionImageLoading] =
     useState(true);
 
+  console.log("collections", collections);
+
   // Find collection from all collections
   useEffect(() => {
     if (collections.length > 0) {

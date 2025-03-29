@@ -16,6 +16,7 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/hardhat-upgrades": "^3.9.0",
+    "@truffle/dashboard-hardhat-plugin": "^0.2.15",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.13.10",
     "chai": "^4.5.0",

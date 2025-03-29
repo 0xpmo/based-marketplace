@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./IBasedSeaMarketplaceStorage.sol";
+import "hardhat/console.sol";
 
 /**
  * @title BasedSeaMarketplace
@@ -218,34 +219,69 @@ contract BasedSeaMarketplace is
      * @param tokenId ID of the token to list
      * @param price Listing price in wei
      */
+    // function listItem(
+    //     address nftContract,
+    //     uint256 tokenId,
+    //     uint256 price
+    // ) external whenNotPaused {
+    //     IERC721 nft = IERC721(nftContract);
+    //     require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
+    //     require(
+    //         nft.isApprovedForAll(msg.sender, address(this)) ||
+    //             nft.getApproved(tokenId) == address(this),
+    //         "Marketplace not approved"
+    //     );
+    //     require(price > 0, "Price must be greater than zero");
+
+    //     // Create listing in storage
+    //     marketplaceStorage.setListing(
+    //         nftContract,
+    //         tokenId,
+    //         msg.sender,
+    //         price,
+    //         false,
+    //         address(0)
+    //     );
+
+    //     emit ItemListed(
+    //         msg.sender,
+    //         nftContract,
+    //         tokenId,
+    //         price,
+    //         false,
+    //         address(0)
+    //     );
+    // }
+
+    /**
+     * @dev List an NFT for sale
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token to list
+     * @param price Listing price in wei
+     */
     function listItem(
         address nftContract,
         uint256 tokenId,
         uint256 price
     ) external whenNotPaused {
+        console.log("listItem called by:", msg.sender);
         IERC721 nft = IERC721(nftContract);
-        require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
+
+        // Use helper functions
+        require(_checkNFTOwnership(nft, tokenId, msg.sender), "Not the owner");
         require(
-            nft.isApprovedForAll(msg.sender, address(this)) ||
-                nft.getApproved(tokenId) == address(this),
+            _checkNFTApproval(nft, tokenId, msg.sender),
             "Marketplace not approved"
         );
         require(price > 0, "Price must be greater than zero");
 
-        // Create listing in storage
-        marketplaceStorage.setListing(
-            nftContract,
-            tokenId,
-            msg.sender,
-            price,
-            false,
-            address(0)
-        );
+        console.log("Creating listing");
 
-        emit ItemListed(
-            msg.sender,
+        // Create listing
+        _createListing(
             nftContract,
             tokenId,
+            msg.sender,
             price,
             false,
             address(0)
@@ -297,6 +333,19 @@ contract BasedSeaMarketplace is
             true,
             allowedBuyer
         );
+    }
+
+    /**
+     * @dev Get a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @return The listing details
+     */
+    function getListing(
+        address nftContract,
+        uint256 tokenId
+    ) external view returns (IBasedSeaMarketplaceStorage.Listing memory) {
+        return marketplaceStorage.getListing(nftContract, tokenId);
     }
 
     /**
@@ -602,6 +651,81 @@ contract BasedSeaMarketplace is
 
     // ===== HELPER FUNCTIONS =====
 
+    // Helper function to check NFT ownership
+    function _checkNFTOwnership(
+        IERC721 nft,
+        uint256 tokenId,
+        address seller
+    ) internal view returns (bool) {
+        try nft.ownerOf(tokenId) returns (address owner) {
+            console.log("NFT owner:", owner);
+            console.log("Is caller the owner?", owner == seller);
+            return owner == seller;
+        } catch Error(string memory reason) {
+            console.log("Error checking ownership:", reason);
+            revert(
+                string(abi.encodePacked("NFT ownership check failed: ", reason))
+            );
+        } catch (bytes memory) {
+            console.log("Unknown error checking NFT ownership");
+            revert("NFT ownership check failed");
+        }
+    }
+
+    // Helper function to check approvals
+    function _checkNFTApproval(
+        IERC721 nft,
+        uint256 tokenId,
+        address seller
+    ) internal view returns (bool) {
+        try nft.isApprovedForAll(seller, address(this)) returns (
+            bool approved
+        ) {
+            if (approved) return true;
+        } catch Error(string memory) {} catch (bytes memory) {}
+
+        try nft.getApproved(tokenId) returns (address approvedAddress) {
+            return approvedAddress == address(this);
+        } catch Error(string memory) {} catch (bytes memory) {}
+
+        return false;
+    }
+
+    function _createListing(
+        address nftContract,
+        uint256 tokenId,
+        address seller,
+        uint256 price,
+        bool isPrivate,
+        address allowedBuyer
+    ) internal {
+        try
+            marketplaceStorage.setListing(
+                nftContract,
+                tokenId,
+                seller,
+                price,
+                isPrivate,
+                allowedBuyer
+            )
+        {
+            emit ItemListed(
+                seller,
+                nftContract,
+                tokenId,
+                price,
+                isPrivate,
+                allowedBuyer
+            );
+        } catch Error(string memory reason) {
+            revert(
+                string(abi.encodePacked("Failed to create listing: ", reason))
+            );
+        } catch (bytes memory) {
+            revert("Failed to create listing due to unknown error");
+        }
+    }
+
     /**
      * @dev Process the sale payment and distribute funds
      * @param nftContract Address of the NFT contract
@@ -610,6 +734,7 @@ contract BasedSeaMarketplace is
      * @param buyer Address of the buyer
      * @param amount Total payment amount
      */
+    // Split into smaller functions for stack management
     function _processSale(
         address nftContract,
         uint256 tokenId,
@@ -617,76 +742,102 @@ contract BasedSeaMarketplace is
         address buyer,
         uint256 amount
     ) internal {
-        // CHECKS - Calculate all values first
-        uint256 marketFeeAmount = (amount * marketplaceStorage.marketFee()) /
-            10000;
+        // Calculate fees first with minimal variables
+        uint256 marketFeeAmount = _calculateMarketFee(amount);
 
-        // Get royalty information
-        (address royaltyReceiver, uint256 royaltyAmount) = _getRoyaltyInfo(
+        // Transfer the NFT first
+        _transferNFT(nftContract, tokenId, seller, buyer);
+
+        // Handle royalty payments
+        uint256 royaltyAmount = _handleRoyaltyPayment(
             nftContract,
             tokenId,
             amount
         );
 
-        // Actual amount the seller receives
-        uint256 sellerAmount = amount - marketFeeAmount;
-        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
-            sellerAmount -= royaltyAmount;
-        }
-
-        // EFFECTS - Update all state before external calls
-        // Accumulate marketplace fees in storage
+        // Track marketplace fees
         marketplaceStorage.addAccumulatedFees(marketFeeAmount);
-
-        // INTERACTIONS - External calls last
-        // 1. Transfer the NFT with proper error handling
-        try IERC721(nftContract).safeTransferFrom(seller, buyer, tokenId) {
-            // NFT transfer successful, proceed with payments
-        } catch Error(string memory reason) {
-            // Revert with the reason
-            revert(string(abi.encodePacked("NFT transfer failed: ", reason)));
-        } catch {
-            // Revert with a generic message if no reason was provided
-            revert("NFT transfer failed");
-        }
-
-        // 2. Pay royalties if applicable
-        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
-            (bool royaltySuccess, ) = payable(royaltyReceiver).call{
-                value: royaltyAmount
-            }("");
-
-            if (!royaltySuccess) {
-                // Store the failed payment for later claiming
-                marketplaceStorage.addFailedPayment(
-                    royaltyReceiver,
-                    royaltyAmount
-                );
-                emit PaymentFailed(royaltyReceiver, royaltyAmount, "Royalty");
-            } else {
-                emit PaymentSent(royaltyReceiver, royaltyAmount, "Royalty");
-            }
-        }
-
-        // 3. Send marketplace fee - implicit as we've only updated the storage
         emit PaymentSent(address(this), marketFeeAmount, "Marketplace fee");
 
-        // 4. Send remaining amount to seller
-        (bool sellerSuccess, ) = payable(seller).call{value: sellerAmount}("");
-        if (!sellerSuccess) {
-            // Instead of reverting, store for later claiming
-            marketplaceStorage.addFailedPayment(seller, sellerAmount);
-            emit PaymentFailed(seller, sellerAmount, "Sale proceeds");
-            // Emit event for monitoring
-            emit SaleCompletedWithPaymentIssue(
-                seller,
-                buyer,
-                nftContract,
-                tokenId,
-                sellerAmount
-            );
+        // Pay seller (remainder after fees and royalties)
+        uint256 sellerAmount = amount - marketFeeAmount - royaltyAmount;
+        _paySeller(seller, sellerAmount);
+    }
+
+    // Helper to calculate marketplace fee
+    function _calculateMarketFee(
+        uint256 amount
+    ) internal view returns (uint256) {
+        return (amount * marketplaceStorage.marketFee()) / 10000;
+    }
+
+    // Helper to transfer the NFT
+    function _transferNFT(
+        address nftContract,
+        uint256 tokenId,
+        address seller,
+        address buyer
+    ) internal {
+        try IERC721(nftContract).safeTransferFrom(seller, buyer, tokenId) {
+            // Success, do nothing
+        } catch Error(string memory reason) {
+            revert(string(abi.encodePacked("NFT transfer failed: ", reason)));
+        } catch {
+            revert("NFT transfer failed");
+        }
+    }
+
+    // Helper to handle royalty payments
+    function _handleRoyaltyPayment(
+        address nftContract,
+        uint256 tokenId,
+        uint256 amount
+    ) internal returns (uint256) {
+        if (marketplaceStorage.royaltiesDisabled()) {
+            return 0;
+        }
+
+        // Try to get royalty info
+        address royaltyReceiver;
+        uint256 royaltyAmount;
+
+        // Check for ERC2981 support
+        if (
+            IERC165(nftContract).supportsInterface(type(IERC2981).interfaceId)
+        ) {
+            (royaltyReceiver, royaltyAmount) = IERC2981(nftContract)
+                .royaltyInfo(tokenId, amount);
+        }
+
+        // Process royalty payment if applicable
+        if (royaltyAmount > 0 && royaltyReceiver != address(0)) {
+            _sendPayment(royaltyReceiver, royaltyAmount, "Royalty");
+            return royaltyAmount;
+        }
+
+        return 0;
+    }
+
+    // Helper to pay the seller
+    function _paySeller(address seller, uint256 amount) internal {
+        _sendPayment(seller, amount, "Sale proceeds");
+        // No need to emit the SaleCompletedWithPaymentIssue here as _sendPayment will handle failed payments
+    }
+
+    // Generic payment helper that handles failures
+    function _sendPayment(
+        address recipient,
+        uint256 amount,
+        string memory paymentType
+    ) internal {
+        (bool success, ) = payable(recipient).call{value: amount}("");
+
+        if (!success) {
+            // Store the failed payment for later claiming
+            marketplaceStorage.addFailedPayment(recipient, amount);
+            emit PaymentFailed(recipient, amount, paymentType);
         } else {
-            emit PaymentSent(seller, sellerAmount, "Sale proceeds");
+            emit PaymentSent(recipient, amount, paymentType);
         }
     }
 

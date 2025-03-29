@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./IBasedSeaMarketplaceStorage.sol";
+import "hardhat/console.sol";
 
 /**
  * @title BasedSeaMarketplaceStorage
@@ -175,6 +176,7 @@ contract BasedSeaMarketplaceStorage is
         bool isPrivate,
         address allowedBuyer
     ) external onlyOwner {
+        console.log("Setting listing");
         listings[nftContract][tokenId] = Listing({
             seller: seller,
             nftContract: nftContract,
@@ -184,6 +186,7 @@ contract BasedSeaMarketplaceStorage is
             allowedBuyer: allowedBuyer,
             status: ListingStatus.Active
         });
+        console.log("Listing set");
 
         emit ListingCreated(nftContract, tokenId, seller, price);
     }

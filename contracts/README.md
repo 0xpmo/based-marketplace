@@ -14,7 +14,7 @@ npx hardhat test
 
 ## Deployment Options
 
-### Option 1: Deploy using Ignition (for local development)
+### Option 1: DOESTN WOR NOT UPDATED: Deploy using Ignition (for local development)
 
 Deploy the contracts locally using Ignition:
 

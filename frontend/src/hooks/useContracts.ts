@@ -1031,12 +1031,7 @@ export function useCollection(collectionAddress: string) {
             "totalSupply",
             isExternal
           ));
-        // const royaltyFee =
-        //   (await readCollectionProperty(
-        //     collectionAddress,
-        //     "royaltyFee",
-        //     isExternal
-        //   )) ||
+
         const royaltyFee = await readCollectionProperty(
           collectionAddress,
           "royaltyInfo",

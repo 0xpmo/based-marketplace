@@ -737,6 +737,24 @@ describe("BasedSeaMarketplace", function () {
     });
   });
 
+  describe("Marketplace Permissions", function () {
+    it("Should verify marketplace has permission to call storage", async function () {
+      // Check ownership - use the existing contracts from beforeEach
+      const storageOwner = await marketplaceStorage.owner();
+      expect(storageOwner).to.equal(
+        await marketplace.getAddress(),
+        "Storage not owned by marketplace"
+      );
+
+      // Check if marketplaceStorage matches expected storage address
+      const storedAddress = await marketplace.marketplaceStorage();
+      expect(storedAddress).to.equal(
+        await marketplaceStorage.getAddress(),
+        "Marketplace's storage reference incorrect"
+      );
+    });
+  });
+
   describe("Administrative Functions", function () {
     it("Should allow owner to withdraw accumulated fees", async function () {
       // First list an NFT
