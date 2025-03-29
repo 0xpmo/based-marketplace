@@ -121,9 +121,12 @@ export default function CreateCollectionPage() {
       const collectionAddress = await createCollection(
         formData.name,
         formData.symbol,
+        "//base uri",
+        "unrevealed-uri",
         contractURI,
         formData.mintPrice,
         formData.maxSupply,
+        0, // Unlimited tokens per wallet
         formData.royaltyFee * 100 // Convert percentage to basis points
       );
 
