@@ -510,7 +510,7 @@ contract BasedSeaMarketplace is
             )
         );
 
-        // Verify the signature fcame from the seller
+        // Verify the signature came from the seller
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
             messageHash
         );
