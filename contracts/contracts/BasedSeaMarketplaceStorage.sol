@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./IBasedSeaMarketplaceStorage.sol";
-import "hardhat/console.sol";
 
 /**
  * @title BasedSeaMarketplaceStorage
@@ -32,7 +31,7 @@ contract BasedSeaMarketplaceStorage is
     mapping(address => uint256) public failedPayments;
 
     // Reserved space for future storage variables
-    uint256[44] private __gap;
+    uint256[50] private __gap;
 
     // ===== EVENTS =====
     event MarketFeeUpdated(uint256 newFee);
@@ -74,7 +73,7 @@ contract BasedSeaMarketplaceStorage is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        marketFee = 250; // Default 2.5%
+        marketFee = 450; // Default 4.5%
         feeRecipient = _feeRecipient;
         paused = false;
         royaltiesDisabled = false;
@@ -176,7 +175,6 @@ contract BasedSeaMarketplaceStorage is
         bool isPrivate,
         address allowedBuyer
     ) external onlyOwner {
-        console.log("Setting listing");
         listings[nftContract][tokenId] = Listing({
             seller: seller,
             nftContract: nftContract,
@@ -186,7 +184,6 @@ contract BasedSeaMarketplaceStorage is
             allowedBuyer: allowedBuyer,
             status: ListingStatus.Active
         });
-        console.log("Listing set");
 
         emit ListingCreated(nftContract, tokenId, seller, price);
     }

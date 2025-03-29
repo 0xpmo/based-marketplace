@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -12,7 +11,6 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./IBasedSeaMarketplaceStorage.sol";
-import "hardhat/console.sol";
 
 /**
  * @title BasedSeaMarketplace
@@ -143,7 +141,10 @@ contract BasedSeaMarketplace is
         marketplaceStorage = IBasedSeaMarketplaceStorage(storageAddress);
     }
 
-    // Required for UUPS upgradeable pattern
+    /**
+     * @dev Authorizes a contract upgrade using the UUPS pattern
+     * @param newImplementation Address of the new implementation contract
+     */
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
@@ -174,7 +175,6 @@ contract BasedSeaMarketplace is
      * @param _marketFee New fee in basis points (e.g., 250 = 2.5%)
      */
     function setMarketFee(uint256 _marketFee) external onlyOwner {
-        require(_marketFee >= 0, "Fee must be >= 0");
         require(_marketFee <= 1000, "Fee cannot exceed 10%");
         marketplaceStorage.setMarketFee(_marketFee);
         emit MarketFeeUpdated(_marketFee);
@@ -219,65 +219,20 @@ contract BasedSeaMarketplace is
      * @param tokenId ID of the token to list
      * @param price Listing price in wei
      */
-    // function listItem(
-    //     address nftContract,
-    //     uint256 tokenId,
-    //     uint256 price
-    // ) external whenNotPaused {
-    //     IERC721 nft = IERC721(nftContract);
-    //     require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
-    //     require(
-    //         nft.isApprovedForAll(msg.sender, address(this)) ||
-    //             nft.getApproved(tokenId) == address(this),
-    //         "Marketplace not approved"
-    //     );
-    //     require(price > 0, "Price must be greater than zero");
-
-    //     // Create listing in storage
-    //     marketplaceStorage.setListing(
-    //         nftContract,
-    //         tokenId,
-    //         msg.sender,
-    //         price,
-    //         false,
-    //         address(0)
-    //     );
-
-    //     emit ItemListed(
-    //         msg.sender,
-    //         nftContract,
-    //         tokenId,
-    //         price,
-    //         false,
-    //         address(0)
-    //     );
-    // }
-
-    /**
-     * @dev List an NFT for sale
-     * @param nftContract Address of the NFT contract
-     * @param tokenId ID of the token to list
-     * @param price Listing price in wei
-     */
     function listItem(
         address nftContract,
         uint256 tokenId,
         uint256 price
     ) external whenNotPaused {
-        console.log("listItem called by:", msg.sender);
         IERC721 nft = IERC721(nftContract);
-
-        // Use helper functions
-        require(_checkNFTOwnership(nft, tokenId, msg.sender), "Not the owner");
+        require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
         require(
-            _checkNFTApproval(nft, tokenId, msg.sender),
+            nft.isApprovedForAll(msg.sender, address(this)) ||
+                nft.getApproved(tokenId) == address(this),
             "Marketplace not approved"
         );
         require(price > 0, "Price must be greater than zero");
 
-        console.log("Creating listing");
-
-        // Create listing
         _createListing(
             nftContract,
             tokenId,
@@ -315,7 +270,6 @@ contract BasedSeaMarketplace is
             "Cannot create private listing for yourself"
         );
 
-        // Create listing in storage
         marketplaceStorage.setListing(
             nftContract,
             tokenId,
@@ -651,46 +605,15 @@ contract BasedSeaMarketplace is
 
     // ===== HELPER FUNCTIONS =====
 
-    // Helper function to check NFT ownership
-    function _checkNFTOwnership(
-        IERC721 nft,
-        uint256 tokenId,
-        address seller
-    ) internal view returns (bool) {
-        try nft.ownerOf(tokenId) returns (address owner) {
-            console.log("NFT owner:", owner);
-            console.log("Is caller the owner?", owner == seller);
-            return owner == seller;
-        } catch Error(string memory reason) {
-            console.log("Error checking ownership:", reason);
-            revert(
-                string(abi.encodePacked("NFT ownership check failed: ", reason))
-            );
-        } catch (bytes memory) {
-            console.log("Unknown error checking NFT ownership");
-            revert("NFT ownership check failed");
-        }
-    }
-
-    // Helper function to check approvals
-    function _checkNFTApproval(
-        IERC721 nft,
-        uint256 tokenId,
-        address seller
-    ) internal view returns (bool) {
-        try nft.isApprovedForAll(seller, address(this)) returns (
-            bool approved
-        ) {
-            if (approved) return true;
-        } catch Error(string memory) {} catch (bytes memory) {}
-
-        try nft.getApproved(tokenId) returns (address approvedAddress) {
-            return approvedAddress == address(this);
-        } catch Error(string memory) {} catch (bytes memory) {}
-
-        return false;
-    }
-
+    /**
+     * @dev Internal function to create a new listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token to list
+     * @param seller Address of the NFT owner who is selling
+     * @param price Listing price in wei
+     * @param isPrivate Whether this is a private listing
+     * @param allowedBuyer If private, the address allowed to purchase (otherwise address(0))
+     */
     function _createListing(
         address nftContract,
         uint256 tokenId,
@@ -764,14 +687,24 @@ contract BasedSeaMarketplace is
         _paySeller(seller, sellerAmount);
     }
 
-    // Helper to calculate marketplace fee
+    /**
+     * @dev Calculates the marketplace fee for a given amount
+     * @param amount Total sale amount in wei
+     * @return The calculated marketplace fee
+     */
     function _calculateMarketFee(
         uint256 amount
     ) internal view returns (uint256) {
         return (amount * marketplaceStorage.marketFee()) / 10000;
     }
 
-    // Helper to transfer the NFT
+    /**
+     * @dev Transfers an NFT from seller to buyer
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token to transfer
+     * @param seller Current owner of the NFT
+     * @param buyer Recipient of the NFT
+     */
     function _transferNFT(
         address nftContract,
         uint256 tokenId,
@@ -787,7 +720,13 @@ contract BasedSeaMarketplace is
         }
     }
 
-    // Helper to handle royalty payments
+    /**
+     * @dev Processes royalty payments for an NFT sale
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token sold
+     * @param amount Total sale amount
+     * @return The amount paid as royalties
+     */
     function _handleRoyaltyPayment(
         address nftContract,
         uint256 tokenId,
@@ -818,13 +757,22 @@ contract BasedSeaMarketplace is
         return 0;
     }
 
-    // Helper to pay the seller
+    /**
+     * @dev Sends the sale proceeds to the seller
+     * @param seller Address of the seller
+     * @param amount Amount to send to the seller after fees and royalties
+     */
     function _paySeller(address seller, uint256 amount) internal {
         _sendPayment(seller, amount, "Sale proceeds");
         // No need to emit the SaleCompletedWithPaymentIssue here as _sendPayment will handle failed payments
     }
 
-    // Generic payment helper that handles failures
+    /**
+     * @dev Sends a payment to a recipient address and handles payment failures
+     * @param recipient Address to receive the payment
+     * @param amount Amount to send
+     * @param paymentType String describing the type of payment (for events)
+     */
     function _sendPayment(
         address recipient,
         uint256 amount,
