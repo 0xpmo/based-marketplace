@@ -34,6 +34,8 @@ const config: HardhatUserConfig = {
       url: BASED_AI_RPC_URL,
       chainId: 32323,
       accounts: [PRIVATE_KEY],
+      gasPrice: 9, // Set exact gas price to match network
+      gas: 10000, // Set gas limit
     },
   },
   paths: {

@@ -3,19 +3,30 @@ import fs from "fs";
 import path from "path";
 import * as dotenv from "dotenv";
 
-// Load environment variables from .env.deployment if it exists
-const deploymentEnvPath = path.join(__dirname, "../.env.deployment");
-if (fs.existsSync(deploymentEnvPath)) {
-  console.log(`Loading deployment addresses from ${deploymentEnvPath}`);
-  dotenv.config({ path: deploymentEnvPath });
-}
-
 async function main() {
   console.log("Updating frontend contract addresses...");
 
-  // Try to get addresses from environment variables first (for upgradeable deployments)
-  let factoryAddress = process.env.FACTORY_PROXY_ADDRESS;
-  let marketplaceAddress = process.env.MARKETPLACE_ADDRESS;
+  // Always read directly from the .env file instead of relying on process.env
+  const deploymentEnvPath = path.join(__dirname, "../.env");
+  let factoryAddress, marketplaceAddress;
+
+  if (fs.existsSync(deploymentEnvPath)) {
+    console.log(`Loading deployment addresses from ${deploymentEnvPath}`);
+    // Read the .env file content directly
+    const envContent = fs.readFileSync(deploymentEnvPath, "utf8");
+
+    // Parse the .env file manually to get the latest values
+    const envLines = envContent.split("\n");
+    for (const line of envLines) {
+      const [key, value] = line.split("=");
+      if (key === "FACTORY_PROXY_ADDRESS") factoryAddress = value;
+      if (key === "MARKETPLACE_ADDRESS") marketplaceAddress = value;
+    }
+
+    console.log("Parsed from .env file:");
+    console.log(`Factory Address: ${factoryAddress}`);
+    console.log(`Marketplace Address: ${marketplaceAddress}`);
+  }
 
   // If environment variables aren't set, try to get from deployment file (for Ignition deployments)
   if (!factoryAddress || !marketplaceAddress) {

@@ -27,8 +27,9 @@ async function main() {
   const rpcUrl =
     network === "localhost"
       ? "http://127.0.0.1:8545"
-      : process.env.BASED_AI_RPC_URL || "";
+      : process.env.BASED_AI_MAINNET_RPC_URL || "";
   const provider = new ethers.JsonRpcProvider(rpcUrl);
+  console.log("rpcUrl", rpcUrl);
 
   // Try to get addresses from environment variables first (for upgradeable deployments)
   let factoryAddress = process.env.FACTORY_PROXY_ADDRESS || "";
@@ -42,7 +43,7 @@ async function main() {
     );
 
     // Determine chain ID based on network
-    const chainId = network === "localhost" ? "1337" : "84532"; // 84532 is Based chain ID
+    const chainId = network === "localhost" ? "1337" : "32323"; // 32323 is Based chain ID
 
     const deploymentsPath = path.join(
       __dirname,

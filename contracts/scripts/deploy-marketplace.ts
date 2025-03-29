@@ -3,14 +3,40 @@ import fs from "fs";
 import path from "path";
 
 async function main() {
+  // const accounts = await ethers.getSigners();
+  // const deployer = accounts[0];
+  const [deployer] = await ethers.getSigners();
+
+  // Get current nonce
+  const currentNonce = await ethers.provider.getTransactionCount(
+    deployer.address
+  );
+  console.log("Starting deployment with nonce:", currentNonce);
+
+  // Define a function to get the next nonce
+  // let nextNonce = currentNonce;
+  // const getNextNonce = () => nextNonce++;
+
+  // Add these options to your upgrades.deployProxy calls
+  // const deploymentOptions = {
+  //   gasPrice: 9,
+  //   gasLimit: 3000000,
+  //   nonce: getNextNonce(), // This will increment for each transaction
+  // };
+
+  // const forceOptions = {
+  //   useDeployedImplementation: false,
+  //   redeployImplementation: "always"
+  // };
+
   console.log("Deploying the entire BasedSeaMarketplace ecosystem...");
 
   // Configuration parameters
-  const DEFAULT_FEE = 100000000000000000000000; // 100 basedAI (100,000 based) creation fee //ethers.parseEther("0.001"); // 0.001 ETH factory creation fee
+  const DEFAULT_FEE = ethers.parseUnits("100000", "ether"); // 100 basedAI (100,000 based) creation fee
   const MARKET_FEE = 450; // 4.5% marketplace fee
 
   // Get deployer account
-  const [deployer] = await ethers.getSigners();
+  // const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
 
   // 1. Deploy Upgradeable BasedSeaCollectionFactory
@@ -22,7 +48,13 @@ async function main() {
   const factoryProxy = await upgrades.deployProxy(
     BasedSeaCollectionFactory,
     [DEFAULT_FEE, deployer.address],
-    { initializer: "initialize" }
+    {
+      initializer: "initialize",
+      txOverrides: {
+        gasPrice: 9,
+        gasLimit: 3000000,
+      },
+    }
   );
 
   await factoryProxy.waitForDeployment();
@@ -60,6 +92,10 @@ async function main() {
     {
       initializer: "initialize",
       kind: "uups",
+      txOverrides: {
+        gasPrice: 9,
+        gasLimit: 3000000,
+      },
     }
   );
 
@@ -88,6 +124,10 @@ async function main() {
     {
       initializer: "initialize",
       kind: "uups",
+      txOverrides: {
+        gasPrice: 9,
+        gasLimit: 3000000,
+      },
     }
   );
 
@@ -105,10 +145,12 @@ async function main() {
   );
 
   // 4. Configure marketplace storage directly from the deployer
+  // console.log("\n4. Configuring marketplace storage values...");
   console.log("\n4. Configuring marketplace storage values...");
   await storageProxy.setMarketFee(MARKET_FEE);
-  await storageProxy.setPaused(false);
-  await storageProxy.setRoyaltiesDisabled(false);
+  // await storageProxy.setMarketFee(MARKET_FEE);
+  // await storageProxy.setPaused(false, deploymentOptions);
+  // await storageProxy.setRoyaltiesDisabled(false, deploymentOptions);
   console.log("Storage values configured");
   console.log(
     "Market fees are accumulated in the contract until withdrawn by the owner"
