@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
-import "hardhat/console.sol";
 
 import "./BasedSeaSequentialNFTCollection.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -43,7 +42,6 @@ contract BasedSeaCollectionFactory is
         uint256 _creationFee,
         address initialOwner
     ) public initializer {
-        console.log("initializing", _creationFee, initialOwner);
         __Ownable_init(initialOwner);
 
         creationFee = _creationFee;
@@ -68,7 +66,6 @@ contract BasedSeaCollectionFactory is
         bool mintingEnabled,
         bool startRevealed
     ) public payable returns (address) {
-        console.log("createCollection", msg.value, creationFee);
         require(msg.value >= creationFee, "Insufficient creation fee");
 
         // Create new collection

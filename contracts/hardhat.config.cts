@@ -1,9 +1,9 @@
-// contracts/hardhat.config.ts
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ignition";
 import * as dotenv from "dotenv";
 import "@openzeppelin/hardhat-upgrades";
+import "@nomicfoundation/hardhat-verify"; // Add this import
 
 dotenv.config();
 
@@ -34,8 +34,6 @@ const config: HardhatUserConfig = {
       url: BASED_AI_RPC_URL,
       chainId: 32323,
       accounts: [PRIVATE_KEY],
-      gasPrice: 9, // Set exact gas price to match network
-      gas: 10000, // Set gas limit
     },
   },
   paths: {
@@ -46,6 +44,22 @@ const config: HardhatUserConfig = {
     ignition: "./ignition",
   },
   ignition: {},
+  // Add etherscan configuration for verification
+  etherscan: {
+    apiKey: {
+      basedai: "apiKeyNotNeeded", // Many explorers don't need an API key
+    },
+    customChains: [
+      {
+        network: "basedai",
+        chainId: 32323,
+        urls: {
+          apiURL: "https://explorer.bf1337.org/api", // API URL for verification
+          browserURL: "https://explorer.bf1337.org", // Explorer URL for browsing
+        },
+      },
+    ],
+  },
 };
 
 export default config;
