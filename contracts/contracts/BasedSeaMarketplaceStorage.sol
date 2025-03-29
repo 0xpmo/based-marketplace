@@ -73,7 +73,7 @@ contract BasedSeaMarketplaceStorage is
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        marketFee = 450; // Default 4.5%
+        marketFee = 250; // Default 2.5%
         feeRecipient = _feeRecipient;
         paused = false;
         royaltiesDisabled = false;

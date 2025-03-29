@@ -4,7 +4,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-ignition";
 import * as dotenv from "dotenv";
 import "@openzeppelin/hardhat-upgrades";
-import "@truffle/dashboard-hardhat-plugin";
 
 dotenv.config();
 

@@ -7,7 +7,7 @@ async function main() {
 
   // Configuration parameters
   const DEFAULT_FEE = ethers.parseEther("0.001"); // 0.001 ETH factory creation fee
-  const MARKET_FEE = 250; // 2.5% marketplace fee
+  const MARKET_FEE = 450; // 4.5% marketplace fee
 
   // Get deployer account
   const [deployer] = await ethers.getSigners();
