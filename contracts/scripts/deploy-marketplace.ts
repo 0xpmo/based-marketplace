@@ -6,7 +6,7 @@ async function main() {
   console.log("Deploying the entire BasedSeaMarketplace ecosystem...");
 
   // Configuration parameters
-  const DEFAULT_FEE = ethers.parseEther("0.001"); // 0.001 ETH factory creation fee
+  const DEFAULT_FEE = 100000000000000000000000; // 100 basedAI (100,000 based) creation fee //ethers.parseEther("0.001"); // 0.001 ETH factory creation fee
   const MARKET_FEE = 450; // 4.5% marketplace fee
 
   // Get deployer account

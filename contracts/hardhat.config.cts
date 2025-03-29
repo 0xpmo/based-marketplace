@@ -8,10 +8,11 @@ import "@openzeppelin/hardhat-upgrades";
 dotenv.config();
 
 const PRIVATE_KEY =
-  process.env.PRIVATE_KEY ||
+  process.env.BASED_AI_MAINNET_PRIVATE_KEY ||
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 const BASED_AI_RPC_URL =
-  process.env.BASED_AI_RPC_URL || "https://mainnet.basedaibridge.com/rpc/";
+  process.env.BASED_AI_MAINNET_RPC_URL ||
+  "https://mainnet.basedaibridge.com/rpc/";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -22,6 +23,7 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
       viaIR: true, // Enable IR-based compilation
+      evmVersion: "paris",
     },
   },
   networks: {
@@ -30,6 +32,7 @@ const config: HardhatUserConfig = {
     },
     basedai: {
       url: BASED_AI_RPC_URL,
+      chainId: 32323,
       accounts: [PRIVATE_KEY],
     },
   },
