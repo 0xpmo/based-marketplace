@@ -36,10 +36,65 @@ export default function MintNftModal({
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const [mintedNFT, setMintedNFT] = useState<NFTItem | null>(null);
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
+  const [tokenUSDRate, setTokenUSDRate] = useState<number | null>(null);
+  const [usdPrice, setUsdPrice] = useState<string | null>(null);
 
   // Refresh collection data to get updated minted count
   const { collection: updatedCollection, loading: loadingCollection } =
     useCollection(collection.address);
+
+  // Function to fetch token price in USD
+  const fetchTokenPriceInUSD = async (tokenSymbol = "BASEDAI") => {
+    try {
+      // You can use CoinGecko, CoinMarketCap, or other crypto price APIs
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=basedai&vs_currencies=usd`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch token price");
+      }
+
+      const data = await response.json();
+      console.log("Token price data:", data);
+      return data["basedai"]?.usd || null;
+    } catch (error) {
+      console.error("Error fetching token price:", error);
+      return null;
+    }
+  };
+
+  // Calculate USD price
+  const calculateUSDPrice = (
+    tokenPrice: string,
+    tokenUSDRate: number | null
+  ) => {
+    if (!tokenPrice || !tokenUSDRate) return null;
+
+    const usdValue = (parseFloat(tokenPrice) * tokenUSDRate) / 1000; // divide by 1000 for denomination change BASEDAI ETH --> L1 BASED
+    // Format to 2 decimal places
+    return usdValue.toFixed(2);
+  };
+
+  // Fetch token price on component mount
+  useEffect(() => {
+    const getTokenPrice = async () => {
+      const rate = await fetchTokenPriceInUSD();
+      setTokenUSDRate(rate);
+
+      if (rate && collection.mintPrice) {
+        const usdValue = calculateUSDPrice(collection.mintPrice, rate);
+        setUsdPrice(usdValue);
+      }
+    };
+
+    getTokenPrice();
+
+    // Refresh price every 5 minutes
+    const intervalId = setInterval(getTokenPrice, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [collection.mintPrice]);
 
   // Update local minted count when collection data is refreshed
   useEffect(() => {
@@ -376,9 +431,12 @@ export default function MintNftModal({
       return (
         <span className="flex items-center justify-center">
           <span className="mr-2">
-            Mint Random NFT for 𝔹 {formatNumberWithCommas(collection.mintPrice)}
+            Mint Random NFT for 𝔹 {formatNumberWithCommas(collection.mintPrice)}{" "}
+            {usdPrice && (
+              <span className="text-xs opacity-75">(≈ ${usdPrice} USD)</span>
+            )}
           </span>
-          <svg
+          {/* <svg
             className="w-5 h-5"
             fill="none"
             stroke="currentColor"
@@ -391,7 +449,7 @@ export default function MintNftModal({
               strokeWidth="2"
               d="M13 10V3L4 14h7v7l9-11h-7z"
             ></path>
-          </svg>
+          </svg> */}
         </span>
       );
     }
@@ -468,6 +526,11 @@ export default function MintNftModal({
                   <span className="text-blue-300">Price:</span>
                   <span className="font-semibold text-indigo-200">
                     𝔹 {formatNumberWithCommas(collection.mintPrice)}
+                    {usdPrice && (
+                      <span className="ml-1 text-xs opacity-75">
+                        (≈ ${usdPrice} USD)
+                      </span>
+                    )}
                   </span>
                 </p>
                 <p className="text-blue-100 mb-3 flex justify-between">
