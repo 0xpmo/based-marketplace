@@ -6,7 +6,9 @@
 import { ethers } from "hardhat";
 import { Log, EventLog } from "ethers";
 
-const FACTORY_PROXY_ADDRESS = process.env.FACTORY_PROXY_ADDRESS;
+// MAKE SURE THIS IS CORRECT YOU FUCKING IDIOT
+const FACTORY_PROXY_ADDRESS = "0xEC6CAA8b24d96f0aD4dcC72Cf9DFF5e47F520eA0"; //process.env.FACTORY_PROXY_ADDRESS;
+console.log("factory fucking address", FACTORY_PROXY_ADDRESS);
 const FOLDER_HASH =
   "bafybeias5ai3i2f5gcrjiun6ekk4vjhebtyhyo7cy6wkfvmv2dcvlv5cwu"; // Folder hash from uploading folder to pinata
 
@@ -40,6 +42,10 @@ async function main() {
   const mintingEnabled = false;
   const startRevealed = true;
 
+  const currentNonce = await ethers.provider.getTransactionCount(
+    deployer.address
+  );
+
   console.log("\n🚀 Creating collection...");
   const tx = await factory.createCollection(
     "Based Whales",
@@ -53,7 +59,13 @@ async function main() {
     royaltyFee,
     mintingEnabled,
     startRevealed,
-    { value: DEFAULT_FEE, gasPrice: 9, gasLimit: 5000000 }
+    {
+      value: DEFAULT_FEE,
+      gasPrice: 9,
+      gasLimit: 5000000,
+      nonce: currentNonce,
+      // force: true,
+    }
   );
 
   console.log("Transaction hash:", tx.hash);
