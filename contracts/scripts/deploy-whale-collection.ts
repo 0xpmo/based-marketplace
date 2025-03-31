@@ -30,14 +30,14 @@ async function main() {
     FACTORY_PROXY_ADDRESS!
   );
 
-  const DEFAULT_FEE = ethers.parseEther("5");
+  const DEFAULT_FEE = ethers.parseEther("100000");
 
   const unrevealedURI = `ipfs://${FOLDER_HASH}/unrevealed`;
-  const mintPrice = ethers.parseEther("100");
-  const maxSupply = 100;
-  const maxTokensPerWallet = 4;
+  const mintPrice = ethers.parseEther("10000");
+  const maxSupply = 128;
+  const maxTokensPerWallet = 5;
   const royaltyFee = 500;
-  const mintingEnabled = true;
+  const mintingEnabled = false;
   const startRevealed = true;
 
   console.log("\n🚀 Creating collection...");
@@ -53,7 +53,7 @@ async function main() {
     royaltyFee,
     mintingEnabled,
     startRevealed,
-    { value: DEFAULT_FEE }
+    { value: DEFAULT_FEE, gasPrice: 9, gasLimit: 5000000 }
   );
 
   console.log("Transaction hash:", tx.hash);
