@@ -115,7 +115,47 @@ export default function MintNftModal({
 
       // First try to get the token ID from transaction receipt
       try {
-        // Get the user's owned tokens in this collection
+        // Try to get the tokenId from the transaction receipt
+        const txResponse = await fetch(
+          `/api/contracts/getTransactionReceipt?txHash=${txHash}`
+        );
+
+        if (txResponse.ok) {
+          const { tokenId: mintedTokenId } = await txResponse.json();
+
+          if (mintedTokenId !== undefined) {
+            // Set the minted token ID
+            setMintedTokenId(mintedTokenId);
+
+            // Fetch full NFT details
+            const detailsResponse = await fetch(
+              `/api/contracts/tokenDetails?collection=${collection.address}&tokenId=${mintedTokenId}`
+            );
+
+            if (detailsResponse.ok) {
+              const tokenData = await detailsResponse.json();
+
+              // Try to fetch metadata
+              if (tokenData.tokenURI) {
+                try {
+                  const metadataResponse = await fetch(
+                    getIPFSGatewayURL(tokenData.tokenURI)
+                  );
+                  const metadata = await metadataResponse.json();
+                  tokenData.metadata = metadata;
+                } catch (err) {
+                  console.error("Error fetching metadata", err);
+                }
+              }
+
+              // Set the complete NFT data
+              setMintedNFT(tokenData);
+              return; // Successfully retrieved NFT, exit function
+            }
+          }
+        }
+
+        // Fallback: Get the user's owned tokens in this collection
         const response = await fetch(
           `/api/contracts/userTokens?collection=${collection.address}&owner=${address}`
         );
