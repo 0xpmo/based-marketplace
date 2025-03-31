@@ -122,6 +122,10 @@ export default function MintNftModal({
     // Reset error state
     setErrorMessage(null);
 
+    console.log("Minting on collection:", collection.address);
+    console.log("Mint price:", collection.mintPrice);
+    console.log("User address:", address);
+
     try {
       await mintNFT(collection.mintPrice);
     } catch (err) {
@@ -463,7 +467,7 @@ export default function MintNftModal({
                 <p className="text-blue-100 mb-3 flex justify-between">
                   <span className="text-blue-300">Price:</span>
                   <span className="font-semibold text-indigo-200">
-                    {collection.mintPrice} 𝔹
+                    𝔹 {formatNumberWithCommas(collection.mintPrice)}
                   </span>
                 </p>
                 <p className="text-blue-100 mb-3 flex justify-between">

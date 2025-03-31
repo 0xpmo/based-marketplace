@@ -627,6 +627,12 @@ export function useMintNFT(collectionAddress: string) {
   const { address } = useAccount();
   const { writeContract, data, isError, error } = useWriteContract();
   const { isLoading, isSuccess } = useTransaction({ hash: data });
+  const publicClient = usePublicClient();
+
+  // Log the active chain when the hook is initialized
+  useEffect(() => {
+    console.log("Active chain in useMintNFT:", publicClient?.chain);
+  }, [publicClient]);
 
   const mintNFT = async (price: string) => {
     if (!address) throw new Error("Wallet not connected");
@@ -637,6 +643,8 @@ export function useMintNFT(collectionAddress: string) {
       functionName: "mint",
       args: [address],
       value: parseEther(price),
+      // Explicitly ensure we're using the active chain from config
+      chainId: getActiveChain().id,
     });
   };
 
