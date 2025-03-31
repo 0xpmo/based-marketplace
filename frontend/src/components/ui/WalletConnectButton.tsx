@@ -1,20 +1,54 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useConfig,
+  usePublicClient,
+} from "wagmi";
 import { injected } from "wagmi/connectors";
+import { switchChain } from "wagmi/actions";
 import { useWalletKit } from "@/components/providers/Web3Provider";
 import PepeButton from "./PepeButton";
 import Link from "next/link";
+import { getActiveChain } from "@/config/chains";
+import toast from "react-hot-toast";
 
 export default function WalletConnectButton() {
   const {} = useWalletKit();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const [isConnecting, setIsConnecting] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const config = useConfig();
+  const targetChainId = getActiveChain().id;
+  const publicClient = usePublicClient();
+  const [isSwitchingChain, setIsSwitchingChain] = useState(false);
+
+  // Attempt to switch chain when connected but on wrong network
+  useEffect(() => {
+    const attemptNetworkSwitch = async () => {
+      if (isConnected && address && chainId !== targetChainId) {
+        try {
+          setIsSwitchingChain(true);
+          console.log(`Switching from chain ${chainId} to ${targetChainId}`);
+          await switchChain(config, { chainId: targetChainId });
+          toast.success(`Connected to ${getActiveChain().name}`);
+        } catch (error) {
+          console.error("Failed to switch network:", error);
+          toast.error("Please switch to the BasedAI network in your wallet");
+        } finally {
+          setIsSwitchingChain(false);
+        }
+      }
+    };
+
+    attemptNetworkSwitch();
+  }, [address, chainId, config, targetChainId, isConnected]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -44,6 +78,7 @@ export default function WalletConnectButton() {
     if (address) {
       navigator.clipboard.writeText(address);
       setDropdownOpen(false);
+      toast.success("Address copied to clipboard");
     }
   };
 
@@ -57,6 +92,7 @@ export default function WalletConnectButton() {
       connect({ connector: injected() });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
+      toast.error("Failed to connect wallet");
     } finally {
       setIsConnecting(false);
     }
@@ -73,11 +109,10 @@ export default function WalletConnectButton() {
     try {
       await disconnect();
       setDropdownOpen(false);
-
-      // Force a page reload to ensure UI updates correctly
-      // window.location.reload();
+      toast.success("Wallet disconnected");
     } catch (error) {
       console.error("Failed to disconnect wallet:", error);
+      toast.error("Failed to disconnect wallet");
     }
   };
 
@@ -90,21 +125,54 @@ export default function WalletConnectButton() {
     }
   };
 
+  // Network status display
+  const getNetworkStatus = () => {
+    if (!isConnected) return null;
+
+    const isCorrectNetwork = chainId === targetChainId;
+
+    return (
+      <div className="px-4 py-2 border-t border-blue-800">
+        <div className="flex items-center">
+          <span
+            className={`inline-block w-2 h-2 rounded-full mr-2 ${
+              isCorrectNetwork ? "bg-green-400" : "bg-red-400"
+            } animate-pulse`}
+          ></span>
+          <span
+            className={`text-xs ${
+              isCorrectNetwork ? "text-green-300" : "text-red-300"
+            }`}
+          >
+            {isCorrectNetwork
+              ? `Connected to ${publicClient?.chain?.name || "BasedAI"}`
+              : "Wrong network - click to switch"}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   // Button content based on connection state
   const buttonContent = () => {
-    if (isConnecting) {
+    if (isConnecting || isSwitchingChain) {
       return (
         <span className="flex items-center">
           <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-cyan-200 rounded-full mr-2" />
-          Connecting...
+          {isSwitchingChain ? "Switching Network..." : "Connecting..."}
         </span>
       );
     }
 
     if (isConnected && address) {
+      const isCorrectNetwork = chainId === targetChainId;
       return (
         <span className="flex items-center">
-          <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 mr-2 animate-pulse"></span>
+          <span
+            className={`inline-block w-2 h-2 rounded-full mr-2 ${
+              isCorrectNetwork ? "bg-cyan-400" : "bg-red-400"
+            } animate-pulse`}
+          ></span>
           {formatAddress(address)}
         </span>
       );
@@ -135,7 +203,7 @@ export default function WalletConnectButton() {
       <PepeButton
         variant={isConnected ? "outline" : "primary"}
         onClick={handleWalletClick}
-        disabled={isConnecting}
+        disabled={isConnecting || isSwitchingChain}
         className={
           isConnected
             ? "border-blue-500 text-blue-300 hover:bg-blue-900/30"
@@ -161,6 +229,9 @@ export default function WalletConnectButton() {
               {formatAddress(address || "")}
             </p>
           </div>
+
+          {/* Display network status */}
+          {getNetworkStatus()}
 
           <div className="py-1">
             <Link

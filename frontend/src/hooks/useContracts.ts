@@ -7,6 +7,7 @@ import {
   useTransaction,
   usePublicClient,
   useWalletClient,
+  useConfig,
 } from "wagmi";
 import { parseEther, formatEther, decodeEventLog } from "viem";
 import { Collection, CollectionMetadata } from "@/types/contracts";
@@ -22,6 +23,7 @@ import {
   getMarketplaceContract,
   getNFTContractWithSigner,
 } from "@/lib/contracts";
+import { switchChain } from "wagmi/actions";
 
 // Import ABIs (you'll need to generate these from your compiled contracts)
 import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
@@ -624,28 +626,77 @@ export function useCreateCollection() {
 
 // Hook for minting an NFT
 export function useMintNFT(collectionAddress: string) {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { writeContract, data, isError, error } = useWriteContract();
   const { isLoading, isSuccess } = useTransaction({ hash: data });
   const publicClient = usePublicClient();
+  const config = useConfig();
+  const targetChainId = getActiveChain().id;
 
   // Log the active chain when the hook is initialized
   useEffect(() => {
     console.log("Active chain in useMintNFT:", publicClient?.chain);
-  }, [publicClient]);
+    console.log(
+      "Target chain for minting:",
+      getActiveChain().name,
+      targetChainId
+    );
+  }, [publicClient, targetChainId]);
 
   const mintNFT = async (price: string) => {
     if (!address) throw new Error("Wallet not connected");
 
-    writeContract({
-      address: collectionAddress as `0x${string}`,
-      abi: CollectionABI.abi,
-      functionName: "mint",
-      args: [address],
-      value: parseEther(price),
-      // Explicitly ensure we're using the active chain from config
-      chainId: getActiveChain().id,
-    });
+    // Check if on the correct chain
+    if (chainId !== targetChainId) {
+      console.log(
+        `Wrong chain detected: ${chainId}. Should be: ${targetChainId}`
+      );
+
+      try {
+        console.log("Attempting to switch chains...");
+        await switchChain(config, { chainId: targetChainId });
+        console.log("Chain switched successfully");
+      } catch (switchError) {
+        console.error("Failed to switch chains:", switchError);
+        throw new Error(
+          `Please switch to the ${
+            getActiveChain().name
+          } network in your wallet to mint`
+        );
+      }
+    }
+
+    console.log(
+      "Minting on chain:",
+      publicClient?.chain?.name || targetChainId
+    );
+    console.log("Minting to collection:", collectionAddress);
+    console.log("Mint price:", price);
+
+    try {
+      await writeContract({
+        address: collectionAddress as `0x${string}`,
+        abi: CollectionABI.abi,
+        functionName: "mint",
+        args: [address],
+        value: parseEther(price),
+        chainId: targetChainId,
+      });
+    } catch (mintError) {
+      console.error("Mint error:", mintError);
+
+      // Check for chain-related errors
+      const errorMsg =
+        mintError instanceof Error ? mintError.message : String(mintError);
+
+      if (errorMsg.includes("chain") || errorMsg.includes("network")) {
+        throw new Error(
+          `Wrong network detected. Please switch to ${getActiveChain().name}`
+        );
+      }
+
+      throw mintError;
+    }
   };
 
   return {

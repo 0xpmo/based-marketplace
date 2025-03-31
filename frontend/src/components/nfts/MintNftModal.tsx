@@ -213,6 +213,15 @@ export default function MintNftModal({
       } else if (errorMessage.toLowerCase().includes("insufficient funds")) {
         setErrorMessage("You don't have enough funds to mint this NFT.");
         toast.error("Insufficient funds for transaction");
+      } else if (
+        errorMessage.toLowerCase().includes("network") ||
+        errorMessage.toLowerCase().includes("chain") ||
+        errorMessage.toLowerCase().includes("switch")
+      ) {
+        setErrorMessage(
+          "Please switch to the BasedAI network in your wallet to mint."
+        );
+        toast.error("Wrong network detected");
       } else {
         // For other errors, display a more user-friendly shortened message
         const shortError =
