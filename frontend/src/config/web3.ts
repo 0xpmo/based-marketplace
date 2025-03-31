@@ -9,6 +9,8 @@ const activeChain = getActiveChain();
 export const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
 export const MARKETPLACE_ADDRESS = process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS;
 
+console.log("active chain", activeChain);
+
 // Create wagmi config
 export const wagmiConfig = createConfig({
   chains: [activeChain],

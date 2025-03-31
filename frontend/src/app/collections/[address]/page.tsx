@@ -442,11 +442,11 @@ export default function CollectionDetailsPage() {
                     variant="primary"
                     onClick={() => setShowMintModal(true)}
                     className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                    disabled={
-                      !collection.mintingEnabled ||
-                      Number(collection.totalMinted) >=
-                        Number(collection.maxSupply)
-                    }
+                    // disabled={
+                    //   !collection.mintingEnabled ||
+                    //   Number(collection.totalMinted) >=
+                    //     Number(collection.maxSupply)
+                    // }
                     aria-label={
                       !collection.mintingEnabled
                         ? "Minting is not live yet"
@@ -467,7 +467,7 @@ export default function CollectionDetailsPage() {
                   <PepeButton
                     variant="primary"
                     className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                    disabled={!collection.mintingEnabled}
+                    // disabled={!collection.mintingEnabled}
                     aria-label={
                       !collection.mintingEnabled
                         ? "Minting is not live yet"
