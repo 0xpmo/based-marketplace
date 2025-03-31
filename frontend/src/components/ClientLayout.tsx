@@ -21,7 +21,7 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isComingSoon = true; // Set to false when ready to launch
+  const isComingSoon = false; // Set to false when ready to launch
   const [bypass, setBypass] = useState(false);
   const [keySequence, setKeySequence] = useState("");
   const secretPassword = "kekitykek";
@@ -48,7 +48,7 @@ export default function ClientLayout({
   }, [keySequence]);
 
   // Show the actual site if bypass is true or isComingSoon is false
-  if (isComingSoon && !bypass) {
+  if (isComingSoon) {
     return (
       <div className="fixed inset-0 w-full h-full z-50 bg-gradient-to-b from-blue-950 to-blue-900 flex flex-col items-center justify-center p-6 text-center">
         <motion.div
