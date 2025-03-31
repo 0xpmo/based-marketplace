@@ -6,7 +6,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-blue-950 border-t border-blue-900/50 relative overflow-hidden">
+    <footer className="bg-blue-950 border-t border-blue-900/50 relative overflow-hidden mt-12">
       {/* Wave Overlay */}
       <div className="absolute top-0 left-0 right-0 h-6 overflow-hidden">
         <svg

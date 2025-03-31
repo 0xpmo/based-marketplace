@@ -491,7 +491,7 @@ export default function CollectionDetailsPage() {
               )}
 
               <Link
-                href={`https://explorer.getbased.ai/address/${collection.address}`}
+                href={`https://explorer.bf1337.org/address/${collection.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

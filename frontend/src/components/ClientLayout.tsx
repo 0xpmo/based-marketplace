@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import PepeButton from "./ui/PepeButton";
+import { useState, useEffect } from "react";
 
 // Import ClientOnly with SSR disabled
 const ClientOnly = dynamic(() => import("@/components/ClientOnly"), {
@@ -20,11 +21,34 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Add this flag at the top of your component, after the existing hooks
   const isComingSoon = true; // Set to false when ready to launch
+  const [bypass, setBypass] = useState(false);
+  const [keySequence, setKeySequence] = useState("");
+  const secretPassword = "kekitykek";
 
-  // Add this early return right before your "const topCollections = collections.slice(0, 3);" line
-  if (isComingSoon) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Add the key to the sequence
+      const newSequence = keySequence + e.key;
+
+      // Keep only the last N characters where N is the length of our password
+      const trimmedSequence = newSequence.slice(-secretPassword.length);
+      setKeySequence(trimmedSequence);
+
+      // Check if the sequence matches the password
+      if (trimmedSequence === secretPassword) {
+        setBypass(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [keySequence]);
+
+  // Show the actual site if bypass is true or isComingSoon is false
+  if (isComingSoon && !bypass) {
     return (
       <div className="fixed inset-0 w-full h-full z-50 bg-gradient-to-b from-blue-950 to-blue-900 flex flex-col items-center justify-center p-6 text-center">
         <motion.div

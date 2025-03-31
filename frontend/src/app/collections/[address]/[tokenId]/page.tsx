@@ -787,7 +787,7 @@ export default function NFTDetailsPage() {
                             className="mt-2 text-xs text-center text-blue-300"
                           >
                             <a
-                              href={`https://explorer.getbased.ai/tx/${cancelTxHash}`}
+                              href={`https://explorer.bf1337.org/tx/${cancelTxHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="hover:text-blue-200 hover:underline"
@@ -882,7 +882,7 @@ export default function NFTDetailsPage() {
                             className="mt-2 text-xs text-center text-blue-300"
                           >
                             <a
-                              href={`https://explorer.getbased.ai/tx/${buyingTxHash}`}
+                              href={`https://explorer.bf1337.org/tx/${buyingTxHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="hover:text-blue-200 hover:underline"
@@ -980,7 +980,7 @@ export default function NFTDetailsPage() {
                 <div className="flex justify-between">
                   <span className="text-blue-400">Contract Address</span>
                   <a
-                    href={`https://explorer.getbased.ai/address/${collectionAddress}`}
+                    href={`https://explorer.bf1337.org/address/${collectionAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-300 hover:underline truncate max-w-[200px]"

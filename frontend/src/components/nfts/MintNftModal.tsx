@@ -627,7 +627,7 @@ export default function MintNftModal({
               <div className="flex justify-center space-x-4 mt-2">
                 {txHash && (
                   <a
-                    href={`https://explorer.getbased.ai/tx/${txHash}`}
+                    href={`https://explorer.bf1337.org/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center text-blue-300 hover:text-blue-200 text-sm"
