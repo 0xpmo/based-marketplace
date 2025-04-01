@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 import { NFTItem } from "@/types/contracts";
 import { useCollection, useBuyNFT } from "@/hooks/useContracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import { MARKETPLACE_ADDRESS } from "@/constants/addresses";
 import { getMarketplaceContract } from "@/lib/contracts";
 import confetti from "canvas-confetti";
+import { useTokenPrice } from "@/contexts/TokenPriceContext";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -28,7 +29,7 @@ export default function NFTDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showListModal, setShowListModal] = useState(false);
-  const [price, setPrice] = useState("0.001");
+  const [price, setPrice] = useState("100000");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showOwnershipEffect, setShowOwnershipEffect] = useState(false);
@@ -38,6 +39,13 @@ export default function NFTDetailsPage() {
   const [showMarketPrompt, setShowMarketPrompt] = useState(false);
   const [listingJustCompleted, setListingJustCompleted] = useState(false);
   const [justPurchased, setJustPurchased] = useState(false);
+  const [usdPrice, setUsdPrice] = useState<string | null>(null);
+  const [showBuyConfirmModal, setShowBuyConfirmModal] = useState(false);
+  const publicClient = usePublicClient();
+
+  // Use the shared token price context
+  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
+    useTokenPrice();
 
   // Confetti reference
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -271,9 +279,55 @@ export default function NFTDetailsPage() {
       toast.error("This NFT is not available for purchase");
       return;
     }
+    console.log("nft price", nft.listing.price);
 
+    setShowBuyConfirmModal(true);
+
+    // try {
+    //   setTxHash(null);
+    //   toast.promise(buyNFT(collectionAddress, tokenId, nft.listing.price), {
+    //     loading: "Initiating purchase...",
+    //     success: "Transaction submitted! Waiting for confirmation...",
+    //     error: "Failed to initiate purchase",
+    //   });
+    // } catch (err) {
+    //   console.error("Error buying NFT:", err);
+
+    //   // Check for specific error messages
+    //   const errorMessage = err instanceof Error ? err.message : String(err);
+
+    //   // Check for "Item not active" error or similar patterns
+    //   if (
+    //     errorMessage.includes("Item not active") ||
+    //     errorMessage.includes("not active") ||
+    //     errorMessage.includes("not listed")
+    //   ) {
+    //     toast.error(
+    //       "This NFT is no longer available for purchase. The listing may have been canceled."
+    //     );
+    //     // Refresh the NFT data to update the UI
+    //     fetchNFTData();
+    //   } else {
+    //     toast.error(
+    //       err instanceof Error
+    //         ? `Error: ${err.message}`
+    //         : "Failed to buy NFT. Please try again."
+    //     );
+    //   }
+    // }
+  };
+
+  // Add a new function for the actual purchase
+  const confirmBuyNFT = async () => {
+    if (!nft || !nft.listing || !nft.listing.active) {
+      toast.error("This NFT is not available for purchase");
+      setShowBuyConfirmModal(false);
+      return;
+    }
     try {
       setTxHash(null);
+      setShowBuyConfirmModal(false); // Close the modal
+
       toast.promise(buyNFT(collectionAddress, tokenId, nft.listing.price), {
         loading: "Initiating purchase...",
         success: "Transaction submitted! Waiting for confirmation...",
@@ -304,6 +358,18 @@ export default function NFTDetailsPage() {
         );
       }
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        toast.success("Address copied to clipboard");
+      })
+      .catch((err) => {
+        console.error("Failed to copy address: ", err);
+        toast.error("Failed to copy address");
+      });
   };
 
   // Function to trigger confetti explosion
@@ -422,7 +488,7 @@ export default function NFTDetailsPage() {
 
   // Handle cancel listing
   const handleCancelListing = async () => {
-    if (!isConnected) {
+    if (!isConnected || !publicClient) {
       toast.error("Please connect your wallet first");
       return;
     }
@@ -444,10 +510,21 @@ export default function NFTDetailsPage() {
       // Get marketplace contract
       const marketplaceContract = await getMarketplaceContract();
 
+      // Get the next nonce
+      const nonce = await publicClient.getTransactionCount({
+        address: userAddress,
+        blockTag: "pending",
+      });
+
       // Call the cancelListing function
       const tx = await marketplaceContract.cancelListing(
         collectionAddress,
-        tokenId
+        tokenId,
+        {
+          gasPrice: 9,
+          gasLimit: 3000000,
+          nonce: nonce, // Use the nonce from publicClient
+        }
       );
 
       setCancelTxHash(tx.hash);
@@ -471,6 +548,39 @@ export default function NFTDetailsPage() {
       setIsCancelling(false);
     }
   };
+
+  // Handle price input with integer-only validation
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove any non-numeric characters (including decimal points)
+    const value = e.target.value.replace(/[^0-9]/g, "");
+
+    // Validate that it's a proper number
+    if (value === "" || !isNaN(parseInt(value))) {
+      setPrice(value);
+    }
+  };
+
+  // Format price for display, but keep the raw value for calculations
+  const getFormattedPrice = () => {
+    if (!price) return "";
+
+    // Format the price for display as an integer
+    try {
+      const numValue = parseInt(price);
+      if (isNaN(numValue)) return price;
+      return price;
+    } catch (e) {
+      return price;
+    }
+  };
+
+  // Update USD price when price changes
+  useEffect(() => {
+    if (tokenUSDRate && price) {
+      const usdValue = calculateUSDPrice(price);
+      setUsdPrice(usdValue);
+    }
+  }, [price, tokenUSDRate, calculateUSDPrice]);
 
   if (loading) {
     return (
@@ -725,9 +835,31 @@ export default function NFTDetailsPage() {
                 ) : (
                   <div className="flex items-center bg-blue-950/50 px-3 py-2 rounded-lg border border-blue-800/30">
                     <span className="text-blue-400 mr-2">Owned by</span>
-                    <span className="text-blue-100 font-medium">
-                      {formatAddress(nft.owner)}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-blue-100 font-medium">
+                        {formatAddress(nft.owner)}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(nft.owner)}
+                        className="text-blue-400 hover:text-blue-200 transition-colors"
+                        title="Copy address to clipboard"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -764,10 +896,21 @@ export default function NFTDetailsPage() {
                     <div className="text-sm text-blue-400">Current price</div>
                     <div className="text-3xl font-bold text-white flex items-center">
                       <span className="mr-2">
-                        {parseFloat(nft.listing.price).toFixed(4)}
+                        {formatNumberWithCommas(
+                          parseInt(nft.listing.price).toString()
+                        )}
                       </span>
                       <span className="text-blue-300">𝔹</span>
                     </div>
+                    {tokenUSDRate && (
+                      <div className="text-sm text-blue-400 mt-1">
+                        ≈ $
+                        {formatNumberWithCommas(
+                          calculateUSDPrice(nft.listing.price) || ""
+                        )}{" "}
+                        USD
+                      </div>
+                    )}
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() ? (
                       <div className="mt-4">
                         <PepeButton
@@ -977,16 +1120,38 @@ export default function NFTDetailsPage() {
                 <h2 className="text-lg font-semibold text-blue-100">Details</h2>
               </div>
               <div className="p-6 space-y-4">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-blue-400">Contract Address</span>
-                  <a
-                    href={`https://explorer.bf1337.org/address/${collectionAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-300 hover:underline truncate max-w-[200px]"
-                  >
-                    {formatAddress(collectionAddress)}
-                  </a>
+                  <div className="flex items-center space-x-2">
+                    <a
+                      href={`https://explorer.bf1337.org/address/${collectionAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-300 hover:underline truncate max-w-[160px]"
+                    >
+                      {formatAddress(collectionAddress)}
+                    </a>
+                    <button
+                      onClick={() => copyToClipboard(collectionAddress)}
+                      className="text-blue-400 hover:text-blue-200 transition-colors"
+                      title="Copy address to clipboard"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-400">Token Standard</span>
@@ -1053,12 +1218,11 @@ export default function NFTDetailsPage() {
                     </label>
                     <div className="relative">
                       <input
-                        type="number"
+                        type="text"
                         id="price"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        min="0"
-                        step="0.001"
+                        value={getFormattedPrice()}
+                        onChange={handlePriceChange}
+                        placeholder="10000"
                         className="w-full px-4 py-2 bg-blue-950/80 border border-blue-700/50 rounded-lg text-blue-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pl-10"
                         required
                       />
@@ -1068,7 +1232,18 @@ export default function NFTDetailsPage() {
                     </div>
                     <p className="text-xs text-blue-400 mt-1">
                       Set your price in 𝔹
+                      {usdPrice && (
+                        <span className="ml-1">(≈ ${usdPrice} USD)</span>
+                      )}
                     </p>
+                    {price && parseInt(price) > 0 && (
+                      <p className="text-sm mt-2 text-blue-200">
+                        Displayed to buyers:{" "}
+                        <span className="font-semibold">
+                          𝔹 {formatNumberWithCommas(price)}
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Add information notice about how listing works */}
@@ -1183,6 +1358,130 @@ export default function NFTDetailsPage() {
                     </PepeButton>
                   </div>
                 </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showBuyConfirmModal && nft?.listing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-blue-950/90 flex items-center justify-center z-50 p-4 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-blue-900/50 rounded-xl shadow-xl border border-blue-700/50 max-w-md w-full p-6 relative backdrop-blur-md"
+              >
+                <button
+                  onClick={() => setShowBuyConfirmModal(false)}
+                  className="absolute top-4 right-4 text-blue-300 hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+
+                <h2 className="text-2xl font-bold mb-6 text-blue-100">
+                  Confirm Purchase
+                </h2>
+
+                <div className="mb-6">
+                  <div className="flex items-center mb-4">
+                    <div className="w-20 h-20 relative overflow-hidden rounded-lg mr-4 border border-blue-700/50">
+                      <Image
+                        src={imageUrl}
+                        alt={nft.metadata?.name || `NFT #${tokenId}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-blue-300 text-sm">
+                        You are about to purchase
+                      </p>
+                      <p className="text-white font-bold text-lg">
+                        {nft.metadata?.name || `NFT #${tokenId}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-950/70 rounded-lg p-4 border border-blue-800/50 mb-4">
+                    <div className="text-blue-300 text-sm mb-1">
+                      Purchase price
+                    </div>
+                    <div className="text-white text-2xl font-bold flex items-center">
+                      <span className="mr-2">
+                        {formatNumberWithCommas(
+                          parseInt(nft.listing.price).toString()
+                        )}
+                      </span>
+                      <span className="text-blue-300">𝔹</span>
+                    </div>
+                    {tokenUSDRate && (
+                      <div className="text-blue-400 text-sm mt-1">
+                        ≈ ${calculateUSDPrice(nft.listing.price)} USD
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-800/20 border border-blue-700/30 rounded-lg p-3 text-blue-200 text-sm mb-6">
+                    <div className="flex items-start">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-2 text-blue-400 flex-shrink-0 mt-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span>
+                        This action cannot be undone. Once confirmed, your
+                        purchase will be processed on the blockchain.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <PepeButton
+                    variant="primary"
+                    onClick={confirmBuyNFT}
+                    className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                    disabled={isBuying}
+                  >
+                    {isBuying ? "Processing..." : "Confirm Purchase"}
+                  </PepeButton>
+
+                  <PepeButton
+                    variant="outline"
+                    onClick={() => setShowBuyConfirmModal(false)}
+                    className="w-full border-blue-500 text-blue-300 hover:bg-blue-900/30"
+                  >
+                    Cancel
+                  </PepeButton>
+                </div>
               </motion.div>
             </motion.div>
           )}

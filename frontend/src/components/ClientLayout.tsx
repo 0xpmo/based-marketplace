@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import PepeButton from "./ui/PepeButton";
 import { useState, useEffect } from "react";
+import { TokenPriceProvider } from "@/contexts/TokenPriceContext";
 
 // Import ClientOnly with SSR disabled
 const ClientOnly = dynamic(() => import("@/components/ClientOnly"), {
@@ -140,12 +141,14 @@ export default function ClientLayout({
 
   return (
     <ClientOnly>
-      <div className="flex flex-col min-h-screen">
-        <Navbar />
-        <main className="flex-grow">{children}</main>
-        <Footer />
-        <ToastContainer position="bottom-right" theme="dark" />
-      </div>
+      <TokenPriceProvider>
+        <div className="flex flex-col min-h-screen">
+          <Navbar />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+          <ToastContainer position="bottom-right" theme="dark" />
+        </div>
+      </TokenPriceProvider>
     </ClientOnly>
   );
 }

@@ -380,7 +380,7 @@ export default function CollectionDetailsPage() {
                     navigator.clipboard.writeText(collection.address)
                   }
                 >
-                  <svg
+                  {/* <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4"
                     fill="none"
@@ -392,6 +392,20 @@ export default function CollectionDetailsPage() {
                       strokeLinejoin="round"
                       strokeWidth={2}
                       d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-2M8 5a2 2 0 002-2h2a2 2 0 012 2M8 5a2 2 0 002 2h6a2 2 0 012-2M8 9h6v12H8z"
+                    />
+                  </svg> */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                     />
                   </svg>
                 </button>

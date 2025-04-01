@@ -7,10 +7,18 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const txHash = searchParams.get("txHash");
+    const collectionAddress = searchParams.get("collection");
 
     if (!txHash) {
       return NextResponse.json(
         { error: "Transaction hash is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!collectionAddress) {
+      return NextResponse.json(
+        { error: "Collection address is required" },
         { status: 400 }
       );
     }
@@ -31,9 +39,18 @@ export async function GET(request: NextRequest) {
     // Create interface to parse logs
     const collectionInterface = new ethers.Interface(CollectionABI.abi);
 
+    // Normalize addresses for comparison (lowercase)
+    const normalizedCollectionAddress = collectionAddress.toLowerCase();
+
     // Look for Transfer event in logs (ERC721 standard event for mints/transfers)
     // For a mint, the "from" address is typically the zero address
+    // And ensure it's from the correct collection contract
     const transferEvents = receipt.logs
+      .filter((log) => {
+        // First check if this log is from the collection contract we're interested in
+        const logAddress = log.address.toLowerCase();
+        return logAddress === normalizedCollectionAddress;
+      })
       .filter((log) => {
         try {
           const parsed = collectionInterface.parseLog(log);
@@ -55,6 +72,8 @@ export async function GET(request: NextRequest) {
               from: parsed.args[0],
               to: parsed.args[1],
               tokenId: parsed.args[2].toString(),
+              blockNumber: receipt.blockNumber,
+              logIndex: log.index, // This helps order events within the same block
             };
           }
           return null;
@@ -64,12 +83,27 @@ export async function GET(request: NextRequest) {
         }
       })
       .filter(
-        (event): event is { from: string; to: string; tokenId: string } =>
-          event !== null
+        (
+          event
+        ): event is {
+          from: string;
+          to: string;
+          tokenId: string;
+          blockNumber: number;
+          logIndex: number;
+        } => event !== null
       ); // Type guard to filter out nulls
 
+    // Sort by block number and log index (descending) to get the latest event first
+    transferEvents.sort((a, b) => {
+      if (b.blockNumber !== a.blockNumber) {
+        return b.blockNumber - a.blockNumber;
+      }
+      return b.logIndex - a.logIndex;
+    });
+
     if (transferEvents.length > 0) {
-      // Return the token ID from the first transfer event (mint)
+      // Return the token ID from the latest mint event
       return NextResponse.json({
         tokenId: transferEvents[0].tokenId,
       });

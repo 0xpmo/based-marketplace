@@ -7,6 +7,7 @@ import Link from "next/link";
 import { NFTItem } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import { useAccount } from "wagmi";
+import { useTokenPrice } from "@/contexts/TokenPriceContext";
 
 interface NFTCardProps {
   nft: NFTItem;
@@ -24,6 +25,10 @@ const NFTCard = memo(function NFTCard({
     "/images/placeholder-nft.svg"
   );
   const [isImageLoading, setIsImageLoading] = useState(true);
+
+  // Use the shared token price context instead of individual state
+  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
+    useTokenPrice();
 
   // Use collection address from props or from NFT object
   const collection = collectionAddress || nft.collection;
@@ -73,6 +78,12 @@ const NFTCard = memo(function NFTCard({
       address.length - 4
     )}`;
   };
+
+  // Calculate USD price for NFT if it's listed
+  const usdPrice =
+    nft.listing && nft.listing.active && tokenUSDRate
+      ? calculateUSDPrice(nft.listing.price)
+      : null;
 
   return (
     <Link
@@ -159,8 +170,13 @@ const NFTCard = memo(function NFTCard({
               <div className="mt-2 pt-2 border-t border-blue-800/30">
                 <div className="text-xs text-blue-400">Price</div>
                 <div className="text-blue-100 font-semibold">
-                  {parseFloat(nft.listing.price).toFixed(4)} 𝔹
+                  𝔹 {formatNumberWithCommas(parseInt(nft.listing.price))}
                 </div>
+                {usdPrice && (
+                  <div className="text-xs text-blue-400 mt-0.5">
+                    ≈ ${formatNumberWithCommas(usdPrice)} USD
+                  </div>
+                )}
               </div>
             )}
           </div>

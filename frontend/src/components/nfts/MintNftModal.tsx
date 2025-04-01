@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import Link from "next/link";
+import { useTokenPrice } from "@/contexts/TokenPriceContext";
 
 interface MintNftModalProps {
   collection: Collection;
@@ -36,65 +37,23 @@ export default function MintNftModal({
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const [mintedNFT, setMintedNFT] = useState<NFTItem | null>(null);
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
-  const [tokenUSDRate, setTokenUSDRate] = useState<number | null>(null);
   const [usdPrice, setUsdPrice] = useState<string | null>(null);
+
+  // Use the centralized token price context
+  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
+    useTokenPrice();
 
   // Refresh collection data to get updated minted count
   const { collection: updatedCollection, loading: loadingCollection } =
     useCollection(collection.address);
 
-  // Function to fetch token price in USD
-  const fetchTokenPriceInUSD = async (tokenSymbol = "BASEDAI") => {
-    try {
-      // You can use CoinGecko, CoinMarketCap, or other crypto price APIs
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=basedai&vs_currencies=usd`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch token price");
-      }
-
-      const data = await response.json();
-      console.log("Token price data:", data);
-      return data["basedai"]?.usd || null;
-    } catch (error) {
-      console.error("Error fetching token price:", error);
-      return null;
-    }
-  };
-
-  // Calculate USD price
-  const calculateUSDPrice = (
-    tokenPrice: string,
-    tokenUSDRate: number | null
-  ) => {
-    if (!tokenPrice || !tokenUSDRate) return null;
-
-    const usdValue = (parseFloat(tokenPrice) * tokenUSDRate) / 1000; // divide by 1000 for denomination change BASEDAI ETH --> L1 BASED
-    // Format to 2 decimal places
-    return usdValue.toFixed(2);
-  };
-
-  // Fetch token price on component mount
+  // Update USD price when token rate changes or on initial load
   useEffect(() => {
-    const getTokenPrice = async () => {
-      const rate = await fetchTokenPriceInUSD();
-      setTokenUSDRate(rate);
-
-      if (rate && collection.mintPrice) {
-        const usdValue = calculateUSDPrice(collection.mintPrice, rate);
-        setUsdPrice(usdValue);
-      }
-    };
-
-    getTokenPrice();
-
-    // Refresh price every 5 minutes
-    const intervalId = setInterval(getTokenPrice, 5 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
-  }, [collection.mintPrice]);
+    if (tokenUSDRate && collection.mintPrice) {
+      const usdValue = calculateUSDPrice(collection.mintPrice);
+      setUsdPrice(usdValue);
+    }
+  }, [tokenUSDRate, collection.mintPrice, calculateUSDPrice]);
 
   // Update local minted count when collection data is refreshed
   useEffect(() => {
@@ -117,7 +76,7 @@ export default function MintNftModal({
       try {
         // Try to get the tokenId from the transaction receipt
         const txResponse = await fetch(
-          `/api/contracts/getTransactionReceipt?txHash=${txHash}`
+          `/api/contracts/getTransactionReceipt?txHash=${txHash}&collection=${collection.address}`
         );
 
         if (txResponse.ok) {
@@ -153,6 +112,11 @@ export default function MintNftModal({
               return; // Successfully retrieved NFT, exit function
             }
           }
+        } else {
+          console.error(
+            "Error getting transaction receipt:",
+            await txResponse.text()
+          );
         }
 
         // Fallback: Get the user's owned tokens in this collection
@@ -167,36 +131,81 @@ export default function MintNftModal({
         const { tokenIds } = await response.json();
 
         if (tokenIds && tokenIds.length > 0) {
-          // Sort by token ID, assuming newest is highest number
-          const sortedTokenIds = [...tokenIds].sort((a, b) => b - a);
-          const latestTokenId = sortedTokenIds[0];
+          console.log("Found token IDs:", tokenIds);
 
-          // Set the minted token ID
-          setMintedTokenId(latestTokenId);
+          // Fetch details for all tokens to find the most recently minted one
+          // This is more reliable than just assuming the highest ID is the newest
+          const tokenDetailsPromises = tokenIds.map(async (id: number) => {
+            try {
+              const detailsResponse = await fetch(
+                `/api/contracts/tokenDetails?collection=${collection.address}&tokenId=${id}`
+              );
+              if (detailsResponse.ok) {
+                const details = await detailsResponse.json();
+                return {
+                  ...details,
+                  tokenId: id,
+                };
+              }
+              return null;
+            } catch (e) {
+              console.error(`Error fetching details for token ${id}:`, e);
+              return null;
+            }
+          });
 
-          // Fetch full NFT details
-          const detailsResponse = await fetch(
-            `/api/contracts/tokenDetails?collection=${collection.address}&tokenId=${latestTokenId}`
+          const tokenDetails = (await Promise.all(tokenDetailsPromises)).filter(
+            Boolean
           );
 
-          if (detailsResponse.ok) {
-            const tokenData = await detailsResponse.json();
+          // If we have token details, try to identify the most recently minted
+          if (tokenDetails.length > 0) {
+            // Sort by metadata.created_at if available, otherwise by tokenId (descending)
+            let sortedTokens = [...tokenDetails];
 
-            // Try to fetch metadata
-            if (tokenData.tokenURI) {
-              try {
-                const metadataResponse = await fetch(
-                  getIPFSGatewayURL(tokenData.tokenURI)
-                );
-                const metadata = await metadataResponse.json();
-                tokenData.metadata = metadata;
-              } catch (err) {
-                console.error("Error fetching metadata", err);
-              }
+            // First check if any tokens have a creation timestamp in metadata
+            const tokensWithTimestamps = sortedTokens.filter(
+              (token) => token.metadata && token.metadata.created_at
+            );
+
+            if (tokensWithTimestamps.length > 0) {
+              // Sort by creation timestamp (newest first)
+              sortedTokens = tokensWithTimestamps.sort((a, b) => {
+                const aTime = new Date(a.metadata.created_at).getTime();
+                const bTime = new Date(b.metadata.created_at).getTime();
+                return bTime - aTime;
+              });
+            } else {
+              // No timestamps, fall back to sorting by token ID
+              sortedTokens.sort(
+                (a, b) => parseInt(b.tokenId) - parseInt(a.tokenId)
+              );
             }
 
-            // Set the complete NFT data
-            setMintedNFT(tokenData);
+            // Use the first (newest) token
+            const latestToken = sortedTokens[0];
+            setMintedTokenId(latestToken.tokenId);
+
+            // If we already have metadata, use it
+            if (latestToken.metadata) {
+              setMintedNFT(latestToken);
+            } else if (latestToken.tokenURI) {
+              // Fetch metadata if not already included
+              try {
+                const metadataResponse = await fetch(
+                  getIPFSGatewayURL(latestToken.tokenURI)
+                );
+                const metadata = await metadataResponse.json();
+                latestToken.metadata = metadata;
+                setMintedNFT(latestToken);
+              } catch (err) {
+                console.error("Error fetching metadata:", err);
+                setMintedNFT(latestToken);
+              }
+            } else {
+              // Use what we have even without metadata
+              setMintedNFT(latestToken);
+            }
           }
         }
       } catch (err) {
@@ -482,7 +491,9 @@ export default function MintNftModal({
           <span className="mr-2">
             Mint Random NFT for 𝔹 {formatNumberWithCommas(collection.mintPrice)}{" "}
             {usdPrice && (
-              <span className="text-xs opacity-75">(≈ ${usdPrice} USD)</span>
+              <span className="text-xs opacity-75">
+                ≈ ${formatNumberWithCommas(usdPrice)} USD
+              </span>
             )}
           </span>
           {/* <svg
@@ -577,7 +588,7 @@ export default function MintNftModal({
                     𝔹 {formatNumberWithCommas(collection.mintPrice)}
                     {usdPrice && (
                       <span className="ml-1 text-xs opacity-75">
-                        (≈ ${usdPrice} USD)
+                        ≈ ${formatNumberWithCommas(usdPrice)} USD
                       </span>
                     )}
                   </span>
@@ -881,20 +892,3 @@ export default function MintNftModal({
     </motion.div>
   );
 }
-
-const formatNumberWithCommas = (value: number | string) => {
-  // Handle null, undefined or empty string
-  if (!value && value !== 0) return "0";
-
-  // Convert to string if it's not already
-  const stringValue = String(value);
-
-  // Split by decimal point if present
-  const parts = stringValue.split(".");
-
-  // Add commas to the integer part
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-  // Join back with decimal part if it exists
-  return parts.join(".");
-};

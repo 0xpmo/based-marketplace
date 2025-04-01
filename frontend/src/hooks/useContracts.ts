@@ -718,6 +718,8 @@ export function useListNFT() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [approvalStep, setApprovalStep] = useState(false);
   const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null);
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient(); // Add this to get the signer
 
   const listNFT = async (
     collectionAddress: string,
@@ -732,7 +734,7 @@ export function useListNFT() {
     setApprovalTxHash(null);
 
     try {
-      if (!userAddress) {
+      if (!userAddress || !walletClient || !publicClient) {
         throw new Error("Wallet not connected");
       }
 
@@ -780,12 +782,35 @@ export function useListNFT() {
 
       console.log("Marketplace contract obtained, executing transaction...");
 
-      // Call the contract's listItem function
+      // Get the next nonce
+      const nonce = await publicClient.getTransactionCount({
+        address: userAddress,
+        blockTag: "pending",
+      });
+
+      // Call the contract's listItem function with proper gas settings and nonce
       const tx = await marketplaceContract.listItem(
         collectionAddress,
         tokenId,
-        priceInWei
+        priceInWei,
+        {
+          gasPrice: 9,
+          gasLimit: 3000000,
+          nonce: nonce, // Use the nonce from publicClient
+        }
       );
+
+      // Call the contract's listItem function
+      // const tx = await marketplaceContract.listItem(
+      //   collectionAddress,
+      //   tokenId,
+      //   priceInWei, {
+      //     gasPrice: 9,
+      //     gasLimit: 3000000,
+      //     nonce: await provider.getTransactionCount(userAddress, "pending")  // Critical for proper nonce management
+      //   };
+      //   }
+      // );
       setTxHash(tx.hash);
 
       console.log(`Transaction submitted: ${tx.hash}`);
@@ -837,7 +862,7 @@ export function useBuyNFT() {
       abi: MarketplaceABI.abi,
       functionName: "buyItem",
       args: [nftContract, BigInt(tokenId)],
-      value: parseEther(price),
+      value: parseEther(price), // Use parseEther to convert price to wei
     });
   };
 
