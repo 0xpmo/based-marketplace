@@ -846,33 +846,70 @@ export function useListNFT() {
 
 // Hook for buying an NFT
 export function useBuyNFT() {
+  // const { writeContract, data, isError, error } = useWriteContract();
+  // const { isLoading, isSuccess } = useTransaction({ hash: data });
+
   const { address } = useAccount();
-  const { writeContract, data, isError, error } = useWriteContract();
-  const { isLoading, isSuccess } = useTransaction({ hash: data });
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
 
   const buyNFT = async (
     nftContract: string,
     tokenId: number,
     price: string
   ) => {
-    if (!address) throw new Error("Wallet not connected");
+    if (!address || !walletClient || !publicClient)
+      throw new Error("Wallet not connected");
 
-    writeContract({
-      address: MARKETPLACE_ADDRESS as `0x${string}`,
-      abi: MarketplaceABI.abi,
-      functionName: "buyItem",
-      args: [nftContract, BigInt(tokenId)],
-      value: parseEther(price), // Use parseEther to convert price to wei
-    });
+    setIsLoading(true);
+    setIsSuccess(false);
+    setError(null);
+    setTxHash(null);
+
+    try {
+      // Get the next nonce
+      const nonce = await publicClient.getTransactionCount({
+        address,
+        blockTag: "pending",
+      });
+
+      // Get marketplace contract
+      const marketplaceContract = await getMarketplaceContract();
+
+      // Call the contract's buyItem function with proper gas settings and nonce
+      const tx = await marketplaceContract.buyItem(nftContract, tokenId, {
+        value: parseEther(price),
+        gasPrice: 9,
+        gasLimit: 3000000,
+        nonce: nonce, // Use the nonce from publicClient
+      });
+
+      setTxHash(tx.hash);
+
+      // Wait for transaction to complete
+      const receipt = await tx.wait();
+
+      setIsSuccess(true);
+      return true;
+    } catch (err) {
+      console.error("Error buying NFT:", err);
+      setError(err instanceof Error ? err : new Error("Failed to buy NFT"));
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
     buyNFT,
     isLoading,
     isSuccess,
-    isError,
     error,
-    txHash: data,
+    txHash,
   };
 }
 
