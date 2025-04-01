@@ -69,7 +69,6 @@ export default function NFTDetailsPage() {
     buyNFT,
     isLoading: isBuying,
     isSuccess: isBuyingSuccess,
-    isError: isBuyingError,
     error: buyingError,
     txHash: buyingTxHash,
   } = useBuyNFT();
@@ -456,7 +455,7 @@ export default function NFTDetailsPage() {
 
   // Handle buy error - updated to handle RPC errors with custom messages
   useEffect(() => {
-    if (isBuyingError && buyingError) {
+    if (buyingError) {
       const errorMessage = buyingError.message || "Unknown error";
 
       // Check for common blockchain error patterns in RPC errors
@@ -484,7 +483,7 @@ export default function NFTDetailsPage() {
         toast.error(`Transaction failed: ${errorMessage}`);
       }
     }
-  }, [isBuyingError, buyingError]);
+  }, [buyingError]);
 
   // Handle cancel listing
   const handleCancelListing = async () => {
