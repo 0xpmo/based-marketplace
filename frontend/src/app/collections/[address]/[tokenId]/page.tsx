@@ -1245,6 +1245,113 @@ export default function NFTDetailsPage() {
                     )}
                   </div>
 
+                  {/* Fee breakdown section */}
+                  {price && parseInt(price) > 0 && (
+                    <div className="mb-6 p-4 bg-blue-800/20 border border-blue-700/30 rounded-lg">
+                      <h3 className="text-blue-100 font-medium mb-3">
+                        Fee Breakdown
+                      </h3>
+
+                      {/* Creator royalty - assuming this exists in collection data */}
+                      {collection?.royaltyFee &&
+                      Number(collection.royaltyFee) > 0 ? (
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-blue-300 text-sm">
+                            Creator Royalty (
+                            {(Number(collection.royaltyFee) / 100).toFixed(2)}%)
+                          </span>
+                          <span className="text-blue-200 text-sm">
+                            𝔹{" "}
+                            {formatNumberWithCommas(
+                              (
+                                parseInt(price) *
+                                (Number(collection.royaltyFee) / 10000)
+                              ).toFixed(0)
+                            )}
+                          </span>
+                        </div>
+                      ) : null}
+
+                      {/* Marketplace fee */}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center">
+                          <span className="text-blue-300 text-sm">
+                            Marketplace Fee (4.5%)
+                          </span>
+                          <div className="relative ml-1 group">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-blue-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 rounded shadow-lg text-xs text-blue-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                              This fee is used to maintain the BasedSea
+                              marketplace and support ongoing development.
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-blue-200 text-sm">
+                          𝔹{" "}
+                          {formatNumberWithCommas(
+                            (parseInt(price) * 0.045).toFixed(0)
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Divider line */}
+                      <div className="border-t border-blue-700/30 my-3"></div>
+
+                      {/* Total payout calculation */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-100 font-medium">
+                          Your payout
+                        </span>
+                        <span className="text-blue-100 font-medium">
+                          𝔹{" "}
+                          {formatNumberWithCommas(
+                            (
+                              parseInt(price) -
+                              parseInt(price) * 0.045 -
+                              (collection?.royaltyFee
+                                ? parseInt(price) *
+                                  (Number(collection.royaltyFee) / 10000)
+                                : 0)
+                            ).toFixed(0)
+                          )}
+                        </span>
+                      </div>
+
+                      {/* USD equivalent if available */}
+                      {usdPrice && (
+                        <div className="flex justify-end mt-1">
+                          <span className="text-blue-400 text-xs">
+                            ≈ $
+                            {calculateUSDPrice(
+                              (
+                                parseInt(price) -
+                                parseInt(price) * 0.045 -
+                                (collection?.royaltyFee
+                                  ? parseInt(price) *
+                                    (Number(collection.royaltyFee) / 10000)
+                                  : 0)
+                              ).toFixed(0)
+                            )}{" "}
+                            USD
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Add information notice about how listing works */}
                   <div className="mb-6 p-3 bg-blue-800/20 border border-blue-700/30 rounded-lg text-blue-200 text-sm">
                     <p className="flex items-center">

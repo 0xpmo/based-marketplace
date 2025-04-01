@@ -36,6 +36,7 @@ export default function CollectionDetailsPage() {
   const [isBannerLoading, setIsBannerLoading] = useState(true);
   const [isCollectionImageLoading, setIsCollectionImageLoading] =
     useState(true);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
 
   // Use our custom hook to fetch ALL NFTs at once
   const collectionAddr = Array.isArray(address)
@@ -219,6 +220,13 @@ export default function CollectionDetailsPage() {
   // Determine loading state
   const isLoadingContent = loading || loadingNFTs;
 
+  // Copy function for addresses
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(type);
+    setTimeout(() => setCopiedText(null), 2000);
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-20 px-4 text-center">
@@ -325,16 +333,68 @@ export default function CollectionDetailsPage() {
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-3xl font-bold text-white mb-2">
-                      {collection?.metadata?.name || "Unnamed Collection"}
-                    </h1>
-                    <div className="text-sm text-slate-400 mb-4">
+                    <div className="flex items-center mb-2">
+                      <h1 className="text-3xl font-bold text-white">
+                        {collection?.metadata?.name || "Unnamed Collection"}
+                      </h1>
+                      <div className="ml-3 flex items-center text-sm text-slate-400">
+                        <span className="hidden sm:inline-block">
+                          {collectionAddr.slice(0, 6)}...
+                          {collectionAddr.slice(-4)}
+                        </span>
+                        <button
+                          onClick={() =>
+                            copyToClipboard(collectionAddr, "contract")
+                          }
+                          className="ml-2 text-blue-400 hover:text-blue-300 focus:outline-none"
+                          title="Copy contract address"
+                        >
+                          {copiedText === "contract" ? (
+                            <span className="text-green-400">✓</span>
+                          ) : (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                              <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-slate-400 mb-4 flex items-center">
                       By{" "}
-                      <span className="font-medium text-blue-400">
+                      <span className="font-medium text-blue-400 mx-1">
                         {collection?.owner?.slice(0, 6)}...
                         {collection?.owner?.slice(-4)}
                       </span>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(collection?.owner || "", "owner")
+                        }
+                        className="text-blue-400 hover:text-blue-300 focus:outline-none"
+                        title="Copy owner address"
+                      >
+                        {copiedText === "owner" ? (
+                          <span className="text-green-400">✓</span>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                            <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
+
                     <p className="text-slate-300 mb-6 max-w-2xl">
                       {collection?.metadata?.description ||
                         "No description available"}
