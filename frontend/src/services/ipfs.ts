@@ -247,3 +247,57 @@ export async function uploadToIPFS(data: string | File): Promise<string> {
     throw new Error("Failed to upload to IPFS");
   }
 }
+
+/**
+ * Fetches multiple metadata objects from IPFS in a single batch request
+ * @param uris Array of IPFS URIs or HTTP URLs
+ * @returns Object mapping URIs to their metadata
+ */
+export async function fetchBatchMetadataFromIPFS(
+  uris: string[]
+): Promise<Record<string, Record<string, unknown> | null>> {
+  try {
+    // Use our server-side batch proxy to avoid CORS issues
+    const response = await fetch("/api/ipfs/metadata/batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uris }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Batch proxy error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to fetch batch metadata");
+    }
+
+    // Create type for the response structure
+    interface BatchMetadataResult {
+      results: Record<
+        string,
+        {
+          metadata: Record<string, unknown> | null;
+          error: string | null;
+        }
+      >;
+    }
+
+    // Type the result
+    const typedResult = result as BatchMetadataResult;
+
+    // Extract just the metadata for each URI, with null for errors
+    return Object.entries(typedResult.results).reduce((acc, [uri, data]) => {
+      acc[uri] = data.error ? null : data.metadata;
+      return acc;
+    }, {} as Record<string, Record<string, unknown> | null>);
+  } catch (error) {
+    console.error("Error fetching batch metadata from IPFS:", error);
+    throw error;
+  }
+}

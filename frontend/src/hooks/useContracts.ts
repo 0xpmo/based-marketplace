@@ -9,14 +9,14 @@ import {
   useWalletClient,
   useConfig,
 } from "wagmi";
-import { parseEther, formatEther, decodeEventLog } from "viem";
-import { Collection, CollectionMetadata } from "@/types/contracts";
+import { parseEther, formatEther, decodeEventLog, PublicClient } from "viem";
+import { Collection, CollectionMetadata, NFTItem } from "@/types/contracts";
 import {
   MARKETPLACE_ADDRESS,
   NFT_FACTORY_ADDRESS,
 } from "@/constants/addresses";
 import { EXTERNAL_COLLECTIONS } from "@/constants/collections";
-import { fetchFromIPFS } from "@/services/ipfs";
+import { fetchFromIPFS, fetchBatchMetadataFromIPFS } from "@/services/ipfs";
 import { createPublicClient, http } from "viem";
 import { getActiveChain } from "@/config/chains";
 import {
@@ -1231,6 +1231,341 @@ export function useCollection(collectionAddress: string) {
   }, [collectionAddress]);
 
   return { collection, loading, error };
+}
+
+// Hook for fetching NFTs in a collection - fetches ALL NFTs at once
+export function useCollectionNFTs(collectionAddress: string) {
+  const [nfts, setNfts] = useState<NFTItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+
+  // Fetch all NFTs for the collection at once
+  const fetchAllNFTs = useCallback(async () => {
+    if (!collectionAddress) {
+      console.log("No collection address, skipping fetch");
+      return;
+    }
+
+    console.log(`Fetching all NFTs for collection ${collectionAddress}`);
+    setLoading(true);
+
+    try {
+      // Create the public client
+      const publicClient = createPublicClient({
+        chain: getActiveChain(),
+        transport: http(),
+      });
+
+      // Get total supply/minted to determine the total number of tokens
+      const totalSupply =
+        (await readCollectionProperty(
+          collectionAddress,
+          "totalSupply",
+          false
+        )) ||
+        (await readCollectionProperty(collectionAddress, "totalMinted", false));
+
+      if (!totalSupply) {
+        console.log("No total supply found");
+        setLoading(false);
+        return;
+      }
+
+      const totalTokens = Number(totalSupply);
+      console.log(`Total tokens in collection: ${totalTokens}`);
+
+      // Fetch all token IDs first
+      const tokenIds: number[] = [];
+
+      // Try using tokenByIndex (ERC721Enumerable) first
+      let useTokenByIndex = true;
+      try {
+        // Test if tokenByIndex is supported
+        await publicClient.readContract({
+          address: collectionAddress as `0x${string}`,
+          abi: CollectionABI.abi,
+          functionName: "tokenByIndex",
+          args: [BigInt(0)],
+        });
+      } catch (err) {
+        console.log(
+          "tokenByIndex not supported, will try direct token ID access"
+        );
+        useTokenByIndex = false;
+      }
+
+      // Get all token IDs
+      const tokenIdPromises: Promise<number | null>[] = [];
+
+      if (useTokenByIndex) {
+        // Use tokenByIndex for ERC721Enumerable collections
+        for (let i = 0; i < totalTokens; i++) {
+          tokenIdPromises.push(
+            (async (index) => {
+              try {
+                const tokenId = await publicClient.readContract({
+                  address: collectionAddress as `0x${string}`,
+                  abi: CollectionABI.abi,
+                  functionName: "tokenByIndex",
+                  args: [BigInt(index)],
+                });
+                return Number(tokenId);
+              } catch (err) {
+                console.error(`Error fetching token at index ${index}:`, err);
+                return null;
+              }
+            })(i)
+          );
+        }
+      } else {
+        // Try sequential token IDs (0 to totalSupply-1)
+        for (let i = 0; i < totalTokens; i++) {
+          tokenIdPromises.push(
+            (async (tokenId) => {
+              try {
+                // Check if token exists by trying to get its owner
+                await publicClient.readContract({
+                  address: collectionAddress as `0x${string}`,
+                  abi: CollectionABI.abi,
+                  functionName: "ownerOf",
+                  args: [BigInt(tokenId)],
+                });
+                return tokenId;
+              } catch (err) {
+                // Token doesn't exist, skip
+                return null;
+              }
+            })(i)
+          );
+        }
+      }
+
+      // Resolve all token ID promises
+      const resolvedTokenIds = (await Promise.all(tokenIdPromises)).filter(
+        (id) => id !== null
+      ) as number[];
+
+      console.log(`Found ${resolvedTokenIds.length} valid tokens`);
+
+      // Fetch basic token data (owner, tokenURI) for all tokens
+      const tokenDataPromises = resolvedTokenIds.map((tokenId) =>
+        fetchBasicTokenData(collectionAddress, tokenId, publicClient)
+      );
+
+      const tokensWithBasicData = (await Promise.all(tokenDataPromises)).filter(
+        Boolean
+      ) as NFTItem[];
+      console.log(
+        `Fetched basic data for ${tokensWithBasicData.length} tokens`
+      );
+
+      // Update state with basic token data
+      setNfts(tokensWithBasicData);
+      setLoading(false);
+
+      // Now fetch metadata and listings in batches
+      fetchMetadataAndListingsInBatches(tokensWithBasicData, publicClient);
+    } catch (err) {
+      console.error("Error fetching collection NFTs:", err);
+      setError("Failed to load NFTs. Please try again later.");
+      setLoading(false);
+    }
+  }, [collectionAddress]);
+
+  // Helper function to fetch basic token data
+  const fetchBasicTokenData = async (
+    collection: string,
+    tokenId: number,
+    publicClient: PublicClient
+  ): Promise<NFTItem | null> => {
+    try {
+      // Fetch token URI
+      const tokenURI = await publicClient.readContract({
+        address: collection as `0x${string}`,
+        abi: CollectionABI.abi,
+        functionName: "tokenURI",
+        args: [BigInt(tokenId)],
+      });
+
+      // Fetch owner
+      const owner = await publicClient.readContract({
+        address: collection as `0x${string}`,
+        abi: CollectionABI.abi,
+        functionName: "ownerOf",
+        args: [BigInt(tokenId)],
+      });
+
+      return {
+        tokenId,
+        tokenURI: tokenURI as string,
+        owner: owner as string,
+        metadata: undefined, // Will be fetched in batches later
+        listing: undefined, // Will be fetched in batches later
+        collection,
+      };
+    } catch (err) {
+      console.error(`Error fetching basic data for token ${tokenId}:`, err);
+      return null;
+    }
+  };
+
+  // Function to fetch metadata and listings in batches
+  const fetchMetadataAndListingsInBatches = async (
+    tokens: NFTItem[],
+    publicClient: PublicClient
+  ) => {
+    setMetadataLoading(true);
+
+    // Process in batches of 25 to avoid overloading the API
+    const BATCH_SIZE = 25;
+    const batches = Math.ceil(tokens.length / BATCH_SIZE);
+
+    for (let i = 0; i < batches; i++) {
+      const start = i * BATCH_SIZE;
+      const end = Math.min(start + BATCH_SIZE, tokens.length);
+      const batchTokens = tokens.slice(start, end);
+
+      console.log(
+        `Processing metadata batch ${i + 1}/${batches} (tokens ${start} to ${
+          end - 1
+        })`
+      );
+
+      // Collect all tokenURIs for this batch
+      const validTokens = batchTokens.filter((token) => token.tokenURI);
+      const tokenURIs = validTokens.map((token) => token.tokenURI);
+
+      // Skip if no valid tokens in this batch
+      if (tokenURIs.length === 0) {
+        continue;
+      }
+
+      try {
+        // Fetch metadata for all tokens in this batch at once
+        const metadataMap = await fetchBatchMetadataFromIPFS(tokenURIs);
+
+        // Create metadata results array from the batch response
+        const metadataResults = validTokens
+          .map((token) => {
+            const metadata = metadataMap[token.tokenURI];
+            return metadata ? { tokenId: token.tokenId, metadata } : null;
+          })
+          .filter(Boolean);
+
+        // Fetch listing info for this batch
+        const listingPromises = batchTokens.map(async (token) => {
+          try {
+            // The listing will have a structure matching the Listing struct in the contract
+            interface MarketplaceListing {
+              seller: string;
+              nftContract: string;
+              tokenId: bigint;
+              price: bigint;
+              isPrivate: boolean;
+              allowedBuyer: string;
+              status: number; // 0=None, 1=Active, 2=Sold, 3=Canceled
+            }
+
+            const isListed = (await publicClient.readContract({
+              address: MARKETPLACE_ADDRESS as `0x${string}`,
+              abi: MarketplaceABI.abi,
+              functionName: "getListing",
+              args: [token.collection as `0x${string}`, BigInt(token.tokenId)],
+            })) as MarketplaceListing;
+
+            if (isListed) {
+              // Status 1 = Active in the ListingStatus enum
+              const isActive = isListed.status === 1;
+
+              if (isActive) {
+                return {
+                  tokenId: token.tokenId,
+                  listing: {
+                    active: true,
+                    price: formatEther(isListed.price),
+                    seller: isListed.seller,
+                  },
+                };
+              }
+            }
+            return null;
+          } catch (err) {
+            console.error(
+              `Error fetching listing for token ${token.tokenId}:`,
+              err
+            );
+            return null;
+          }
+        });
+
+        const listingResults = await Promise.all(listingPromises);
+
+        // Update the NFTs with the new metadata and listing info
+        setNfts((prevNfts) => {
+          const newNfts = [...prevNfts];
+
+          // Update metadata
+          metadataResults.forEach((result) => {
+            if (!result) return;
+            const index = newNfts.findIndex(
+              (n) => n.tokenId === result.tokenId
+            );
+            if (index !== -1) {
+              newNfts[index] = {
+                ...newNfts[index],
+                metadata: result.metadata,
+              };
+            }
+          });
+
+          // Update listings
+          listingResults.forEach((result) => {
+            if (!result) return;
+            const index = newNfts.findIndex(
+              (n) => n.tokenId === result.tokenId
+            );
+            if (index !== -1) {
+              newNfts[index] = {
+                ...newNfts[index],
+                listing: result.listing,
+              };
+            }
+          });
+
+          // Sort the NFTs by token ID to maintain a stable order in the UI
+          return newNfts.sort((a, b) => Number(a.tokenId) - Number(b.tokenId));
+        });
+      } catch (error) {
+        console.error(`Error processing batch ${i + 1}:`, error);
+      }
+
+      // Add a small delay to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    setMetadataLoading(false);
+    console.log("Completed fetching all metadata and listings");
+  };
+
+  // Fetch NFTs when the collection address changes
+  useEffect(() => {
+    if (collectionAddress) {
+      fetchAllNFTs();
+    } else {
+      setNfts([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [collectionAddress, fetchAllNFTs]);
+
+  return {
+    nfts,
+    loading,
+    metadataLoading,
+    error,
+    refresh: fetchAllNFTs,
+  };
 }
 
 // Hook for updating a collection

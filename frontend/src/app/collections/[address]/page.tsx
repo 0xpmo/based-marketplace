@@ -1,29 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Collection, NFTItem } from "@/types/contracts";
 import PepeButton from "@/components/ui/PepeButton";
 import NFTCard from "@/components/nfts/NftCard";
-import { getIPFSGatewayURL, fetchFromIPFS } from "@/services/ipfs";
-import { useCollections } from "@/hooks/useContracts";
+import { getIPFSGatewayURL } from "@/services/ipfs";
+import { useCollections, useCollectionNFTs } from "@/hooks/useContracts";
 import MintNftModal from "@/components/nfts/MintNftModal";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
+import { useTokenPrice } from "@/contexts/TokenPriceContext";
 
 export default function CollectionDetailsPage() {
   const { address } = useParams();
   const { isConnected } = useAccount();
   const { collections } = useCollections();
+  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
+    useTokenPrice();
   const [collection, setCollection] = useState<Collection | null>(null);
-  const [nfts, setNfts] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingNFTs, setLoadingNFTs] = useState(true);
   const [showMintModal, setShowMintModal] = useState(false);
-  const [sortOption, setSortOption] = useState("newest");
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState("price-low-high");
   const [filterForSale, setFilterForSale] = useState(false);
   const [bannerImageUrl, setBannerImageUrl] = useState<string>(
     "/images/ocean-banner.svg"
@@ -37,6 +37,46 @@ export default function CollectionDetailsPage() {
   const [isCollectionImageLoading, setIsCollectionImageLoading] =
     useState(true);
 
+  // Use our custom hook to fetch ALL NFTs at once
+  const collectionAddr = Array.isArray(address)
+    ? address[0]
+    : (address as string);
+  const {
+    nfts,
+    loading: loadingNFTs,
+    metadataLoading,
+    error: fetchError,
+    refresh: refreshNFTs,
+  } = useCollectionNFTs(collectionAddr);
+
+  // Calculate floor price from NFTs with active listings
+  const floorPrice = useMemo(() => {
+    // Only calculate floor price when metadata loading is complete
+    if (metadataLoading) return null;
+
+    const activeListings = nfts
+      .filter((nft) => nft.listing && nft.listing.active)
+      .map((nft) => parseFloat(nft.listing!.price));
+
+    if (activeListings.length === 0) return null;
+
+    return Math.min(...activeListings);
+  }, [nfts, metadataLoading]);
+
+  // Format floor price for display
+  const formattedFloorPrice = useMemo(() => {
+    if (!floorPrice) return null;
+
+    return formatNumberWithCommas(floorPrice);
+  }, [floorPrice, formatNumberWithCommas]);
+
+  // Calculate USD value of floor price using the token price context
+  const floorPriceUsd = useMemo(() => {
+    if (!floorPrice || !tokenUSDRate) return null;
+
+    return calculateUSDPrice(floorPrice.toString());
+  }, [floorPrice, tokenUSDRate, calculateUSDPrice]);
+
   console.log("collections", collections);
 
   // Find collection from all collections
@@ -47,6 +87,7 @@ export default function CollectionDetailsPage() {
       );
       if (collectionData) {
         setCollection(collectionData);
+        setLoading(false);
       }
     }
   }, [collections, address]);
@@ -98,135 +139,85 @@ export default function CollectionDetailsPage() {
     bannerError,
   ]);
 
-  // Fetch NFT data
-  useEffect(() => {
-    const fetchNFTs = async () => {
-      setLoading(true);
-      setFetchError(null);
+  // Create a stable reference for sort function to prevent jumpiness during loading
+  const sortedAndFilteredNFTs = useMemo(() => {
+    console.log(`Sorting ${nfts.length} NFTs by ${sortOption}`);
 
-      if (!address) {
-        setNfts([]);
-        setLoading(false);
-        return;
+    // First create a copy to avoid mutating the original array
+    let result = [...nfts];
+
+    // Only use price-based sorting when metadata loading is complete
+    // During loading, maintain stable order based on token ID
+    if (metadataLoading) {
+      // During loading, use simple token ID sorting for stability
+      if (sortOption === "newest") {
+        result.sort((a, b) => Number(b.tokenId) - Number(a.tokenId));
+      } else {
+        // Default to oldest first during loading for other sort options
+        result.sort((a, b) => Number(a.tokenId) - Number(b.tokenId));
       }
+    } else {
+      // Full sorting with prices once metadata is loaded
+      if (sortOption === "newest") {
+        result.sort((a, b) => Number(b.tokenId) - Number(a.tokenId));
+      } else if (sortOption === "oldest") {
+        result.sort((a, b) => Number(a.tokenId) - Number(b.tokenId));
+      } else if (sortOption === "price-high-low") {
+        result.sort((a, b) => {
+          // If either NFT doesn't have a price (no listing or metadata still loading),
+          // use tokenId for stable sorting
+          const priceA =
+            a.listing && a.listing.active ? parseFloat(a.listing.price) : 0;
+          const priceB =
+            b.listing && b.listing.active ? parseFloat(b.listing.price) : 0;
 
-      try {
-        setLoadingNFTs(true);
-        // Try collectionTokens endpoint first (matches our API implementation)
-        const response = await fetch(
-          `/api/contracts/collectionTokens?collection=${address}`
-        );
+          const priceDiff = priceB - priceA;
+          // If prices are the same or both are 0, sort by tokenId for stability
+          return priceDiff !== 0
+            ? priceDiff
+            : Number(a.tokenId) - Number(b.tokenId);
+        });
+      } else if (sortOption === "price-low-high") {
+        result.sort((a, b) => {
+          // For price-low-high, NFTs without a price should go at the end
+          const priceA =
+            a.listing && a.listing.active
+              ? parseFloat(a.listing.price)
+              : Infinity;
+          const priceB =
+            b.listing && b.listing.active
+              ? parseFloat(b.listing.price)
+              : Infinity;
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch NFTs: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        // Check if we have token IDs
-        if (data.tokenIds && Array.isArray(data.tokenIds)) {
-          console.log("Token IDs:", data.tokenIds);
-          // Fetch details for each token
-          const promises = data.tokenIds.map(async (tokenId: number) => {
-            try {
-              const detailsResponse = await fetch(
-                `/api/contracts/tokenDetails?collection=${address}&tokenId=${tokenId}`
-              );
-
-              if (!detailsResponse.ok) {
-                console.error(`Error fetching details for token ${tokenId}`);
-                return null;
-              }
-
-              const tokenData = await detailsResponse.json();
-              console.log("Token Data:", tokenData);
-
-              // Fetch metadata from IPFS if tokenURI exists
-              if (tokenData.tokenURI) {
-                try {
-                  const metadata = await fetchFromIPFS(tokenData.tokenURI);
-                  tokenData.metadata = metadata;
-                } catch (err) {
-                  console.error(
-                    `Error fetching metadata for token ${tokenId}:`,
-                    err
-                  );
-                  tokenData.metadata = null;
-                }
-              }
-
-              // Check for listing status
-              try {
-                const listingResponse = await fetch(
-                  `/api/contracts/tokenListing?collection=${address}&tokenId=${tokenId}`
-                );
-
-                if (listingResponse.ok) {
-                  const listingData = await listingResponse.json();
-                  tokenData.listing = listingData.listing;
-                }
-              } catch (err) {
-                console.error(
-                  `Error fetching listing for token ${tokenId}`,
-                  err
-                );
-              }
-
-              return tokenData;
-            } catch (err) {
-              console.error(`Error fetching token ${tokenId} details`, err);
-              return null;
-            }
-          });
-
-          const tokensData = await Promise.all(promises);
-          setNfts(tokensData.filter(Boolean));
-        } else {
-          setNfts([]);
-        }
-      } catch (err) {
-        console.error("Error fetching NFTs", err);
-        setFetchError("Failed to load NFTs. Please try again later.");
-      } finally {
-        setLoading(false);
-        setLoadingNFTs(false);
+          const priceDiff = priceA - priceB;
+          // If prices are the same or both are Infinity, sort by tokenId for stability
+          return priceDiff !== 0
+            ? priceDiff
+            : Number(a.tokenId) - Number(b.tokenId);
+        });
       }
-    };
-
-    fetchNFTs();
-  }, [address]);
-
-  // Sort NFTs based on selected option
-  const sortedNFTs = [...nfts].sort((a, b) => {
-    if (sortOption === "newest") {
-      return Number(b.tokenId) - Number(a.tokenId);
-    } else if (sortOption === "oldest") {
-      return Number(a.tokenId) - Number(b.tokenId);
-    } else if (sortOption === "price-high-low") {
-      const priceA =
-        a.listing && a.listing.active ? parseFloat(a.listing.price) : 0;
-      const priceB =
-        b.listing && b.listing.active ? parseFloat(b.listing.price) : 0;
-      return priceB - priceA;
-    } else if (sortOption === "price-low-high") {
-      const priceA =
-        a.listing && a.listing.active ? parseFloat(a.listing.price) : Infinity;
-      const priceB =
-        b.listing && b.listing.active ? parseFloat(b.listing.price) : Infinity;
-      return priceA - priceB;
     }
-    return 0;
-  });
 
-  // Filter NFTs - For Sale
-  const filteredNFTs = filterForSale
-    ? sortedNFTs.filter((nft) => nft.listing && nft.listing.active)
-    : sortedNFTs;
+    // Then apply the filter if needed
+    if (filterForSale) {
+      result = result.filter((nft) => nft.listing && nft.listing.active);
+    }
+
+    return result;
+  }, [nfts, sortOption, filterForSale, metadataLoading]);
 
   // Handle toggle for sale only
   const handleToggleForSale = () => {
     setFilterForSale(!filterForSale);
   };
+
+  // Handle Sort Change
+  const handleSortChange = (option: string) => {
+    setSortOption(option);
+  };
+
+  // Determine loading state
+  const isLoadingContent = loading || loadingNFTs;
 
   if (loading) {
     return (
@@ -271,416 +262,287 @@ export default function CollectionDetailsPage() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950 to-background">
-      {/* Banner Image with Ocean Overlay */}
-      <div className="w-full h-56 sm:h-64 md:h-72 lg:h-80 xl:h-96 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-950/90 z-10" />
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Banner Image */}
+      <div className="w-full h-80 relative overflow-hidden">
         {isBannerLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-blue-900/70 z-5">
-            <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-blue-900">
+            <div className="w-12 h-12 border-4 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
         <Image
           src={bannerImageUrl}
-          alt={collection?.name || "Collection banner"}
+          alt={collection?.metadata?.name || "Collection banner"}
           fill
-          className="object-cover scale-105"
-          priority
+          className="object-cover"
+          onLoad={() => setIsBannerLoading(false)}
           onError={() => {
             setBannerError(true);
             setBannerImageUrl("/images/ocean-banner.svg");
             setIsBannerLoading(false);
           }}
-          onLoad={() => setIsBannerLoading(false)}
         />
-        <div className="absolute inset-0 bg-blue-950/30 z-5" />
-
-        {/* Animated Wave Effect */}
-        {/* <div className="absolute bottom-0 left-0 right-0 h-16 z-20 overflow-hidden">
-          <svg
-            className="absolute bottom-0 w-full h-20"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 1200 120"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z"
-              fill="#0f172a"
-              opacity=".25"
-              className="animate-[wave_15s_ease-in-out_infinite]"
-            ></path>
-            <path
-              d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z"
-              fill="#0f172a"
-              opacity=".5"
-              className="animate-[wave_10s_ease-in-out_infinite_reverse]"
-            ></path>
-            <path
-              d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z"
-              fill="#0f172a"
-              className="animate-[wave_7s_ease-in-out_infinite]"
-            ></path>
-          </svg>
-        </div> */}
       </div>
 
-      <div className="container mx-auto px-4 -mt-20 sm:-mt-24 md:-mt-28 relative z-30">
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col md:flex-row gap-8 items-start"
-        >
-          {/* Collection Image */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="relative w-40 h-40 md:w-48 md:h-48 rounded-2xl overflow-hidden border-4 border-blue-900 shadow-2xl shadow-blue-900/50"
-          >
-            {isCollectionImageLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-blue-900/70 z-10">
-                <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-            <Image
-              src={collectionImageUrl}
-              alt={collection?.name || "Collection"}
-              fill
-              className="object-cover"
-              priority
-              onError={() => {
-                setCollectionImageError(true);
-                setCollectionImageUrl("/images/placeholder-collection.svg");
-                setIsCollectionImageLoading(false);
-              }}
-              onLoad={() => setIsCollectionImageLoading(false)}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-blue-900/40 to-transparent"></div>
-          </motion.div>
-
-          {/* Collection Info */}
-          <div className="flex-1">
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <h1 className="text-3xl md:text-4xl font-bold mb-2 text-white drop-shadow-md">
-                {collection.name}
-              </h1>
-              <div className="text-sm text-blue-200 flex items-center mb-4">
-                <span className="font-mono bg-blue-900/40 px-2 py-1 rounded-md border border-blue-800/50">
-                  {collection.address.substring(0, 6)}...
-                  {collection.address.substring(collection.address.length - 4)}
-                </span>
-                <button
-                  className="ml-2 text-blue-300 hover:text-blue-100 transition-colors"
-                  onClick={() =>
-                    navigator.clipboard.writeText(collection.address)
-                  }
-                >
-                  {/* <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-2M8 5a2 2 0 002-2h2a2 2 0 012 2M8 5a2 2 0 002 2h6a2 2 0 012-2M8 9h6v12H8z"
-                    />
-                  </svg> */}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mb-6 max-w-2xl"
-            >
-              <p className="text-blue-100 mb-4 leading-relaxed">
-                {collection.metadata?.description ||
-                  "No description available."}
-              </p>
-
-              {/* Mint Progress */}
-              <div className="bg-blue-900/30 border border-blue-700/30 rounded-xl p-4 shadow-lg backdrop-blur-sm">
-                <div className="flex justify-between mb-2 text-blue-100">
-                  <span>Total Minted</span>
-                  <span className="font-medium">
-                    {collection.totalMinted} / {collection.maxSupply}
-                  </span>
-                </div>
-                <div className="w-full bg-blue-950 rounded-full h-3 mb-1 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-blue-600 to-cyan-400 h-3 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${Math.min(mintedPercent, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-right text-blue-300">
-                  {mintedPercent.toFixed(1)}% minted
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="flex flex-wrap gap-4"
-            >
-              {/* Mint Button - Always shown but conditionally disabled */}
-              {isConnected ? (
-                <div className="relative">
-                  <PepeButton
-                    variant="primary"
-                    onClick={() => setShowMintModal(true)}
-                    className="relative overflow-hidden group bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                    disabled={
-                      !collection.mintingEnabled ||
-                      Number(collection.totalMinted) >=
-                        Number(collection.maxSupply)
-                    }
-                    aria-label={
-                      !collection.mintingEnabled
-                        ? "Minting is not live yet"
-                        : "Mint NFT"
-                    }
-                  >
-                    <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
-                    {Number(collection.totalMinted) >=
-                    Number(collection.maxSupply)
-                      ? "Sold Out"
-                      : !collection.mintingEnabled
-                      ? "Minting Not Live"
-                      : "Mint NFT"}
-                  </PepeButton>
-                </div>
-              ) : (
-                <div className="relative">
-                  <PepeButton
-                    variant="primary"
-                    className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
-                    disabled={!collection.mintingEnabled}
-                    aria-label={
-                      !collection.mintingEnabled
-                        ? "Minting is not live yet"
-                        : "Connect Wallet to Mint"
-                    }
-                    onClick={() => {
-                      // This will trigger the wallet connection dialog through the header button
-                      const connectBtn = document.querySelector(
-                        "[data-wallet-connect]"
+      {/* Collection Info */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 mb-16 relative z-10">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Collection Image */}
+              <div className="flex-shrink-0">
+                <div className="relative w-32 h-32 sm:w-48 sm:h-48 rounded-xl overflow-hidden border-4 border-slate-800 shadow-lg">
+                  {isCollectionImageLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-blue-900">
+                      <div className="w-8 h-8 border-4 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                  <Image
+                    src={collectionImageUrl}
+                    alt={collection?.metadata?.name || "Collection"}
+                    fill
+                    className="object-cover"
+                    onLoad={() => setIsCollectionImageLoading(false)}
+                    onError={() => {
+                      setCollectionImageError(true);
+                      setCollectionImageUrl(
+                        "/images/placeholder-collection.svg"
                       );
-                      if (connectBtn instanceof HTMLElement) {
-                        connectBtn.click();
-                      }
+                      setIsCollectionImageLoading(false);
                     }}
-                  >
-                    {!collection.mintingEnabled
-                      ? "Minting Not Live"
-                      : "Connect Wallet to Mint"}
-                  </PepeButton>
+                  />
                 </div>
-              )}
+              </div>
 
-              <Link
-                href={`https://explorer.bf1337.org/address/${collection.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <PepeButton
-                  variant="outline"
-                  className="border-blue-500 text-blue-300 hover:bg-blue-900/30"
-                >
-                  <span className="flex items-center">
-                    View on Explorer
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 ml-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </span>
-                </PepeButton>
-              </Link>
-            </motion.div>
+              {/* Collection Info */}
+              <div className="flex-1">
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-slate-700 rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-slate-700 rounded w-1/2 mb-3"></div>
+                    <div className="h-4 bg-slate-700 rounded w-full mb-2"></div>
+                    <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-3xl font-bold text-white mb-2">
+                      {collection?.metadata?.name || "Unnamed Collection"}
+                    </h1>
+                    <div className="text-sm text-slate-400 mb-4">
+                      By{" "}
+                      <span className="font-medium text-blue-400">
+                        {collection?.owner?.slice(0, 6)}...
+                        {collection?.owner?.slice(-4)}
+                      </span>
+                    </div>
+                    <p className="text-slate-300 mb-6 max-w-2xl">
+                      {collection?.metadata?.description ||
+                        "No description available"}
+                    </p>
+
+                    <div className="flex flex-wrap gap-4">
+                      <div className="bg-slate-800 rounded-lg px-4 py-2">
+                        <div className="text-sm text-slate-400">Supply</div>
+                        <div className="font-bold">
+                          {collection?.maxSupply || "?"}
+                        </div>
+                      </div>
+                      <div className="bg-slate-800 rounded-lg px-4 py-2">
+                        <div className="text-sm text-slate-400">Items</div>
+                        <div className="font-bold">{nfts.length || 0}</div>
+                      </div>
+
+                      {/* Floor price box - show placeholder during loading */}
+                      {metadataLoading ? (
+                        <div className="bg-slate-800 rounded-lg px-4 py-2 border-l-2 border-blue-500">
+                          <div className="text-sm text-slate-400">
+                            Floor Price
+                          </div>
+                          <div className="font-bold h-6 w-24 bg-slate-700 animate-pulse rounded"></div>
+                          <div className="text-xs text-blue-400 h-4 w-16 bg-slate-700 animate-pulse rounded mt-1"></div>
+                        </div>
+                      ) : floorPrice ? (
+                        <div className="bg-slate-800 rounded-lg px-4 py-2 border-l-2 border-blue-500">
+                          <div className="text-sm text-slate-400">
+                            Floor Price
+                          </div>
+                          <div className="font-bold">
+                            {formattedFloorPrice} BASED
+                          </div>
+                          {floorPriceUsd && (
+                            <div className="text-xs text-blue-400">
+                              ≈ ${floorPriceUsd}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-800 rounded-lg px-4 py-2 border-l-2 border-gray-500">
+                          <div className="text-sm text-slate-400">
+                            Floor Price
+                          </div>
+                          <div className="font-bold">No listings</div>
+                          <div className="text-xs text-gray-400">-</div>
+                        </div>
+                      )}
+
+                      {isConnected && collection?.owner && (
+                        <div className="ml-auto">
+                          <PepeButton
+                            onClick={() => setShowMintModal(true)}
+                            variant="primary"
+                            disabled={
+                              Number(collection.totalMinted) >=
+                              Number(collection.maxSupply)
+                            }
+                          >
+                            {Number(collection.totalMinted) >=
+                            Number(collection.maxSupply)
+                              ? "Sold Out"
+                              : "Mint NFT"}
+                          </PepeButton>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </motion.div>
 
-        {/* NFT Section */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-12"
-        >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-white">
-              Collection Items ({nfts.length})
-            </h2>
+          {/* NFT Gallery Section */}
+          <div className="border-t border-slate-800 p-6 sm:p-8">
+            {/* Controls */}
+            <div className="flex flex-col sm:flex-row justify-between mb-8 gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Sort By */}
+                <div className="relative">
+                  <select
+                    value={sortOption}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="appearance-none bg-slate-800 border border-slate-700 text-white py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="price-high-low">Price: High to Low</option>
+                    <option value="price-low-high">Price: Low to High</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-              {/* Filter */}
-              <div className="flex items-center">
-                <label className="flex items-center cursor-pointer">
-                  <div className="relative">
+                {/* For Sale Toggle */}
+                <div className="flex items-center">
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      className="sr-only"
                       checked={filterForSale}
                       onChange={handleToggleForSale}
+                      className="sr-only peer"
                     />
-                    <div
-                      className={`block w-10 h-6 rounded-full transition ${
-                        filterForSale ? "bg-blue-500" : "bg-gray-700"
-                      }`}
-                    ></div>
-                    <div
-                      className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform ${
-                        filterForSale ? "translate-x-4" : ""
-                      }`}
-                    ></div>
-                  </div>
-                  <span className="ml-3 text-sm text-blue-100">
-                    For Sale Only
-                  </span>
-                </label>
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span className="ml-2 text-sm font-medium text-slate-300">
+                      For sale only
+                    </span>
+                  </label>
+                </div>
               </div>
 
-              {/* Sort Dropdown */}
-              <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-                className="bg-blue-900/30 border border-blue-700/30 rounded-lg px-4 py-2 text-sm text-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="price-high-low">Price: High to Low</option>
-                <option value="price-low-high">Price: Low to High</option>
-              </select>
-            </div>
-          </div>
-
-          {loadingNFTs ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 min-h-[200px] place-items-center">
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-blue-900/20 border border-blue-800/30 rounded-xl overflow-hidden shadow-lg w-full aspect-square animate-pulse"
-                >
-                  <div className="bg-blue-950/50 h-full w-full"></div>
-                </div>
-              ))}
-            </div>
-          ) : fetchError ? (
-            <div className="bg-card border border-red-800/30 rounded-xl p-8 text-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-16 w-16 mx-auto text-red-500 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-              <h3 className="text-xl font-medium mb-2 text-red-300">
-                Error Loading NFTs
-              </h3>
-              <p className="text-gray-400 mb-6">{fetchError}</p>
+              {/* Refresh Button */}
               <PepeButton
+                onClick={refreshNFTs}
                 variant="primary"
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => window.location.reload()}
+                disabled={loadingNFTs}
+                className="self-start"
               >
-                Try Again
+                {loadingNFTs ? "Loading..." : "Refresh"}
               </PepeButton>
             </div>
-          ) : filteredNFTs.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredNFTs.map((nft) => (
-                <div key={`${collection.address}-${nft.tokenId}`}>
-                  <Link
-                    href={`/collections/${collection.address}/${nft.tokenId}`}
-                  >
-                    <NFTCard nft={nft} collectionAddress={collection.address} />
-                  </Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-blue-900/20 border border-blue-800/30 rounded-xl p-8 text-center backdrop-blur-sm">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-16 w-16 mx-auto text-blue-500 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <h3 className="text-xl font-medium mb-2 text-blue-100">
-                No NFTs Found
-              </h3>
-              <p className="text-blue-200 mb-6">
-                {filterForSale
-                  ? "There are no NFTs listed for sale in this collection yet."
-                  : "This collection doesn't have any NFTs yet."}
-              </p>
-              {filterForSale && (
-                <PepeButton
-                  variant="outline"
-                  className="border-blue-500 text-blue-300 hover:bg-blue-900/30"
-                  onClick={handleToggleForSale}
-                >
-                  Show All NFTs
-                </PepeButton>
-              )}
-            </div>
-          )}
-        </motion.div>
+
+            {/* Initial Loading State */}
+            {isLoadingContent && nfts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="w-16 h-16 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-blue-300 font-medium">
+                  Loading collection...
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Metadata Loading Indicator */}
+                {metadataLoading && (
+                  <div className="bg-blue-900/30 border border-blue-800/50 rounded-lg p-4 mb-6 flex items-center">
+                    <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
+                    <span className="text-blue-300">
+                      Loading NFT metadata and images...
+                    </span>
+                  </div>
+                )}
+
+                {/* No NFTs Message */}
+                {!loadingNFTs && nfts.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-slate-700 rounded-xl">
+                    <div className="text-6xl mb-4">🧠</div>
+                    <h3 className="text-xl font-bold text-slate-300 mb-2">
+                      No NFTs Found
+                    </h3>
+                    <p className="text-slate-400 max-w-md mx-auto">
+                      This collection doesn&apos;t have any NFTs yet. If
+                      you&apos;re the creator, you can mint some!
+                    </p>
+                    {isConnected && collection?.owner && (
+                      <div className="mt-6">
+                        <PepeButton
+                          onClick={() => setShowMintModal(true)}
+                          variant="primary"
+                          disabled={
+                            Number(collection.totalMinted) >=
+                            Number(collection.maxSupply)
+                          }
+                        >
+                          {Number(collection.totalMinted) >=
+                          Number(collection.maxSupply)
+                            ? "Sold Out"
+                            : "Mint NFT"}
+                        </PepeButton>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                    {sortedAndFilteredNFTs.map((nft, index) => (
+                      <div key={`${collection.address}-${nft.tokenId}`}>
+                        <Link
+                          href={`/collections/${collection.address}/${nft.tokenId}`}
+                        >
+                          <NFTCard nft={nft} />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* End of collection message */}
+                {nfts.length > 0 && (
+                  <div className="text-center mt-8 mb-6 text-blue-300 bg-blue-900/20 py-4 rounded-lg border border-blue-800/30">
+                    Showing all {sortedAndFilteredNFTs.length} NFTs in this
+                    collection
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Mint Modal */}
-      {showMintModal && (
+      {showMintModal && collection && (
         <MintNftModal
           collection={collection}
           onClose={() => setShowMintModal(false)}
