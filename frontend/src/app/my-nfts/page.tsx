@@ -17,6 +17,7 @@ export default function MyNFTsPage() {
   const { collections } = useCollections();
   const [myNFTs, setMyNFTs] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterForSale, setFilterForSale] = useState(false);
 
   useEffect(() => {
     const fetchUserNFTs = async () => {
@@ -64,12 +65,30 @@ export default function MyNFTsPage() {
                   );
                 }
 
+                // Get listing information
+                let listing;
+                try {
+                  const listingResponse = await fetch(
+                    `/api/contracts/tokenListing?collection=${collection.address}&tokenId=${tokenId}`
+                  );
+                  if (listingResponse.ok) {
+                    const listingData = await listingResponse.json();
+                    listing = listingData.listing;
+                  }
+                } catch (err) {
+                  console.error(
+                    `Failed to fetch listing for token ${tokenId}`,
+                    err
+                  );
+                }
+
                 return {
                   tokenId,
                   tokenURI,
                   owner: address,
                   collection: collection.address,
                   metadata,
+                  listing,
                 } as NFTItem;
               })
             );
@@ -104,6 +123,29 @@ export default function MyNFTsPage() {
     acc[collectionAddress].push(nft);
     return acc;
   }, {} as Record<string, NFTItem[]>);
+
+  // Filter NFTs if the "For Sale" filter is active
+  const filteredNftsByCollection = Object.entries(nftsByCollection).reduce(
+    (acc, [collectionAddress, nfts]) => {
+      if (filterForSale) {
+        const filteredNfts = nfts.filter(
+          (nft) => nft.listing && nft.listing.active
+        );
+        if (filteredNfts.length > 0) {
+          acc[collectionAddress] = filteredNfts;
+        }
+      } else {
+        acc[collectionAddress] = nfts;
+      }
+      return acc;
+    },
+    {} as Record<string, NFTItem[]>
+  );
+
+  // Handle toggle for sale only
+  const handleToggleForSale = () => {
+    setFilterForSale(!filterForSale);
+  };
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -180,32 +222,74 @@ export default function MyNFTsPage() {
             </Link>
           </div>
         ) : (
-          Object.entries(nftsByCollection).map(([collectionAddress, nfts]) => {
-            const collection = collections.find(
-              (c) => c.address === collectionAddress
-            );
-
-            return (
-              <div key={collectionAddress} className="mb-12">
-                <Link href={`/collections/${collectionAddress}`}>
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent hover:from-blue-100 hover:to-cyan-100 transition-colors">
-                    {collection?.name ||
-                      `Collection ${collectionAddress.slice(0, 6)}...`}
-                  </h2>
-                </Link>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {nfts.map((nft) => (
-                    <NFTCard
-                      key={`${nft.collection}-${nft.tokenId}`}
-                      nft={nft}
-                      collectionAddress={nft.collection}
-                    />
-                  ))}
-                </div>
+          <>
+            {/* Filter Controls */}
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filterForSale}
+                    onChange={handleToggleForSale}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <span className="ml-2 text-sm font-medium text-slate-300">
+                    For sale only
+                  </span>
+                </label>
               </div>
-            );
-          })
+            </div>
+
+            {Object.entries(filteredNftsByCollection).map(
+              ([collectionAddress, nfts]) => {
+                const collection = collections.find(
+                  (c) => c.address === collectionAddress
+                );
+
+                return (
+                  <div key={collectionAddress} className="mb-12">
+                    <Link href={`/collections/${collectionAddress}`}>
+                      <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent hover:from-blue-100 hover:to-cyan-100 transition-colors">
+                        {collection?.name ||
+                          `Collection ${collectionAddress.slice(0, 6)}...`}
+                      </h2>
+                    </Link>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {nfts.map((nft) => (
+                        <NFTCard
+                          key={`${nft.collection}-${nft.tokenId}`}
+                          nft={nft}
+                          collectionAddress={nft.collection}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            )}
+
+            {/* Show message when no NFTs match the filter */}
+            {Object.keys(filteredNftsByCollection).length === 0 &&
+              filterForSale && (
+                <div className="bg-blue-900/30 rounded-xl p-8 text-center border border-blue-800/50 backdrop-blur-sm">
+                  <h2 className="text-xl font-semibold mb-4 text-white">
+                    No NFTs For Sale
+                  </h2>
+                  <p className="text-cyan-200 mb-6">
+                    You don&apos;t have any NFTs listed for sale.
+                  </p>
+                  <PepeButton
+                    variant="primary"
+                    className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700"
+                    onClick={handleToggleForSale}
+                  >
+                    Show All NFTs
+                  </PepeButton>
+                </div>
+              )}
+          </>
         )}
       </section>
     </main>
