@@ -29,6 +29,10 @@ import { switchChain } from "wagmi/actions";
 import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
+import KekTrumpsABI from "@/contracts/KekTrumps.json";
+
+// UPDATE WITH PRODUCTION ADDRESS
+const KEKTRUMPS_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 
 // Hook for fetching based collections from factory
 export function useBasedCollections() {

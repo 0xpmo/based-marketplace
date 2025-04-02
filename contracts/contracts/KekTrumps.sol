@@ -81,6 +81,7 @@ contract KekTrumps is
 
     // Events
     event CharacterAdded(uint256 characterId, string name);
+    event CharacterEnabled(uint256 characterId, bool enabled);
     event TokenMinted(
         address to,
         uint256 tokenId,
@@ -359,8 +360,7 @@ contract KekTrumps is
     ) public view returns (uint256[] memory) {
         // Count available characters
         uint256 count = 0;
-        for (uint256 i = 1; i <= 100; i++) {
-            // Increased range to support future characters
+        for (uint256 i = 1; i <= 70; i++) {
             if (
                 characters[i].enabled &&
                 characters[i].minted[rarity] < characters[i].maxSupply[rarity]
@@ -372,7 +372,7 @@ contract KekTrumps is
         // Build array of available character IDs
         uint256[] memory available = new uint256[](count);
         uint256 index = 0;
-        for (uint256 i = 1; i <= 100; i++) {
+        for (uint256 i = 1; i <= 70; i++) {
             if (
                 characters[i].enabled &&
                 characters[i].minted[rarity] < characters[i].maxSupply[rarity]
@@ -477,24 +477,89 @@ contract KekTrumps is
     }
 
     /**
+     * @dev Enable or disable a character
+     * @param characterId ID of the character to update
+     * @param enabled New enabled status
+     */
+    function setCharacterEnabled(
+        uint256 characterId,
+        bool enabled
+    ) external onlyOwner {
+        require(characterId > 0, "Character ID must be greater than 0");
+        require(
+            characters[characterId].characterId == characterId,
+            "Character does not exist"
+        );
+        require(
+            characters[characterId].enabled != enabled,
+            "Character already in desired state"
+        );
+
+        characters[characterId].enabled = enabled;
+
+        emit CharacterEnabled(characterId, enabled);
+    }
+
+    /**
+     * @dev Returns true if token exists
+     */
+    function exists(uint256 tokenId) external view returns (bool) {
+        return tokenToCharacter[tokenId] > 0;
+    }
+
+    /**
+     * @dev Returns total supply for a token ID
+     */
+    function totalSupply(uint256 tokenId) external view returns (uint256) {
+        uint256 characterId = tokenToCharacter[tokenId];
+        if (characterId == 0) return 0;
+
+        Rarity rarity = tokenToRarity[tokenId];
+        return characters[characterId].maxSupply[rarity];
+    }
+
+    /**
+     * @dev Returns current circulating supply for a token ID
+     */
+    function circulatingSupply(
+        uint256 tokenId
+    ) external view returns (uint256) {
+        uint256 characterId = tokenToCharacter[tokenId];
+        if (characterId == 0) return 0;
+
+        Rarity rarity = tokenToRarity[tokenId];
+        return characters[characterId].minted[rarity];
+    }
+
+    /**
      * @dev URI for token metadata, overrides ERC1155 uri function
      */
-    function uri(uint256 tokenId) public view override returns (string memory) {
-        // Get the character ID and rarity from the token ID
-        uint256 characterId = tokenToCharacter[tokenId];
-        Rarity rarity = tokenToRarity[tokenId];
+    // function uri(uint256 tokenId) public view override returns (string memory) {
+    //     // Get the character ID and rarity from the token ID
+    //     uint256 characterId = tokenToCharacter[tokenId];
+    //     Rarity rarity = tokenToRarity[tokenId];
 
+    //     require(characterId > 0, "URI query for nonexistent token");
+
+    //     return
+    //         string(
+    //             abi.encodePacked(
+    //                 _baseTokenURI,
+    //                 characterId.toString(),
+    //                 "/",
+    //                 uint256(rarity).toString(),
+    //                 ".json"
+    //             )
+    //         );
+    // }
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        uint256 characterId = tokenToCharacter[tokenId];
         require(characterId > 0, "URI query for nonexistent token");
 
+        // Simply use tokenId directly in the URI
         return
             string(
-                abi.encodePacked(
-                    _baseTokenURI,
-                    characterId.toString(),
-                    "/",
-                    uint256(rarity).toString(),
-                    ".json"
-                )
+                abi.encodePacked(_baseTokenURI, tokenId.toString(), ".json")
             );
     }
 
