@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@nomicfoundation/hardhat-verify": "^2.0.13",
-    "@openzeppelin/contracts-upgradeable": "^5.0.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.4.7"
   }

@@ -1,0 +1,16 @@
+{
+  "name": "Keksplorer",
+  "description": "Searching for the next blade of grass to touch",
+  "image": "ipfs://QmWoyvSBXtL8dsAz4tx2z8wuc7sQ5iR98HEiv95zt5JyGf",
+  "external_url": "https://quantumkek.ai/cards/10/1",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Keksplorer"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Silver"
+    }
+  ]
+}

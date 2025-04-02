@@ -1,0 +1,16 @@
+{
+  "name": "Sick Pepe",
+  "description": "Spreads sarcasm and cold symptoms across every timeline. Not having a gud one",
+  "image": "ipfs://QmSjA7imtuCNkQB9YgdUzEqZy17g9FyCQhX89UY2xMmtBx",
+  "external_url": "https://quantumkek.ai/cards/9/1",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Sick Pepe"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Silver"
+    }
+  ]
+}

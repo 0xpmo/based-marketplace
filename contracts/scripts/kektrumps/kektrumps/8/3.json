@@ -1,0 +1,16 @@
+{
+  "name": "Kekurai Kek",
+  "description": "Sword-slinging samurai of Kekistan, slicing normies with wisdom & rebel precision",
+  "image": "ipfs://QmbcrhQnihMZHVRyUL3gCmQzPVuC325MqE1esomJjoaC7d",
+  "external_url": "https://quantumkek.ai/cards/8/3",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Kekurai Kek"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Green"
+    }
+  ]
+}

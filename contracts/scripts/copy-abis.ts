@@ -10,6 +10,7 @@ const contracts = [
   "BasedSeaSequentialNFTCollection",
   "BasedSeaRandomizedNFTCollection",
   "IBasedSeaMarketplaceStorage",
+  "KekTrumps",
 ];
 
 // Paths

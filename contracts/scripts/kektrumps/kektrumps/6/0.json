@@ -1,0 +1,16 @@
+{
+  "name": "Smokin' Kek",
+  "description": "BBQ Boss grills kek-feasts, charming frens with skex appeal and dank herbs",
+  "image": "ipfs://QmNwpyf7XosHVYY4tzyDXC2EYnDP6LhakfpPTwjU5eagUP",
+  "external_url": "https://quantumkek.ai/cards/6/0",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Smokin' Kek"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Bronze"
+    }
+  ]
+}

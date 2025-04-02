@@ -1,0 +1,16 @@
+{
+  "name": "Shadilay Slinger",
+  "description": "Do you want it on the rocks, or in my truck?!",
+  "image": "ipfs://Qmbi9trbWxqj915WsRZR7cXyTYJwsNEsFX7z89zQUrnmFq",
+  "external_url": "https://quantumkek.ai/cards/4/1",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Shadilay Slinger"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Silver"
+    }
+  ]
+}

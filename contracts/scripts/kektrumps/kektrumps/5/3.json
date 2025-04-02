@@ -1,0 +1,16 @@
+{
+  "name": "Pepe Mcfly",
+  "description": "When you hit 88 mph and realize you've meme'd yourself into a timeless chad",
+  "image": "ipfs://QmUY5DZi3SnPxQdnEKZX1fvqQHSce8BkmthxeTYnSf7dXE",
+  "external_url": "https://quantumkek.ai/cards/5/3",
+  "attributes": [
+    {
+      "trait_type": "Character",
+      "value": "Pepe Mcfly"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Green"
+    }
+  ]
+}
