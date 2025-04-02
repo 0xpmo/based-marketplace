@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount } from "wagmi";
-import { useMintNFT, useCollection } from "@/hooks/useContracts";
+import { useMintNFT, useCollection } from "@/hooks/useERC721Contracts";
 import { Collection, NFTItem } from "@/types/contracts";
 import PepeButton from "@/components/ui/PepeButton";
 import { useEffect, useState, useRef } from "react";
@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import Link from "next/link";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
+import { formatNumberWithCommas } from "@/utils/formatting";
 
 interface MintNftModalProps {
   collection: Collection;
@@ -39,9 +40,10 @@ export default function MintNftModal({
   const [isLoadingNFT, setIsLoadingNFT] = useState(false);
   const [usdPrice, setUsdPrice] = useState<string | null>(null);
 
+  const isPaused = collection.paused || collection.mintingEnabled === false;
+
   // Use the centralized token price context
-  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
-    useTokenPrice();
+  const { tokenUSDRate, calculateUSDPrice } = useTokenPrice();
 
   // Refresh collection data to get updated minted count
   const { collection: updatedCollection, loading: loadingCollection } =
@@ -223,6 +225,17 @@ export default function MintNftModal({
       return;
     }
 
+    // Check if contract is paused
+    if (isPaused) {
+      toast.error("Minting is currently paused for this collection");
+      return;
+    }
+
+    // For ERC721 collections, check if sold out
+    if (Number(collection.totalMinted) >= Number(collection.maxSupply)) {
+      toast.error("This collection is sold out");
+      return;
+    }
     // Reset error state
     setErrorMessage(null);
 
@@ -839,21 +852,44 @@ export default function MintNftModal({
         )}
 
         {!hasMinted && (
-          <div className="flex flex-col gap-3 relative z-10">
-            <PepeButton
-              variant="primary"
-              onClick={handleMint}
-              disabled={isMintButtonDisabled}
-              className={`w-full ${
-                isLoading
-                  ? "animate-pulse"
-                  : hasMinted
-                  ? "bg-green-600 hover:bg-green-700"
-                  : ""
-              }`}
-            >
-              {getMintButtonText()}
-            </PepeButton>
+          <div className="flex flex-col gap-3">
+            {isPaused ? (
+              <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-800/50 rounded-lg text-yellow-300 text-sm">
+                <p className="flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-2 text-yellow-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  Minting is currently paused for this collection. Please check
+                  back later.
+                </p>
+              </div>
+            ) : (
+              <PepeButton
+                variant="primary"
+                onClick={handleMint}
+                disabled={isMintButtonDisabled}
+                className={`w-full ${
+                  isLoading
+                    ? "animate-pulse"
+                    : hasMinted
+                    ? "bg-green-600 hover:bg-green-700"
+                    : ""
+                }`}
+              >
+                {getMintButtonText()}
+              </PepeButton>
+            )}
 
             <PepeButton
               variant="outline"

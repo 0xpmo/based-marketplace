@@ -10,3 +10,8 @@ export const NFT_FACTORY_ADDRESS =
 // If you're testing and these contracts don't exist on your chain yet,
 // you'll need to deploy them first. The NFT detail view will still work
 // but listing functionality will not be available until contracts are deployed.
+
+// UPDATE WITH PRODUCTION ADDRESS
+export const KEK_TRUMPS_ADDRESS =
+  process.env.NEXT_PUBLIC_KEK_TRUMPS_ADDRESS || "0xbadAddress";
+export const ERC1155_CONTRACT_ADDRESSES: string[] = [KEK_TRUMPS_ADDRESS];

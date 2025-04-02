@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import Image from "next/image";
 import Link from "next/link";
 import PepeButton from "@/components/ui/PepeButton";
-import { useCollection, useUpdateCollection } from "@/hooks/useContracts";
+import { useCollection, useUpdateCollection } from "@/hooks/useERC721Contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function EditCollectionPage() {

@@ -4,22 +4,27 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Collection, NFTItem } from "@/types/contracts";
+import { Collection, ERC1155Collection } from "@/types/contracts";
 import PepeButton from "@/components/ui/PepeButton";
 import NFTCard from "@/components/nfts/NftCard";
+import UnifiedNftCard from "@/components/nfts/UnifiedNFTCard";
 import { getIPFSGatewayURL } from "@/services/ipfs";
-import { useCollections, useCollectionNFTs } from "@/hooks/useContracts";
+import { useCollectionNFTs } from "@/hooks/useERC721Contracts";
+import { useERC1155CollectionTokens } from "@/hooks/useERC1155Contracts";
+import { useAllCollections } from "@/hooks/useAllContracts";
 import MintNftModal from "@/components/nfts/MintNftModal";
-import { motion } from "framer-motion";
+import ERC1155MintModal from "@/components/nfts/ERC1155MintModal";
 import { useAccount } from "wagmi";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
+import { formatNumberWithCommas } from "@/utils/formatting";
+import { isERC1155Collection } from "@/utils/collectionTypeDetector";
+import CollectionStatusBadge from "@/components/collections/CollectionStatusBadge";
 
 export default function CollectionDetailsPage() {
   const { address } = useParams();
   const { isConnected } = useAccount();
-  const { collections } = useCollections();
-  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
-    useTokenPrice();
+  const { collections } = useAllCollections();
+  const { tokenUSDRate, calculateUSDPrice } = useTokenPrice();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMintModal, setShowMintModal] = useState(false);
@@ -38,17 +43,55 @@ export default function CollectionDetailsPage() {
     useState(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
-  // Use our custom hook to fetch ALL NFTs at once
+  // Collection address normalization
   const collectionAddr = Array.isArray(address)
     ? address[0]
     : (address as string);
+
+  // Check if the collection is an ERC1155 collection
+  const isERC1155 = useMemo(
+    () => isERC1155Collection(collection),
+    [collection]
+  );
+  console.log("fish is erc1155", isERC1155);
+
+  // Use appropriate hooks based on collection type
   const {
-    nfts,
-    loading: loadingNFTs,
-    metadataLoading,
-    error: fetchError,
-    refresh: refreshNFTs,
-  } = useCollectionNFTs(collectionAddr);
+    nfts: erc721Nfts,
+    loading: loadingERC721NFTs,
+    metadataLoading: metadataLoadingERC721,
+    error: fetchErrorERC721,
+    refresh: refreshERC721NFTs,
+  } = useCollectionNFTs(isERC1155 ? "" : collectionAddr);
+
+  const {
+    tokens: erc1155Tokens,
+    loading: loadingERC1155Tokens,
+    metadataLoading: metadataLoadingERC1155,
+    error: fetchErrorERC1155,
+    refresh: refreshERC1155Tokens,
+  } = useERC1155CollectionTokens(isERC1155 ? collectionAddr : "");
+
+  // Unified NFTs array combining both types
+  const nfts = useMemo(() => {
+    return isERC1155 ? erc1155Tokens : erc721Nfts;
+  }, [isERC1155, erc721Nfts, erc1155Tokens]);
+
+  // Unified loading states
+  const loadingNFTs = isERC1155 ? loadingERC1155Tokens : loadingERC721NFTs;
+  const metadataLoading = isERC1155
+    ? metadataLoadingERC1155
+    : metadataLoadingERC721;
+  const fetchError = isERC1155 ? fetchErrorERC1155 : fetchErrorERC721;
+
+  // Refresh function based on collection type
+  const refreshNFTs = () => {
+    if (isERC1155) {
+      refreshERC1155Tokens();
+    } else {
+      refreshERC721NFTs();
+    }
+  };
 
   // Calculate floor price from NFTs with active listings
   const floorPrice = useMemo(() => {
@@ -67,18 +110,14 @@ export default function CollectionDetailsPage() {
   // Format floor price for display
   const formattedFloorPrice = useMemo(() => {
     if (!floorPrice) return null;
-
     return formatNumberWithCommas(floorPrice);
-  }, [floorPrice, formatNumberWithCommas]);
+  }, [floorPrice]);
 
   // Calculate USD value of floor price using the token price context
   const floorPriceUsd = useMemo(() => {
     if (!floorPrice || !tokenUSDRate) return null;
-
     return calculateUSDPrice(floorPrice.toString());
   }, [floorPrice, tokenUSDRate, calculateUSDPrice]);
-
-  console.log("collections", collections);
 
   // Find collection from all collections
   useEffect(() => {
@@ -114,14 +153,16 @@ export default function CollectionDetailsPage() {
 
   // Set banner image with error handling
   useEffect(() => {
+    console.log("collection", collection);
     if (
-      (collection?.metadata?.banner_image || collection?.metadata?.image) &&
+      (collection?.metadata?.banner_image_url || collection?.metadata?.image) &&
       !bannerError
     ) {
       try {
         const url = getIPFSGatewayURL(
-          collection.metadata?.banner_image || collection.metadata?.image
+          collection.metadata?.banner_image_url || collection.metadata?.image
         );
+        console.log("banner url", url);
         setBannerImageUrl(url);
         setIsBannerLoading(true);
       } catch (err) {
@@ -135,15 +176,13 @@ export default function CollectionDetailsPage() {
       setIsBannerLoading(false);
     }
   }, [
-    collection?.metadata?.banner_image,
+    collection?.metadata?.banner_image_url,
     collection?.metadata?.image,
     bannerError,
   ]);
 
   // Create a stable reference for sort function to prevent jumpiness during loading
   const sortedAndFilteredNFTs = useMemo(() => {
-    console.log(`Sorting ${nfts.length} NFTs by ${sortOption}`);
-
     // First create a copy to avoid mutating the original array
     let result = [...nfts];
 
@@ -225,6 +264,47 @@ export default function CollectionDetailsPage() {
     navigator.clipboard.writeText(text);
     setCopiedText(type);
     setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  // Helper function to determine if minting is available
+  const isMintingAvailable = () => {
+    if (!collection) return false;
+
+    // Check if contract is paused
+    const isPaused = collection.paused || collection.mintingEnabled === false;
+
+    // For ERC721, check if all tokens are minted
+    if (!isERC1155) {
+      return (
+        !isPaused &&
+        Number(collection.totalMinted) < Number(collection.maxSupply)
+      );
+    }
+
+    // For ERC1155, check if any token is mintable
+    // We consider ERC1155 collection mintable if the contract is not paused
+    // More complex logic could check specific token types availability
+    return !isPaused;
+  };
+
+  // Helper function to get mint button text
+  const getMintButtonText = () => {
+    if (!collection) return "Mint NFT";
+
+    // If contract is paused
+    if (collection.mintingEnabled === false) {
+      return "Minting Disabled";
+    }
+
+    // For ERC721, check max supply
+    if (
+      !isERC1155 &&
+      Number(collection.totalMinted) >= Number(collection.maxSupply)
+    ) {
+      return "Sold Out";
+    }
+
+    return "Mint NFT";
   };
 
   if (loading) {
@@ -337,6 +417,16 @@ export default function CollectionDetailsPage() {
                       <h1 className="text-3xl font-bold text-white">
                         {collection?.metadata?.name || "Unnamed Collection"}
                       </h1>
+                      {isERC1155 && (
+                        <span className="ml-3 bg-indigo-800 text-xs text-indigo-200 px-2 py-1 rounded font-medium">
+                          ERC-1155
+                        </span>
+                      )}
+                      <div className="ml-3">
+                        {collection && (
+                          <CollectionStatusBadge collection={collection} />
+                        )}
+                      </div>
                       <div className="ml-3 flex items-center text-sm text-slate-400">
                         <span className="hidden sm:inline-block">
                           {collectionAddr.slice(0, 6)}...
@@ -401,16 +491,33 @@ export default function CollectionDetailsPage() {
                     </p>
 
                     <div className="flex flex-wrap gap-4">
-                      <div className="bg-slate-800 rounded-lg px-4 py-2">
-                        <div className="text-sm text-slate-400">Supply</div>
-                        <div className="font-bold">
-                          {collection?.maxSupply || "?"}
+                      {!isERC1155 && (
+                        <div className="bg-slate-800 rounded-lg px-4 py-2">
+                          <div className="text-sm text-slate-400">Supply</div>
+                          <div className="font-bold">
+                            {collection?.maxSupply || "?"}
+                          </div>
                         </div>
-                      </div>
+                      )}
+
                       <div className="bg-slate-800 rounded-lg px-4 py-2">
                         <div className="text-sm text-slate-400">Items</div>
                         <div className="font-bold">{nfts.length || 0}</div>
                       </div>
+
+                      {/* For ERC1155, show available characters if they exist */}
+                      {isERC1155 &&
+                        (collection as ERC1155Collection).characters && (
+                          <div className="bg-slate-800 rounded-lg px-4 py-2">
+                            <div className="text-sm text-slate-400">
+                              Characters
+                            </div>
+                            <div className="font-bold">
+                              {(collection as ERC1155Collection).characters
+                                ?.length || 0}
+                            </div>
+                          </div>
+                        )}
 
                       {/* Floor price box - show placeholder during loading */}
                       {metadataLoading ? (
@@ -445,21 +552,25 @@ export default function CollectionDetailsPage() {
                         </div>
                       )}
 
-                      {isConnected && collection?.owner && (
+                      {isConnected && collection && (
                         <div className="ml-auto">
-                          <PepeButton
-                            onClick={() => setShowMintModal(true)}
-                            variant="primary"
-                            disabled={
-                              Number(collection.totalMinted) >=
-                              Number(collection.maxSupply)
-                            }
-                          >
-                            {Number(collection.totalMinted) >=
-                            Number(collection.maxSupply)
-                              ? "Sold Out"
-                              : "Mint NFT"}
-                          </PepeButton>
+                          {isMintingAvailable() ? (
+                            <PepeButton
+                              onClick={() => setShowMintModal(true)}
+                              variant="primary"
+                              disabled={collection.mintingEnabled === false}
+                            >
+                              {getMintButtonText()}
+                            </PepeButton>
+                          ) : (
+                            <PepeButton
+                              variant="outline"
+                              disabled={true}
+                              className="opacity-70 cursor-not-allowed"
+                            >
+                              {getMintButtonText()}
+                            </PepeButton>
+                          )}
                         </div>
                       )}
                     </div>
@@ -550,39 +661,59 @@ export default function CollectionDetailsPage() {
                   <div className="text-center py-16 border border-dashed border-slate-700 rounded-xl">
                     <div className="text-6xl mb-4">🧠</div>
                     <h3 className="text-xl font-bold text-slate-300 mb-2">
-                      No NFTs Found
+                      {collection.mintingEnabled === false
+                        ? "Minting is Currently Paused"
+                        : !isERC1155 &&
+                          Number(collection.totalMinted) >=
+                            Number(collection.maxSupply)
+                        ? "Collection Sold Out"
+                        : "No NFTs Found"}
                     </h3>
                     <p className="text-slate-400 max-w-md mx-auto">
-                      This collection doesn&apos;t have any NFTs yet. If
-                      you&apos;re the creator, you can mint some!
+                      {collection.mintingEnabled === false
+                        ? "The creator has temporarily paused minting for this collection."
+                        : !isERC1155 &&
+                          Number(collection.totalMinted) >=
+                            Number(collection.maxSupply)
+                        ? "All NFTs in this collection have been minted. Check the marketplace for listings."
+                        : "This collection doesn't have any NFTs yet. If you're the creator, you can mint some!"}
                     </p>
-                    {isConnected && collection?.owner && (
+
+                    {isConnected && collection && isMintingAvailable() && (
                       <div className="mt-6">
                         <PepeButton
                           onClick={() => setShowMintModal(true)}
                           variant="primary"
-                          disabled={
-                            Number(collection.totalMinted) >=
-                            Number(collection.maxSupply)
-                          }
                         >
-                          {Number(collection.totalMinted) >=
-                          Number(collection.maxSupply)
-                            ? "Sold Out"
-                            : "Mint NFT"}
+                          Mint NFT
                         </PepeButton>
                       </div>
                     )}
+
+                    {/* If collection is sold out but has listed NFTs, show a button to filter for listed NFTs */}
+                    {!isERC1155 &&
+                      Number(collection.totalMinted) >=
+                        Number(collection.maxSupply) &&
+                      nfts.some((nft) => nft.listing && nft.listing.active) && (
+                        <div className="mt-6">
+                          <PepeButton
+                            onClick={() => setFilterForSale(true)}
+                            variant="outline"
+                            className="border-blue-500 text-blue-300 hover:bg-blue-900/30"
+                          >
+                            View Listed NFTs
+                          </PepeButton>
+                        </div>
+                      )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                    {sortedAndFilteredNFTs.map((nft, index) => (
+                    {sortedAndFilteredNFTs.map((nft) => (
                       <div key={`${collection.address}-${nft.tokenId}`}>
-                        <Link
-                          href={`/collections/${collection.address}/${nft.tokenId}`}
-                        >
-                          <NFTCard nft={nft} />
-                        </Link>
+                        <UnifiedNftCard
+                          item={nft}
+                          collectionAddress={collection.address}
+                        />
                       </div>
                     ))}
                   </div>
@@ -601,13 +732,21 @@ export default function CollectionDetailsPage() {
         </div>
       </div>
 
-      {/* Mint Modal */}
-      {showMintModal && collection && (
-        <MintNftModal
-          collection={collection}
-          onClose={() => setShowMintModal(false)}
-        />
-      )}
+      {/* Mint Modal - Different types based on collection */}
+      {showMintModal &&
+        collection &&
+        (isERC1155 ? (
+          <ERC1155MintModal
+            collection={collection as ERC1155Collection}
+            onClose={() => setShowMintModal(false)}
+            onSuccess={refreshNFTs}
+          />
+        ) : (
+          <MintNftModal
+            collection={collection}
+            onClose={() => setShowMintModal(false)}
+          />
+        ))}
     </div>
   );
 }

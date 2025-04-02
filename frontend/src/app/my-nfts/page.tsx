@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
 import { NFTItem } from "@/types/contracts";
-import { useCollections } from "@/hooks/useContracts";
+import { useAllCollections } from "@/hooks/useAllContracts";
 import NFTCard from "@/components/nfts/NftCard";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import WavesBackground from "@/components/effects/WavesBackground";
@@ -14,7 +14,7 @@ import PepeButton from "@/components/ui/PepeButton";
 
 export default function MyNFTsPage() {
   const { address } = useAccount();
-  const { collections } = useCollections();
+  const { collections } = useAllCollections();
   const [myNFTs, setMyNFTs] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterForSale, setFilterForSale] = useState(false);

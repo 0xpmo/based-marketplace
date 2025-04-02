@@ -531,27 +531,6 @@ contract KekTrumps is
         return characters[characterId].minted[rarity];
     }
 
-    /**
-     * @dev URI for token metadata, overrides ERC1155 uri function
-     */
-    // function uri(uint256 tokenId) public view override returns (string memory) {
-    //     // Get the character ID and rarity from the token ID
-    //     uint256 characterId = tokenToCharacter[tokenId];
-    //     Rarity rarity = tokenToRarity[tokenId];
-
-    //     require(characterId > 0, "URI query for nonexistent token");
-
-    //     return
-    //         string(
-    //             abi.encodePacked(
-    //                 _baseTokenURI,
-    //                 characterId.toString(),
-    //                 "/",
-    //                 uint256(rarity).toString(),
-    //                 ".json"
-    //             )
-    //         );
-    // }
     function uri(uint256 tokenId) public view override returns (string memory) {
         uint256 characterId = tokenToCharacter[tokenId];
         require(characterId > 0, "URI query for nonexistent token");

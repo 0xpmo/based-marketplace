@@ -4,7 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useCollections } from "@/hooks/useContracts";
+import { useAllCollections } from "@/hooks/useAllContracts";
 import CollectionCard from "@/components/collections/CollectionCard";
 import PepeButton from "@/components/ui/PepeButton";
 import PepeConfetti from "@/components/effects/PepeConfetti";
@@ -13,7 +13,7 @@ import { Collection } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 
 export default function Home() {
-  const { collections, loading } = useCollections();
+  const { collections, loading } = useAllCollections();
   const [featuredCollection, setFeaturedCollection] =
     useState<Collection | null>(null);
 

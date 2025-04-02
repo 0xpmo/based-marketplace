@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useCollections } from "@/hooks/useContracts";
+import { useAllCollections } from "@/hooks/useAllContracts";
 import CollectionCard from "@/components/collections/CollectionCard";
 import PepeButton from "@/components/ui/PepeButton";
 import { CollectionCardSkeleton } from "@/components/ui/LoadingSkeleton";
 import WavesBackground from "@/components/effects/WavesBackground";
 
 export default function CollectionsPage() {
-  const { collections, loading, error, refreshCollections } = useCollections();
+  const { collections, loading, error, refreshCollections } =
+    useAllCollections();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("newest");
 

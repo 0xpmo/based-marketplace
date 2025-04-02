@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import Link from "next/link";
 import Image from "next/image";
 import PepeButton from "@/components/ui/PepeButton";
-import { useCollections } from "@/hooks/useContracts";
+import { useAllCollections } from "@/hooks/useAllContracts";
 import { Collection } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 
@@ -14,7 +14,7 @@ export default function ProfileCollectionsPage() {
   const [activeTab, setActiveTab] = useState<"collections" | "hidden">(
     "collections"
   );
-  const { collections, loading: isLoading } = useCollections();
+  const { collections, loading: isLoading } = useAllCollections();
   const [userCollections, setUserCollections] = useState<Collection[]>([]);
 
   // Fetch user collections
