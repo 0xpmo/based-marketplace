@@ -65,13 +65,12 @@ const NFTBuyConfirmModal = ({
   };
 
   // Calculate total price based on quantity
+  // Calculate total price based on quantity
   const getTotalPrice = () => {
     if (!nftItem.listing) return "0";
 
-    // For ERC1155 tokens, calculate price per token
-    const listingQuantity =
-      isERC1155 && nftItem.listing.quantity ? nftItem.listing.quantity : 1;
-    const pricePerToken = parseInt(nftItem.listing.price) / listingQuantity;
+    // The listing.price is already the price per token
+    const pricePerToken = parseInt(nftItem.listing.price);
 
     // Calculate total price based on selected quantity
     return (pricePerToken * quantity).toString();
@@ -227,18 +226,12 @@ const NFTBuyConfirmModal = ({
                   </div>
                 )}
 
-                {isERC1155 && quantity > 1 && nftItem.listing.quantity && (
+                {isERC1155 && quantity > 1 && (
                   <div className="text-blue-300 text-xs mt-2 border-t border-blue-800 pt-2">
                     <div className="flex justify-between">
                       <span>Price per token:</span>
                       <span>
-                        𝔹{" "}
-                        {formatNumberWithCommas(
-                          (
-                            parseInt(nftItem.listing.price) /
-                            nftItem.listing.quantity
-                          ).toString()
-                        )}
+                        𝔹 {formatNumberWithCommas(nftItem.listing.price)}
                       </span>
                     </div>
                     <div className="flex justify-between mt-1">

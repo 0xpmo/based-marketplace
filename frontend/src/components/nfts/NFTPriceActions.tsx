@@ -63,6 +63,22 @@ const NFTPriceActions = ({
               USD
             </div>
           )}
+          {isERC1155 && nftItem.listing.quantity && (
+            <div className="text-sm text-blue-300 mt-2 border-t border-blue-800/30 pt-2">
+              <div className="flex justify-between items-center">
+                <span>Available for purchase:</span>
+                <span className="font-medium">
+                  {nftItem.listing.quantity} tokens
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span>Price per token:</span>
+                <span className="font-medium">
+                  𝔹 {formatNumberWithCommas(nftItem.listing.price)}
+                </span>
+              </div>
+            </div>
+          )}
           {isOwned ? (
             <div className="mt-4">
               <PepeButton

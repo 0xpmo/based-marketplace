@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveListingsForCollection } from "@/lib/db";
+import { getActiveListingsForCollection } from "@/lib/server/db";
 import { ethers } from "ethers";
 
 interface ListingData {

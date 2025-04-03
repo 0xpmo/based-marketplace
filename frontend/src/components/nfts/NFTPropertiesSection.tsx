@@ -45,13 +45,18 @@ const NFTPropertiesSection = ({ attributes }: NFTPropertiesSectionProps) => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 * index }}
-            className="bg-blue-950/50 border border-blue-800/30 rounded-lg p-3 text-center hover:border-blue-500/50 transition-colors"
+            className="bg-blue-950/50 border border-blue-800/30 rounded-lg p-3 text-center hover:border-blue-500/50 transition-colors group relative"
+            title={`${attribute.trait_type}: ${attribute.value.toString()}`}
           >
-            <div className="text-xs text-blue-400 uppercase mb-1 font-semibold">
+            <div className="text-xs text-blue-400 uppercase mb-1 font-semibold break-words">
               {attribute.trait_type}
             </div>
-            <div className="font-semibold truncate text-blue-100">
+            <div className="font-semibold text-blue-100 break-words">
               {attribute.value.toString()}
+            </div>
+            {/* Tooltip that appears on hover */}
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-blue-900 text-blue-100 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+              {attribute.trait_type}: {attribute.value.toString()}
             </div>
           </motion.div>
         ))}

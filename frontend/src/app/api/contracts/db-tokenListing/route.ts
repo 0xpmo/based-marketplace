@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveListingsForToken } from "@/lib/db";
+import { getActiveListingsForToken } from "@/lib/server/db";
 import { ethers } from "ethers";
 
 export async function GET(request: NextRequest) {

@@ -319,7 +319,7 @@ const NFTListModal = ({
                   {/* Total payout calculation */}
                   <div className="flex justify-between items-center">
                     <span className="text-blue-100 font-medium">
-                      Your payout
+                      Your payout (per token)
                     </span>
                     <span className="text-blue-100 font-medium">
                       𝔹{" "}

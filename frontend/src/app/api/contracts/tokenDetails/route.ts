@@ -20,8 +20,19 @@ export async function GET(request: NextRequest) {
 
       try {
         // Get token details - wrapped in try/catch to handle non-existent tokens
-        const owner = await contract.ownerOf(tokenId);
-        const tokenURI = await contract.tokenURI(tokenId);
+        const owner = await contract.ownerOf(tokenId).catch(() => null);
+
+        // If owner is null, token doesn't exist
+        if (!owner) {
+          return NextResponse.json({
+            tokenId,
+            owner: null,
+            tokenURI: null,
+            error: "Token does not exist",
+          });
+        }
+
+        const tokenURI = await contract.tokenURI(tokenId).catch(() => null);
 
         // Return token details
         return NextResponse.json({
@@ -33,18 +44,16 @@ export async function GET(request: NextRequest) {
         console.error("Error fetching token data:", tokenError);
         return NextResponse.json({
           tokenId,
-          owner: "0x0000000000000000000000000000000000000000", // Default placeholder owner
+          owner: null,
           tokenURI: null,
           error: "Token may not exist",
         });
       }
     } catch (contractError) {
       console.error("Error with NFT contract:", contractError);
-
-      // Return default data for demo purposes
       return NextResponse.json({
         tokenId,
-        owner: "0x0000000000000000000000000000000000000000", // Default placeholder owner
+        owner: null,
         tokenURI: null,
         error: "Contract may not exist or have different interface",
       });

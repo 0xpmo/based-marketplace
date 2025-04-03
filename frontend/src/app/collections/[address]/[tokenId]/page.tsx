@@ -29,6 +29,7 @@ import { formatNumberWithCommas } from "@/utils/formatting";
 import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 import { isERC1155Item, isOwnedByUser } from "@/utils/nftTypeUtils";
 import { ethers } from "ethers";
+import { useDeepCompareEffect } from "@/utils/deepComparison";
 
 // Import our component parts
 import NFTImageDisplay from "@/components/nfts/NFTImageDisplay";
@@ -188,7 +189,7 @@ export default function NFTDetailsPage() {
   };
 
   // Also fetch listings when DB listings change
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (dbListings && dbListings.length > 0 && !isLoadingListings) {
       // Update listings in memory if the listing came from our database
       if (nft && !isERC1155) {
@@ -235,14 +236,14 @@ export default function NFTDetailsPage() {
   }, [dbListings, isLoadingListings, nft, erc1155Token, isERC1155]);
 
   // Effect to handle ERC1155 token data updates
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (isERC1155 && fetchedErc1155Token && !loadingErc1155Token) {
       setErc1155Token(fetchedErc1155Token);
       setLoading(false);
     }
   }, [isERC1155, fetchedErc1155Token, loadingErc1155Token]);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (collectionAddress && !isNaN(tokenId)) {
       fetchNFTData();
     }
@@ -255,14 +256,14 @@ export default function NFTDetailsPage() {
   const isOwned = isOwnedByUser(activeItem, userAddress);
 
   // Ownership effect
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (isOwned) {
       setTimeout(() => setShowOwnershipEffect(true), 500);
     }
   }, [nft, erc1155Token, userAddress, isOwned]);
 
   // Check if we should show the marketing prompt based on local storage
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (!userAddress || !activeItem) return;
 
     // Don't show the market prompt if the user just purchased this NFT
@@ -353,7 +354,7 @@ export default function NFTDetailsPage() {
   };
 
   // Reset listing form and state when modal is opened or closed
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     // When the modal is opened, reset all listing-related states
     if (showListModal) {
       setTxHash(null);
@@ -372,7 +373,7 @@ export default function NFTDetailsPage() {
   }, [showListModal, isListingSuccess]);
 
   // Handle success - close modal after listing with delay
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (isListingSuccess) {
       // Make sure listingJustCompleted is set to true when isListingSuccess becomes true
       setListingJustCompleted(true);
@@ -387,17 +388,55 @@ export default function NFTDetailsPage() {
   }, [isListingSuccess]);
 
   // Refresh UI when listing is canceled - to ensure all states are updated
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (!isCancelling && cancelTxHash) {
       // If we just finished canceling, refresh to ensure all UI states are updated
       fetchNFTData();
     }
   }, [isCancelling, cancelTxHash]);
 
-  // Handle refresh
+  // Effect to refresh data after successful operations
+  useDeepCompareEffect(() => {
+    // Refresh data after successful operations
+    if (
+      isListingSuccess ||
+      isBuyingSuccess ||
+      isCancelERC1155Success ||
+      (!isCancelling && cancelTxHash) // Successful cancellation
+    ) {
+      // Refresh both NFT data and listings
+      fetchNFTData();
+      refetchListings();
+
+      // Reset transaction hashes
+      if (isListingSuccess) setTxHash(null);
+      if (isCancelERC1155Success || (!isCancelling && cancelTxHash))
+        setCancelTxHash(null);
+
+      // Reset states
+      if (isBuyingSuccess) {
+        setShowPurchaseSuccess(true);
+        setJustPurchased(true);
+        setTimeout(() => {
+          setShowPurchaseSuccess(false);
+        }, 8000);
+      }
+    }
+  }, [
+    isListingSuccess,
+    isBuyingSuccess,
+    isCancelERC1155Success,
+    isCancelling,
+    cancelTxHash,
+    fetchNFTData,
+    refetchListings,
+  ]);
+
+  // Handle refresh button click
   const handleRefresh = () => {
     setRefreshing(true);
     fetchNFTData();
+    refetchListings();
   };
 
   // Handle buying NFT
@@ -556,7 +595,7 @@ export default function NFTDetailsPage() {
   };
 
   // Handle buy success
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (isBuyingSuccess) {
       setShowPurchaseSuccess(true);
       setJustPurchased(true);
@@ -581,7 +620,7 @@ export default function NFTDetailsPage() {
   }, [isBuyingSuccess]);
 
   // Handle buy error - updated to handle RPC errors with custom messages
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (buyingError) {
       const errorMessage = buyingError.message || "Unknown error";
 
@@ -717,25 +756,12 @@ export default function NFTDetailsPage() {
   };
 
   // Update USD price when price changes
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (tokenUSDRate && price) {
       const usdValue = calculateUSDPrice(price);
       setUsdPrice(usdValue);
     }
   }, [price, tokenUSDRate, calculateUSDPrice]);
-
-  // Effect to refresh listings when needed
-  useEffect(() => {
-    // Refresh listings after successful operations
-    if (isListingSuccess || isBuyingSuccess || isCancelERC1155Success) {
-      refetchListings();
-    }
-  }, [
-    isListingSuccess,
-    isBuyingSuccess,
-    isCancelERC1155Success,
-    refetchListings,
-  ]);
 
   if (loading) {
     return (
