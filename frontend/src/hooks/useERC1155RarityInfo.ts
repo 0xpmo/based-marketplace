@@ -22,6 +22,16 @@ export const RARITY_BG_COLORS = {
   3: "bg-green-500/30 border-green-600", // Green
 };
 
+// Character information as returned by the contract
+interface CharacterInfo {
+  name: string;
+  characterId: bigint;
+  maxSupply: readonly bigint[];
+  minted: readonly bigint[];
+  tokenId: readonly bigint[];
+  enabled: boolean;
+}
+
 export interface RarityInfo {
   id: number;
   name: string;
@@ -46,12 +56,14 @@ interface UseERC1155RarityInfoResult {
   isLoading: boolean;
   error: string | null;
   refreshRarityInfo: () => Promise<void>;
+  charactersInfo: CharacterInfo[];
 }
 
 export function useERC1155RarityInfo({
   collectionAddress,
 }: UseERC1155RarityInfoProps): UseERC1155RarityInfoResult {
   const [raritiesInfo, setRaritiesInfo] = useState<RarityInfo[]>([]);
+  const [charactersInfo, setCharactersInfo] = useState<CharacterInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +116,52 @@ export function useERC1155RarityInfo({
         console.warn("Failed to check if contract is paused:", err);
       }
 
-      // Fetch data for each rarity
+      // Get all available characters first
+      // First, get character IDs that are available for any rarity
+      const availableCharactersIds = new Set<number>();
+      const fetchedCharactersInfo: CharacterInfo[] = [];
+
+      for (let rarityId = 0; rarityId <= 3; rarityId++) {
+        try {
+          const availableChars = (await publicClient.readContract({
+            address: collectionAddress as `0x${string}`,
+            abi: KekTrumpsABI.abi,
+            functionName: "getAvailableCharactersForRarity",
+            args: [rarityId],
+          })) as bigint[];
+
+          // Add each character ID to our set
+          availableChars.forEach((id) =>
+            availableCharactersIds.add(Number(id))
+          );
+        } catch (err) {
+          console.warn(
+            `Error fetching available characters for rarity ${rarityId}:`,
+            err
+          );
+        }
+      }
+
+      // Use the new getCharacter method to fetch all character details
+      for (const characterId of availableCharactersIds) {
+        try {
+          const characterInfo = (await publicClient.readContract({
+            address: collectionAddress as `0x${string}`,
+            abi: KekTrumpsABI.abi,
+            functionName: "getCharacter",
+            args: [characterId],
+          })) as CharacterInfo;
+
+          fetchedCharactersInfo.push(characterInfo);
+        } catch (err) {
+          console.error(`Error fetching character ${characterId}:`, err);
+        }
+      }
+
+      // Store characters info
+      setCharactersInfo(fetchedCharactersInfo);
+
+      // Calculate rarity info based on characters
       const updatedRaritiesInfo = await Promise.all(
         initialRaritiesInfo.map(async (rarityInfo) => {
           try {
@@ -116,56 +173,36 @@ export function useERC1155RarityInfo({
               args: [rarityInfo.id],
             })) as bigint;
 
-            // Get available characters
-            const availableCharacters = await publicClient.readContract({
-              address: collectionAddress as `0x${string}`,
-              abi: KekTrumpsABI.abi,
-              functionName: "getAvailableCharactersForRarity",
-              args: [rarityInfo.id],
-            });
-
-            // Calculate total available
+            // Calculate total available for this rarity
             let totalAvailable = 0;
             let totalMinted = 0;
             let totalMaxSupply = 0;
+            const availableCharacters: number[] = [];
 
-            if (
-              Array.isArray(availableCharacters) &&
-              availableCharacters.length > 0
-            ) {
-              // For each character, get mint status (minted and maxSupply)
-              for (const characterId of availableCharacters) {
-                try {
-                  const mintStatus = await publicClient.readContract({
-                    address: collectionAddress as `0x${string}`,
-                    abi: KekTrumpsABI.abi,
-                    functionName: "getCharacterMintStatus",
-                    args: [characterId, rarityInfo.id],
-                  });
+            // Loop through characters to calculate totals for this rarity
+            for (const character of fetchedCharactersInfo) {
+              const rarityIndex = rarityInfo.id;
+              const maxSupply = Number(character.maxSupply[rarityIndex]);
+              const minted = Number(character.minted[rarityIndex]);
 
-                  if (Array.isArray(mintStatus) && mintStatus.length >= 2) {
-                    const minted = Number(mintStatus[0]);
-                    const maxSupply = Number(mintStatus[1]);
-                    const available = maxSupply - minted;
+              // If there's supply for this rarity, count it
+              if (maxSupply > 0) {
+                const available = maxSupply - minted;
 
-                    totalAvailable += available;
-                    totalMinted += minted;
-                    totalMaxSupply += maxSupply;
-                  }
-                } catch (err) {
-                  console.error(
-                    `Error getting mint status for character ${characterId}, rarity ${rarityInfo.id}:`,
-                    err
-                  );
+                totalAvailable += available;
+                totalMinted += minted;
+                totalMaxSupply += maxSupply;
+
+                // If there's available tokens for this character in this rarity, add it to list
+                if (available > 0 && character.enabled) {
+                  availableCharacters.push(Number(character.characterId));
                 }
               }
             }
 
             return {
               ...rarityInfo,
-              availableCharacters: Array.isArray(availableCharacters)
-                ? availableCharacters.map(Number)
-                : [],
+              availableCharacters,
               totalAvailable,
               maxSupply: totalMaxSupply,
               minted: totalMinted,
@@ -209,5 +246,6 @@ export function useERC1155RarityInfo({
     isLoading,
     error,
     refreshRarityInfo: fetchRarityInfo,
+    charactersInfo,
   };
 }

@@ -36,6 +36,8 @@ export default function CollectionDetailsPage() {
   const [collectionImageUrl, setCollectionImageUrl] = useState<string>(
     "/images/placeholder-collection.svg"
   );
+
+  console.log("collection", collection);
   const [bannerError, setBannerError] = useState(false);
   const [collectionImageError, setCollectionImageError] = useState(false);
   const [isBannerLoading, setIsBannerLoading] = useState(true);
@@ -53,7 +55,6 @@ export default function CollectionDetailsPage() {
     () => isERC1155Collection(collection),
     [collection]
   );
-  console.log("fish is erc1155", isERC1155);
 
   // Use appropriate hooks based on collection type
   const {
@@ -62,7 +63,7 @@ export default function CollectionDetailsPage() {
     metadataLoading: metadataLoadingERC721,
     error: fetchErrorERC721,
     refresh: refreshERC721NFTs,
-  } = useCollectionNFTs(isERC1155 ? "" : collectionAddr);
+  } = useCollectionNFTs(isERC1155 || !collection ? "" : collectionAddr);
 
   const {
     tokens: erc1155Tokens,
@@ -70,7 +71,7 @@ export default function CollectionDetailsPage() {
     metadataLoading: metadataLoadingERC1155,
     error: fetchErrorERC1155,
     refresh: refreshERC1155Tokens,
-  } = useERC1155CollectionTokens(isERC1155 ? collectionAddr : "");
+  } = useERC1155CollectionTokens(collection && isERC1155 ? collectionAddr : "");
 
   // Unified NFTs array combining both types
   const nfts = useMemo(() => {
@@ -153,7 +154,6 @@ export default function CollectionDetailsPage() {
 
   // Set banner image with error handling
   useEffect(() => {
-    console.log("collection", collection);
     if (
       (collection?.metadata?.banner_image_url || collection?.metadata?.image) &&
       !bannerError
@@ -162,7 +162,6 @@ export default function CollectionDetailsPage() {
         const url = getIPFSGatewayURL(
           collection.metadata?.banner_image_url || collection.metadata?.image
         );
-        console.log("banner url", url);
         setBannerImageUrl(url);
         setIsBannerLoading(true);
       } catch (err) {
@@ -277,7 +276,7 @@ export default function CollectionDetailsPage() {
     if (!isERC1155) {
       return (
         !isPaused &&
-        Number(collection.totalMinted) < Number(collection.maxSupply)
+        Number(collection.totalSupply) < Number(collection.maxSupply)
       );
     }
 
@@ -299,7 +298,7 @@ export default function CollectionDetailsPage() {
     // For ERC721, check max supply
     if (
       !isERC1155 &&
-      Number(collection.totalMinted) >= Number(collection.maxSupply)
+      Number(collection.totalSupply) >= Number(collection.maxSupply)
     ) {
       return "Sold Out";
     }
@@ -344,10 +343,10 @@ export default function CollectionDetailsPage() {
     );
   }
 
-  const mintedPercent =
-    collection.totalMinted && collection.maxSupply
-      ? (Number(collection.totalMinted) / Number(collection.maxSupply)) * 100
-      : 0;
+  // const mintedPercent =
+  //   collection.totalSupply && collection.maxSupply
+  //     ? (Number(collection.totalSupply) / Number(collection.maxSupply)) * 100
+  //     : 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -362,7 +361,8 @@ export default function CollectionDetailsPage() {
           src={bannerImageUrl}
           alt={collection?.metadata?.name || "Collection banner"}
           fill
-          className="object-cover"
+          className="object-cover object-center"
+          style={{ objectPosition: "center 30%" }}
           onLoad={() => setIsBannerLoading(false)}
           onError={() => {
             setBannerError(true);
@@ -373,7 +373,8 @@ export default function CollectionDetailsPage() {
       </div>
 
       {/* Collection Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 mb-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 mb-16 relative z-10">
+        {/* <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 mb-16 relative z-10"> */}
         <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
           <div className="p-6 sm:p-8">
             <div className="flex flex-col md:flex-row gap-6">
@@ -664,7 +665,7 @@ export default function CollectionDetailsPage() {
                       {collection.mintingEnabled === false
                         ? "Minting is Currently Paused"
                         : !isERC1155 &&
-                          Number(collection.totalMinted) >=
+                          Number(collection.totalSupply) >=
                             Number(collection.maxSupply)
                         ? "Collection Sold Out"
                         : "No NFTs Found"}
@@ -673,7 +674,7 @@ export default function CollectionDetailsPage() {
                       {collection.mintingEnabled === false
                         ? "The creator has temporarily paused minting for this collection."
                         : !isERC1155 &&
-                          Number(collection.totalMinted) >=
+                          Number(collection.totalSupply) >=
                             Number(collection.maxSupply)
                         ? "All NFTs in this collection have been minted. Check the marketplace for listings."
                         : "This collection doesn't have any NFTs yet. If you're the creator, you can mint some!"}
@@ -692,7 +693,7 @@ export default function CollectionDetailsPage() {
 
                     {/* If collection is sold out but has listed NFTs, show a button to filter for listed NFTs */}
                     {!isERC1155 &&
-                      Number(collection.totalMinted) >=
+                      Number(collection.totalSupply) >=
                         Number(collection.maxSupply) &&
                       nfts.some((nft) => nft.listing && nft.listing.active) && (
                         <div className="mt-6">

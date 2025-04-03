@@ -49,7 +49,11 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
     useMintERC1155(collection.address);
 
   // Use our rarity info hook
-  const { raritiesInfo, isLoading: isLoadingRarities } = useERC1155RarityInfo({
+  const {
+    raritiesInfo,
+    isLoading: isLoadingRarities,
+    charactersInfo,
+  } = useERC1155RarityInfo({
     collectionAddress: collection.address,
   });
 
@@ -223,22 +227,33 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
     return rarityInfo?.isAvailable || false;
   };
 
+  // Add useEffect for body scroll blocking
+  useEffect(() => {
+    // Block body scroll when modal is open
+    document.body.style.overflow = "hidden";
+
+    // Re-enable body scroll when modal is closed
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-blue-950/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-blue-950/90 backdrop-blur-sm flex items-start justify-center z-50 p-4 overflow-y-auto"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-blue-900/50 border border-blue-800/40 rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden backdrop-blur-md"
+          className="bg-blue-900/50 border border-blue-800/40 rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden backdrop-blur-md my-4"
         >
-          {/* Header */}
-          <div className="p-6 border-b border-blue-800/40 flex justify-between items-center">
+          {/* Header - Make it sticky */}
+          <div className="p-6 border-b border-blue-800/40 flex justify-between items-center sticky top-0 bg-blue-900/50 backdrop-blur-md z-10">
             <h2 className="text-2xl font-bold text-blue-100">
               Mint {collection.name} NFTs
             </h2>
@@ -306,7 +321,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
 
                       <div className="text-blue-400">Characters</div>
                       <div className="text-blue-200">
-                        {collection.characters?.length || 0}
+                        {charactersInfo.length}
                       </div>
 
                       <div className="text-blue-400">Royalty</div>
@@ -315,19 +330,81 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Character Details - Now always visible */}
+                  {charactersInfo.length > 0 && (
+                    <div className="bg-blue-900/50 border border-blue-800/40 rounded-lg p-4 mt-4">
+                      <h3 className="font-semibold text-blue-200 mb-3">
+                        Character Details
+                      </h3>
+                      <div className="space-y-3 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-blue-800 scrollbar-track-transparent pr-2">
+                        {charactersInfo.map((character) => (
+                          <div
+                            key={Number(character.characterId)}
+                            className="bg-blue-900/40 border border-blue-800/30 rounded-lg p-3"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="font-medium text-blue-100">
+                                {character.name}
+                              </div>
+                              <div
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  character.enabled
+                                    ? "bg-green-500/20 text-green-300"
+                                    : "bg-red-500/20 text-red-300"
+                                }`}
+                              >
+                                {character.enabled
+                                  ? "Available"
+                                  : "Unavailable"}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-2">
+                              {[0, 1, 2, 3].map((rarityId) => (
+                                <div
+                                  key={rarityId}
+                                  className={`text-center p-2 rounded ${
+                                    Number(character.maxSupply[rarityId]) > 0
+                                      ? "bg-blue-900/30"
+                                      : "bg-blue-900/10"
+                                  }`}
+                                >
+                                  <div className="text-blue-400 text-xs mb-1">
+                                    {raritiesInfo[rarityId]?.name ||
+                                      `Rarity ${rarityId}`}
+                                  </div>
+                                  <div
+                                    className={`font-medium ${
+                                      Number(character.maxSupply[rarityId]) > 0
+                                        ? "text-blue-200"
+                                        : "text-blue-400"
+                                    }`}
+                                  >
+                                    {Number(character.minted[rarityId])}/
+                                    {Number(character.maxSupply[rarityId])}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Right column - Mint Options */}
               <div>
                 {/* Rarity Availability Section */}
-                <div className="mb-6">
+                {/* <div className="mb-6">
                   <ERC1155RarityAvailability
                     collectionAddress={collection.address}
                     onSelectRarity={handleRarityChange}
                     selectedRarity={selectedRarity}
                   />
-                </div>
+                </div> */}
 
                 {/* Rarity Selector Tabs */}
                 <h3 className="text-lg font-semibold text-blue-100 mb-4">
@@ -337,9 +414,9 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                   {raritiesInfo.map((rarity) => (
                     <button
                       key={rarity.id}
-                      className={`flex-1 py-2 text-center text-sm font-medium transition-colors
+                      className={`flex-1 py-2 cursor-pointer text-center text-sm font-medium transition-colors
                         ${
-                          activeTab === rarity.id
+                          selectedRarity === rarity.id
                             ? `bg-gradient-to-b ${rarity.colorClass} text-white`
                             : "bg-blue-900/30 text-blue-300 hover:bg-blue-800/30"
                         } ${
@@ -347,10 +424,12 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                           ? "opacity-40 cursor-not-allowed"
                           : ""
                       }`}
-                      onClick={() =>
-                        rarity.isAvailable &&
-                        handleRarityChange(rarity.id as KekTrumpsRarity)
-                      }
+                      onClick={() => {
+                        if (rarity.isAvailable) {
+                          setSelectedRarity(rarity.id as KekTrumpsRarity);
+                          setActiveTab(rarity.id as KekTrumpsRarity);
+                        }
+                      }}
                       disabled={!rarity.isAvailable || isLoading}
                     >
                       {rarity.name}
@@ -441,7 +520,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                       <span className="text-blue-200 font-medium">Total</span>
                       <div>
                         <div className="text-blue-100 font-bold text-xl">
-                          {formattedMintPrice(totalPrice)} 𝔹
+                          𝔹 {formattedMintPrice(totalPrice)}
                         </div>
                         {tokenUSDRate && (
                           <div className="text-blue-400 text-xs text-right">
@@ -498,7 +577,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                   {isLoading ? (
                     <span className="flex items-center justify-center">
                       <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2" />
-                      Minting...
+                      Loading...
                     </span>
                   ) : isSuccess ? (
                     "Mint Successful!"

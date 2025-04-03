@@ -296,19 +296,6 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "string",
-          "name": "newBaseURI",
-          "type": "string"
-        }
-      ],
-      "name": "BaseURIUpdated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
           "internalType": "uint256",
           "name": "characterId",
           "type": "uint256"
@@ -328,63 +315,12 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "uint256",
-          "name": "characterId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "enabled",
-          "type": "bool"
-        }
-      ],
-      "name": "CharacterEnabled",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "newContractURI",
-          "type": "string"
-        }
-      ],
-      "name": "ContractURIUpdated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
           "internalType": "uint64",
           "name": "version",
           "type": "uint64"
         }
       ],
       "name": "Initialized",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newLimit",
-          "type": "uint256"
-        }
-      ],
-      "name": "MaxMintPerTxUpdated",
       "type": "event"
     },
     {
@@ -436,25 +372,6 @@
         }
       ],
       "name": "PaymentWithdrawn",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newPrice",
-          "type": "uint256"
-        }
-      ],
-      "name": "RarityPriceUpdated",
       "type": "event"
     },
     {
@@ -625,7 +542,7 @@
         {
           "indexed": false,
           "internalType": "uint16",
-          "name": "percentage1",
+          "name": "p1",
           "type": "uint16"
         },
         {
@@ -637,7 +554,7 @@
         {
           "indexed": false,
           "internalType": "uint16",
-          "name": "percentage2",
+          "name": "p2",
           "type": "uint16"
         },
         {
@@ -649,7 +566,7 @@
         {
           "indexed": false,
           "internalType": "uint16",
-          "name": "percentage3",
+          "name": "p3",
           "type": "uint16"
         },
         {
@@ -661,7 +578,7 @@
         {
           "indexed": false,
           "internalType": "uint16",
-          "name": "percentage4",
+          "name": "p4",
           "type": "uint16"
         }
       ],
@@ -770,6 +687,29 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "burn",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
@@ -831,25 +771,6 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        }
-      ],
-      "name": "exists",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "enum KekTrumps.Rarity",
           "name": "rarity",
           "type": "uint8"
@@ -872,77 +793,51 @@
           "internalType": "uint256",
           "name": "characterId",
           "type": "uint256"
-        },
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
         }
       ],
-      "name": "getCharacterMintStatus",
+      "name": "getCharacter",
       "outputs": [
         {
-          "internalType": "uint256",
-          "name": "minted",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "maxSupply",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getTokenDetails",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "characterId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "characterName",
-          "type": "string"
-        },
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "characterId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        }
-      ],
-      "name": "getTokenId",
-      "outputs": [
-        {
-          "internalType": "uint256",
+          "components": [
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "characterId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256[4]",
+              "name": "maxSupply",
+              "type": "uint256[4]"
+            },
+            {
+              "internalType": "uint256[4]",
+              "name": "minted",
+              "type": "uint256[4]"
+            },
+            {
+              "internalType": "uint256[4]",
+              "name": "burned",
+              "type": "uint256[4]"
+            },
+            {
+              "internalType": "uint256[4]",
+              "name": "tokenId",
+              "type": "uint256[4]"
+            },
+            {
+              "internalType": "bool",
+              "name": "enabled",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct KekTrumps.CharacterInfo",
           "name": "",
-          "type": "uint256"
+          "type": "tuple"
         }
       ],
       "stateMutability": "view",
@@ -1091,41 +986,6 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "characterId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "ownerMint",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "pause",
-      "outputs": [],
-      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -1296,135 +1156,6 @@
     {
       "inputs": [
         {
-          "internalType": "string",
-          "name": "newBaseURI",
-          "type": "string"
-        }
-      ],
-      "name": "setBaseURI",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "characterId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "enabled",
-          "type": "bool"
-        }
-      ],
-      "name": "setCharacterEnabled",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "newContractURI",
-          "type": "string"
-        }
-      ],
-      "name": "setContractURI",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        },
-        {
-          "internalType": "uint256",
-          "name": "newLimit",
-          "type": "uint256"
-        }
-      ],
-      "name": "setMaxMintPerTx",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "enum KekTrumps.Rarity",
-          "name": "rarity",
-          "type": "uint8"
-        },
-        {
-          "internalType": "uint256",
-          "name": "newPrice",
-          "type": "uint256"
-        }
-      ],
-      "name": "setRarityPrice",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256[]",
-          "name": "newPrices",
-          "type": "uint256[]"
-        }
-      ],
-      "name": "setRarityPrices",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "newRecipient",
-          "type": "address"
-        },
-        {
-          "internalType": "uint96",
-          "name": "newPercentage",
-          "type": "uint96"
-        }
-      ],
-      "name": "setRoyaltyInfo",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address[4]",
-          "name": "newWallets",
-          "type": "address[4]"
-        },
-        {
-          "internalType": "uint16[4]",
-          "name": "newPercentages",
-          "type": "uint16[4]"
-        }
-      ],
-      "name": "setWithdrawalSplit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "bytes4",
           "name": "interfaceId",
           "type": "bytes4"
@@ -1493,18 +1224,12 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "tokenId",
-          "type": "uint256"
-        }
-      ],
+      "inputs": [],
       "name": "totalSupply",
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "total",
           "type": "uint256"
         }
       ],
@@ -1520,13 +1245,6 @@
         }
       ],
       "name": "transferOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "unpause",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

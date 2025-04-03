@@ -18,13 +18,24 @@ export default function Home() {
     useState<Collection | null>(null);
 
   useEffect(() => {
+    // if (collections.length > 0) {
+    //   const featured = collections.reduce(
+    //     (prev, current) =>
+    //       current.totalMinted > prev.totalMinted ? current : prev,
+    //     collections[0]
+    //   );
+    //   setFeaturedCollection(featured);
+    // }
     if (collections.length > 0) {
-      const featured = collections.reduce(
-        (prev, current) =>
-          current.totalMinted > prev.totalMinted ? current : prev,
-        collections[0]
+      const kekTrumpsCollection = collections.find(
+        (collection) =>
+          collection.address === process.env.NEXT_PUBLIC_KEK_TRUMPS_ADDRESS
       );
-      setFeaturedCollection(featured);
+      if (kekTrumpsCollection) {
+        setFeaturedCollection(kekTrumpsCollection);
+      } else {
+        setFeaturedCollection(collections[0]);
+      }
     }
   }, [collections]);
 
@@ -181,7 +192,7 @@ export default function Home() {
                       <div className="bg-blue-900/50 px-3 py-1 rounded-lg border border-blue-700/30 text-sm">
                         <span className="text-cyan-400">
                           {featuredCollection
-                            ? `${featuredCollection.totalMinted} Items`
+                            ? `${featuredCollection.totalSupply} Items`
                             : "0 Items"}
                         </span>
                       </div>

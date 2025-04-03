@@ -12,6 +12,11 @@ export const formatNumberWithCommas = (value: number | string) => {
   // Add commas to the integer part
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
+  // Limit decimal places to 2 digits if decimal exists
+  if (parts[1]) {
+    parts[1] = parts[1].substring(0, 2);
+  }
+
   // Join back with decimal part if it exists
   return parts.join(".");
 };

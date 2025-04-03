@@ -23,7 +23,7 @@ export function isCollectionSoldOut(collection: Collection | null): boolean {
   // ERC1155 collections don't really have a "sold out" state in the same way
   if (isERC1155Collection(collection)) return false;
 
-  return Number(collection.totalMinted) >= Number(collection.maxSupply);
+  return Number(collection.totalSupply) >= Number(collection.maxSupply);
 }
 
 /**

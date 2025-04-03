@@ -122,16 +122,6 @@ const UnifiedNftCard = memo(function UnifiedNftCard({
       className="block h-full"
     >
       <div className="bg-blue-900/30 border border-blue-800/30 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full backdrop-blur-sm relative group cursor-pointer hover:scale-[1.03]">
-        {/* Rarity Banner for ERC1155 */}
-        {isERC1155 && item.rarity !== undefined && (
-          <div
-            className={`${borderColorClass} text-white px-3 py-1 text-xs font-medium flex justify-between items-center`}
-          >
-            <span>{RARITY_NAMES[item.rarity]}</span>
-            <span className="opacity-70">#{item.tokenId}</span>
-          </div>
-        )}
-
         {/* Image Container */}
         <div className="aspect-square relative overflow-hidden">
           {/* Your NFT Badge - only shown when user owns this NFT */}
@@ -206,9 +196,7 @@ const UnifiedNftCard = memo(function UnifiedNftCard({
                 </div>
               )}
               {isERC1155 ? (
-                <div className="text-sm text-blue-300 font-medium">
-                  Supply: {(item as ERC1155Item).supply}
-                </div>
+                <></>
               ) : (
                 <div className="text-xs text-blue-400 flex items-center">
                   {isOwnedByUser ? (

@@ -29,6 +29,7 @@ import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 import KekTrumpsABI from "@/contracts/KekTrumps.json";
+import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 
 // Hook for fetching based collections from factory
 export function useBasedCollections() {
@@ -84,16 +85,18 @@ export function useBasedCollections() {
             "MAX_SUPPLY",
             false
           );
-          const totalMinted = await readCollectionProperty(
-            address,
-            "totalMinted",
-            false
-          );
+          // No longer used
+          // const totalMinted = await readCollectionProperty(
+          //   address,
+          //   "totalMinted",
+          //   false
+          // );
           const totalSupply = await readCollectionProperty(
             address,
             "totalSupply",
             false
           );
+          console.log("FISH MANNNNNN WHALE TOTAL SUPLY", totalSupply);
           const royaltyInfo = await readCollectionProperty(
             address,
             "royaltyInfo",
@@ -129,7 +132,8 @@ export function useBasedCollections() {
             ? formatEther(BigInt(mintPrice.toString()))
             : "0";
           const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
-          const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
+          const formattedTotalSupply = totalSupply ? Number(totalSupply) : 0;
+          // const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
           const formattedRoyaltyFee = royaltyFee;
 
           collectionsData.push({
@@ -139,7 +143,8 @@ export function useBasedCollections() {
             contractURI: contractURI as string,
             mintPrice: formattedMintPrice,
             maxSupply: formattedMaxSupply,
-            totalMinted: formattedTotalMinted,
+            totalSupply: formattedTotalSupply,
+            // totalMinted: formattedTotalMinted,
             royaltyFee: formattedRoyaltyFee,
             owner: owner as string,
             metadata: metadata as unknown as CollectionMetadata,
@@ -429,6 +434,10 @@ export function useOwnedTokens(collectionAddress: string) {
     fetchOwnedTokens();
   }, [address, collectionAddress]);
 
+  // useEffect(() => {
+
+  // })
+
   return { tokens, loading, error };
 }
 
@@ -438,138 +447,148 @@ export function useCollection(collectionAddress: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchCollection = async () => {
-      if (!collectionAddress) {
-        setLoading(false);
-        return;
-      }
+  const fetchCollection = useCallback(async () => {
+    if (!collectionAddress) {
+      setLoading(false);
+      return;
+    }
 
-      setLoading(true);
+    setLoading(true);
+    try {
+      // First, determine if it's an external collection
+      const externalCollection = EXTERNAL_COLLECTIONS.find(
+        (ec) => ec.address.toLowerCase() === collectionAddress.toLowerCase()
+      );
+
+      const isExternal = !!externalCollection;
+      const isManualBasedContract =
+        externalCollection?.isBasedContract === true;
+
+      // Fetch basic collection details
+      const name = await readCollectionProperty(
+        collectionAddress,
+        "name",
+        isExternal
+      );
+      const symbol = await readCollectionProperty(
+        collectionAddress,
+        "symbol",
+        isExternal
+      );
+      const contractURI = await readCollectionProperty(
+        collectionAddress,
+        "contractURI",
+        isExternal
+      );
+      const mintPrice = await readCollectionProperty(
+        collectionAddress,
+        "mintPrice",
+        isExternal
+      );
+      const maxSupply = await readCollectionProperty(
+        collectionAddress,
+        "MAX_SUPPLY",
+        isExternal
+      );
+      const totalSupply = await readCollectionProperty(
+        collectionAddress,
+        "totalSupply",
+        isExternal
+      );
+      console.log("FISH TOTAL SUPLY", totalSupply);
+      // const totalMinted =
+      //   (await readCollectionProperty(
+      //     collectionAddress,
+      //     "totalMinted",
+      //     isExternal
+      //   )) ||
+      //   (await readCollectionProperty(
+      //     collectionAddress,
+      //     "totalSupply",
+      //     isExternal
+      //   ));
+
+      const royaltyFee = await readCollectionProperty(
+        collectionAddress,
+        "royaltyInfo",
+        isExternal,
+        [0, 10000]
+      );
+
+      // Extract royalty fee from royaltyInfo if it's in that format
+      let formattedRoyaltyFee = 0;
+      if (royaltyFee) {
+        if (Array.isArray(royaltyFee) && royaltyFee.length > 1) {
+          // Handle royaltyInfo [address, amount] tuple format
+          formattedRoyaltyFee = Number(royaltyFee[1]);
+        } else {
+          // Handle direct royaltyFee format
+          formattedRoyaltyFee = Number(royaltyFee);
+        }
+      }
+      const owner = await readCollectionProperty(
+        collectionAddress,
+        "owner",
+        isExternal
+      );
+      const mintingEnabled = await readCollectionProperty(
+        collectionAddress,
+        "mintingEnabled",
+        isExternal
+      );
+
+      // Fetch metadata from IPFS
+      let metadata = undefined;
       try {
-        // First, determine if it's an external collection
-        const externalCollection = EXTERNAL_COLLECTIONS.find(
-          (ec) => ec.address.toLowerCase() === collectionAddress.toLowerCase()
-        );
-
-        const isExternal = !!externalCollection;
-        const isManualBasedContract =
-          externalCollection?.isBasedContract === true;
-
-        // Fetch basic collection details
-        const name = await readCollectionProperty(
-          collectionAddress,
-          "name",
-          isExternal
-        );
-        const symbol = await readCollectionProperty(
-          collectionAddress,
-          "symbol",
-          isExternal
-        );
-        const contractURI = await readCollectionProperty(
-          collectionAddress,
-          "contractURI",
-          isExternal
-        );
-        const mintPrice = await readCollectionProperty(
-          collectionAddress,
-          "mintPrice",
-          isExternal
-        );
-        const maxSupply = await readCollectionProperty(
-          collectionAddress,
-          "MAX_SUPPLY",
-          isExternal
-        );
-        const totalMinted =
-          (await readCollectionProperty(
-            collectionAddress,
-            "totalMinted",
-            isExternal
-          )) ||
-          (await readCollectionProperty(
-            collectionAddress,
-            "totalSupply",
-            isExternal
-          ));
-
-        const royaltyFee = await readCollectionProperty(
-          collectionAddress,
-          "royaltyInfo",
-          isExternal,
-          [0, 10000]
-        );
-
-        // Extract royalty fee from royaltyInfo if it's in that format
-        let formattedRoyaltyFee = 0;
-        if (royaltyFee) {
-          if (Array.isArray(royaltyFee) && royaltyFee.length > 1) {
-            // Handle royaltyInfo [address, amount] tuple format
-            formattedRoyaltyFee = Number(royaltyFee[1]);
-          } else {
-            // Handle direct royaltyFee format
-            formattedRoyaltyFee = Number(royaltyFee);
-          }
-        }
-        const owner = await readCollectionProperty(
-          collectionAddress,
-          "owner",
-          isExternal
-        );
-        const mintingEnabled = await readCollectionProperty(
-          collectionAddress,
-          "mintingEnabled",
-          isExternal
-        );
-
-        // Fetch metadata from IPFS
-        let metadata = undefined;
-        try {
-          metadata = await fetchFromIPFS(contractURI as string);
-        } catch (err) {
-          console.error(
-            `Failed to fetch metadata for collection ${collectionAddress}`,
-            err
-          );
-        }
-
-        // Format values with type checking
-        const formattedMintPrice = mintPrice
-          ? formatEther(BigInt(mintPrice.toString()))
-          : "0";
-        const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
-        const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
-
-        setCollection({
-          address: collectionAddress,
-          name: name as string,
-          symbol: symbol as string,
-          contractURI: contractURI as string,
-          mintPrice: formattedMintPrice,
-          maxSupply: formattedMaxSupply,
-          totalMinted: formattedTotalMinted,
-          royaltyFee: formattedRoyaltyFee,
-          owner: owner as string,
-          metadata: metadata as unknown as CollectionMetadata,
-          mintingEnabled: mintingEnabled as boolean,
-          source: isExternal
-            ? isManualBasedContract
-              ? "based"
-              : "external"
-            : "based",
-        });
-        setError(null);
+        metadata = await fetchFromIPFS(contractURI as string);
       } catch (err) {
-        console.error("Error fetching collection:", err);
-        setError("Failed to fetch collection details");
-      } finally {
-        setLoading(false);
+        console.error(
+          `Failed to fetch metadata for collection ${collectionAddress}`,
+          err
+        );
       }
-    };
 
-    fetchCollection();
+      // Format values with type checking
+      const formattedMintPrice = mintPrice
+        ? formatEther(BigInt(mintPrice.toString()))
+        : "0";
+      const formattedMaxSupply = maxSupply ? Number(maxSupply) : 0;
+      const formattedTotalSupply = totalSupply ? Number(totalSupply) : 0;
+      // const formattedTotalMinted = totalMinted ? Number(totalMinted) : 0;
+
+      setCollection({
+        address: collectionAddress,
+        name: name as string,
+        symbol: symbol as string,
+        contractURI: contractURI as string,
+        mintPrice: formattedMintPrice,
+        maxSupply: formattedMaxSupply,
+        totalSupply: formattedTotalSupply,
+        // totalMinted: formattedTotalMinted,
+        royaltyFee: formattedRoyaltyFee,
+        owner: owner as string,
+        metadata: metadata as unknown as CollectionMetadata,
+        mintingEnabled: mintingEnabled as boolean,
+        source: isExternal
+          ? isManualBasedContract
+            ? "based"
+            : "external"
+          : "based",
+      });
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching collection:", err);
+      setError("Failed to fetch collection details");
+    } finally {
+      setLoading(false);
+    }
   }, [collectionAddress]);
+
+  useEffect(() => {
+    if (collection && !isERC1155Collection(collection)) {
+      fetchCollection();
+    }
+  }, [collection, fetchCollection]);
 
   return { collection, loading, error };
 }
@@ -598,108 +617,36 @@ export function useCollectionNFTs(collectionAddress: string) {
         transport: http(),
       });
 
-      // Get total supply/minted to determine the total number of tokens
-      const totalSupply =
-        (await readCollectionProperty(
-          collectionAddress,
-          "totalSupply",
-          false
-        )) ||
-        (await readCollectionProperty(collectionAddress, "totalMinted", false));
+      // Get total minted tokens - this is stored directly in the contract
+      const totalMinted = await publicClient.readContract({
+        address: collectionAddress as `0x${string}`,
+        abi: CollectionABI.abi,
+        functionName: "totalMinted",
+        args: [],
+      });
 
-      if (!totalSupply) {
-        console.log("No total supply found");
-        setLoading(false);
-        return;
-      }
+      // Since we know tokens are minted sequentially from 1 to totalMinted,
+      // we can directly create an array of token IDs
+      const tokenIds = Array.from(
+        { length: Number(totalMinted) },
+        (_, i) => i + 1
+      );
 
-      const totalTokens = Number(totalSupply);
-      console.log(`Total tokens in collection: ${totalTokens}`);
+      // Batch fetch token data in groups to avoid too many simultaneous requests
+      const BATCH_SIZE = 50;
+      const tokenDataBatches = [];
 
-      // Fetch all token IDs first
-      const tokenIds: number[] = [];
-
-      // Try using tokenByIndex (ERC721Enumerable) first
-      let useTokenByIndex = true;
-      try {
-        // Test if tokenByIndex is supported
-        await publicClient.readContract({
-          address: collectionAddress as `0x${string}`,
-          abi: CollectionABI.abi,
-          functionName: "tokenByIndex",
-          args: [BigInt(0)],
-        });
-      } catch (err) {
-        console.log(
-          "tokenByIndex not supported, will try direct token ID access"
+      for (let i = 0; i < tokenIds.length; i += BATCH_SIZE) {
+        const batch = tokenIds.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map((tokenId) =>
+          fetchBasicTokenData(collectionAddress, tokenId, publicClient)
         );
-        useTokenByIndex = false;
+        const batchData = await Promise.all(batchPromises);
+        tokenDataBatches.push(...batchData);
       }
 
-      // Get all token IDs
-      const tokenIdPromises: Promise<number | null>[] = [];
-
-      if (useTokenByIndex) {
-        // Use tokenByIndex for ERC721Enumerable collections
-        for (let i = 0; i < totalTokens; i++) {
-          tokenIdPromises.push(
-            (async (index) => {
-              try {
-                const tokenId = await publicClient.readContract({
-                  address: collectionAddress as `0x${string}`,
-                  abi: CollectionABI.abi,
-                  functionName: "tokenByIndex",
-                  args: [BigInt(index)],
-                });
-                return Number(tokenId);
-              } catch (err) {
-                console.error(`Error fetching token at index ${index}:`, err);
-                return null;
-              }
-            })(i)
-          );
-        }
-      } else {
-        // Try sequential token IDs (0 to totalSupply-1)
-        for (let i = 0; i < totalTokens; i++) {
-          tokenIdPromises.push(
-            (async (tokenId) => {
-              try {
-                // Check if token exists by trying to get its owner
-                await publicClient.readContract({
-                  address: collectionAddress as `0x${string}`,
-                  abi: CollectionABI.abi,
-                  functionName: "ownerOf",
-                  args: [BigInt(tokenId)],
-                });
-                return tokenId;
-              } catch (err) {
-                // Token doesn't exist, skip
-                return null;
-              }
-            })(i)
-          );
-        }
-      }
-
-      // Resolve all token ID promises
-      const resolvedTokenIds = (await Promise.all(tokenIdPromises)).filter(
-        (id) => id !== null
-      ) as number[];
-
-      console.log(`Found ${resolvedTokenIds.length} valid tokens`);
-
-      // Fetch basic token data (owner, tokenURI) for all tokens
-      const tokenDataPromises = resolvedTokenIds.map((tokenId) =>
-        fetchBasicTokenData(collectionAddress, tokenId, publicClient)
-      );
-
-      const tokensWithBasicData = (await Promise.all(tokenDataPromises)).filter(
-        Boolean
-      ) as NFTItem[];
-      console.log(
-        `Fetched basic data for ${tokensWithBasicData.length} tokens`
-      );
+      const tokensWithBasicData = tokenDataBatches.filter(Boolean) as NFTItem[];
+      console.log(`Fetched data for ${tokensWithBasicData.length} tokens`);
 
       // Update state with basic token data
       setNfts(tokensWithBasicData);

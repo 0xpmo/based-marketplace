@@ -5,8 +5,9 @@ export interface Collection {
   symbol: string;
   contractURI: string;
   mintPrice: string;
-  maxSupply: number;
-  totalMinted: number;
+  totalSupply: number;
+  maxSupply?: number;
+  // totalMinted: number;
   royaltyFee: number;
   owner: string;
   metadata?: CollectionMetadata;
@@ -94,6 +95,7 @@ export interface ERC1155Item {
     [key: string]: unknown;
   };
   supply: number;
+  maxSupply: number;
   balance: number;
   uri?: string;
   listing?: {
@@ -118,4 +120,14 @@ export interface ERC1155Collection extends Collection {
   maxMintPerTx?: {
     [key: number]: number;
   };
+}
+
+export interface CharacterInfo {
+  name: string;
+  characterId: number;
+  maxSupply: number[];
+  minted: number[];
+  burned: number[];
+  tokenId: number[];
+  enabled: boolean;
 }

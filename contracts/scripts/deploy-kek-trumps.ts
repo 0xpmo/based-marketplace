@@ -11,7 +11,7 @@ async function main() {
   console.log("Deploying KekTrumps NFT contract...");
 
   const FOLDER_HASH =
-    "bafybeiaavqhj3netmkmkiogeum3kbsrpyelbzpsrkxypyluo6es55fp7au";
+    "bafybeicblhkcuwnat2hvpufqgr2y5qcrdup47aig3pi2mlitarwgv4jpna";
 
   const baseURI = `ipfs://${FOLDER_HASH}/`;
   const contractURI = `ipfs://${FOLDER_HASH}/collection`;

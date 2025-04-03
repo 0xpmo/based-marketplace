@@ -32,7 +32,7 @@ export default function CollectionsPage() {
         // In a real app, you'd sort by creation date
         return 0;
       case "minted":
-        return b.totalMinted - a.totalMinted;
+        return b.totalSupply - a.totalSupply;
       case "az":
         return a.name.localeCompare(b.name);
       case "za":
