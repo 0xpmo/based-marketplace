@@ -66,6 +66,7 @@ export default function NFTDetailsPage() {
   const [usdPrice, setUsdPrice] = useState<string | null>(null);
   const [showBuyConfirmModal, setShowBuyConfirmModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const publicClient = usePublicClient();
 
   // Use the shared token price context
@@ -436,44 +437,15 @@ export default function NFTDetailsPage() {
       return;
     }
 
-    // Show confirmation modal for both token types
+    // Set the selected listing and show the modal
+    setSelectedListing(listingToUse);
     setShowBuyConfirmModal(true);
   };
 
-  // Update confirmBuyNFT to handle ERC1155 purchases
-  const confirmBuyNFT = async (selectedListing?: Listing) => {
-    if (!activeItem) {
+  // Update confirmBuyNFT to use the selected listing
+  const confirmBuyNFT = async () => {
+    if (!activeItem || !selectedListing) {
       toast.error("NFT data not loaded");
-      setShowBuyConfirmModal(false);
-      return;
-    }
-
-    // If no specific listing is selected, use the floor listing
-    const listingToUse =
-      selectedListing ||
-      (activeItem.listing?.active
-        ? {
-            id: `${collectionAddress}_${tokenId}_${activeItem.listing.seller}`,
-            nftContract: collectionAddress,
-            tokenId: tokenId.toString(),
-            seller: activeItem.listing.seller,
-            price: activeItem.listing.price,
-            quantity: isERC1155
-              ? (activeItem.listing as { quantity?: number })?.quantity || 1
-              : 1,
-            isPrivate: false,
-            allowedBuyer: null,
-            status: "Active" as const,
-            listingId: isERC1155
-              ? `${tokenId}_${activeItem.listing.seller}`
-              : tokenId.toString(),
-            isERC1155: isERC1155,
-            timestamp: Date.now(),
-          }
-        : null);
-
-    if (!listingToUse) {
-      toast.error("This NFT is not available for purchase");
       setShowBuyConfirmModal(false);
       return;
     }
@@ -489,8 +461,8 @@ export default function NFTDetailsPage() {
           buyNFT(
             collectionAddress,
             tokenId.toString(),
-            listingToUse.seller, // Pass seller address for ERC1155
-            listingToUse.price,
+            selectedListing.seller, // Pass seller address for ERC1155
+            selectedListing.price,
             quantity, // Use the selected quantity for ERC1155
             isERC1155
           ),
@@ -506,8 +478,8 @@ export default function NFTDetailsPage() {
           buyNFT(
             collectionAddress,
             tokenId.toString(),
-            listingToUse.seller,
-            listingToUse.price,
+            selectedListing.seller,
+            selectedListing.price,
             1,
             isERC1155
           ),
@@ -757,7 +729,6 @@ export default function NFTDetailsPage() {
     // Validate that it's a proper number
     if (value === "" || !isNaN(parseInt(value))) {
       setPrice(value);
-      console.log("setting id page blob price", value);
     }
   };
 
@@ -1019,33 +990,39 @@ export default function NFTDetailsPage() {
           </motion.div>
         </div>
 
-        {/* All Listings Table */}
-        <NFTListingsTable
-          listings={dbListings || []}
-          onBuyClick={(listing) => {
-            setShowBuyConfirmModal(true);
-            handleBuyNFT(listing);
-          }}
-          onCancelClick={handleCancelListing}
-          onCreateListing={() => setShowListModal(true)}
-          calculateUSDPrice={calculateUSDPrice}
-          userBalance={
-            isERC1155 ? (activeItem as ERC1155Item).balance : isOwned ? 1 : 0
-          }
-          isLoadingListings={isLoadingListings}
-        />
+        {/* All Listings Table - Only show for ERC1155 tokens */}
+        {isERC1155 && (
+          <NFTListingsTable
+            listings={dbListings || []}
+            onBuyClick={(listing) => {
+              setShowBuyConfirmModal(true);
+              handleBuyNFT(listing);
+            }}
+            onCancelClick={handleCancelListing}
+            onCreateListing={() => setShowListModal(true)}
+            calculateUSDPrice={calculateUSDPrice}
+            userBalance={
+              isERC1155 ? (activeItem as ERC1155Item).balance : isOwned ? 1 : 0
+            }
+            isLoadingListings={isLoadingListings}
+          />
+        )}
 
         {/* NFT Buy Confirmation Modal */}
-        {activeItem && (
+        {activeItem && selectedListing && (
           <NFTBuyConfirmModal
             nftItem={activeItem}
             imageUrl={imageUrl}
             showModal={showBuyConfirmModal}
-            onClose={() => setShowBuyConfirmModal(false)}
+            onClose={() => {
+              setShowBuyConfirmModal(false);
+              setSelectedListing(null);
+            }}
             onConfirmPurchase={confirmBuyNFT}
             calculateUSDPrice={calculateUSDPrice}
             quantity={quantity}
             onQuantityChange={handleQuantityChange}
+            selectedListing={selectedListing}
           />
         )}
 

@@ -175,12 +175,6 @@ export function useBasedCollections() {
   return { collections, loading, error, refreshCollections };
 }
 
-// Combined hook that fetches both based and external collections
-// export function useCollections() {
-//   // Copy implementation from existing useCollections
-//   // ...
-// }
-
 // Helper function to check if a contract implements ERC721 interface
 export async function isValidNFTCollection(collectionAddress: string) {
   try {
@@ -425,6 +419,7 @@ export function useCollection(collectionAddress: string) {
 
   const fetchCollection = useCallback(async () => {
     if (!collectionAddress) {
+      setCollection(null);
       setLoading(false);
       return;
     }
@@ -551,6 +546,8 @@ export function useCollection(collectionAddress: string) {
   useEffect(() => {
     if (collectionAddress && !isERC1155CollectionAddress(collectionAddress)) {
       fetchCollection();
+    } else {
+      setLoading(false);
     }
   }, [collectionAddress, fetchCollection]);
 

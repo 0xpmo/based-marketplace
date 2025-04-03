@@ -67,41 +67,57 @@ const NFTPriceActions = ({
   // Check if the current user is the seller of the floor listing
   const isFloorSeller = floorListing?.seller === userAddress;
 
+  // Determine if the NFT is listed for sale
+  const isListed = floorListing || (nftItem.listing?.active && !isERC1155);
+
+  // Get the active listing price and seller
+  const activeListing =
+    floorListing ||
+    (nftItem.listing?.active
+      ? {
+          price: ethers.parseEther(nftItem.listing.price).toString(),
+          seller: nftItem.listing.seller,
+          quantity: isERC1155
+            ? (nftItem.listing as { quantity?: number }).quantity || 1
+            : 1,
+        }
+      : null);
+
   return (
     <div className="border-t border-blue-800/30 pt-6 mt-6">
-      {floorListing ? (
+      {isListed && activeListing ? (
         <div className="mb-6">
           <div className="text-sm text-blue-400">Floor price</div>
           <div className="text-3xl font-bold text-white flex items-center">
-            <span className="mr-2">{formatPrice(floorListing.price)}</span>
+            <span className="mr-2">{formatPrice(activeListing.price)}</span>
             <span className="text-blue-300">𝔹</span>
           </div>
           {calculateUSDPrice && (
             <div className="text-sm text-blue-400 mt-1">
               ≈ $
               {formatNumberWithCommas(
-                calculateUSDPrice(ethers.formatEther(floorListing.price)) || ""
+                calculateUSDPrice(ethers.formatEther(activeListing.price)) || ""
               )}{" "}
               USD
             </div>
           )}
-          {isERC1155 && floorListing.quantity && (
+          {isERC1155 && activeListing.quantity && (
             <div className="text-sm text-blue-300 mt-2 border-t border-blue-800/30 pt-2">
               <div className="flex justify-between items-center">
                 <span>Available for purchase:</span>
                 <span className="font-medium">
-                  {floorListing.quantity} tokens
+                  {activeListing.quantity} tokens
                 </span>
               </div>
               <div className="flex justify-between items-center mt-1">
                 <span>Price per token:</span>
                 <span className="font-medium">
-                  𝔹 {formatPrice(floorListing.price)}
+                  𝔹 {formatPrice(activeListing.price)}
                 </span>
               </div>
             </div>
           )}
-          {isFloorSeller ? (
+          {activeListing.seller === userAddress ? (
             <div className="mt-4">
               <PepeButton
                 variant="primary"

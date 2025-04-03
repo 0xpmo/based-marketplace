@@ -899,7 +899,10 @@ export function useERC1155Collection(collectionAddress: string) {
 
   useEffect(() => {
     if (collectionAddress && isERC1155CollectionAddress(collectionAddress)) {
+      console.log("fetching collection blobber");
       fetchCollection();
+    } else {
+      setLoading(false);
     }
   }, [collectionAddress, fetchCollection]);
 

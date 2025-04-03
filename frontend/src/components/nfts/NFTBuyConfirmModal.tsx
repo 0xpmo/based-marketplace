@@ -1,13 +1,12 @@
 // components/nfts/NFTBuyConfirmModal.tsx
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
 import { NFTItem, ERC1155Item } from "@/types/contracts";
 import { isERC1155Item } from "@/utils/nftTypeUtils";
 import PepeButton from "@/components/ui/PepeButton";
 import { formatNumberWithCommas } from "@/utils/formatting";
-import { useTokenListings } from "@/hooks/useListings";
 import { Listing } from "@/types/listings";
+import { ethers } from "ethers";
 
 // Define rarity names for display
 const RARITY_NAMES = ["Bronze", "Silver", "Gold", "Green"];
@@ -21,6 +20,7 @@ interface NFTBuyConfirmModalProps {
   calculateUSDPrice: (price: string) => string | null;
   quantity?: number;
   onQuantityChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  selectedListing: Listing;
 }
 
 const NFTBuyConfirmModal = ({
@@ -32,27 +32,10 @@ const NFTBuyConfirmModal = ({
   calculateUSDPrice,
   quantity = 1,
   onQuantityChange,
+  selectedListing,
 }: NFTBuyConfirmModalProps) => {
-  // Get all active listings for this token
-  const { listings } = useTokenListings(nftItem.collection, nftItem.tokenId);
-
-  // Sort listings by price (lowest first)
-  const sortedListings = [...(listings || [])].sort((a, b) => {
-    const priceA = BigInt(a.price);
-    const priceB = BigInt(b.price);
-    return priceA < priceB ? -1 : 1;
-  });
-
-  // Get the floor listing (lowest price)
-  const floorListing = sortedListings[0];
-
-  // State for selected listing
-  const [selectedListing, setSelectedListing] = useState<Listing | undefined>(
-    floorListing
-  );
-
   // Only render if there's a valid item with an active listing
-  if (!floorListing) return null;
+  if (!selectedListing) return null;
 
   // Determine if the item is an ERC1155 token
   const isERC1155 = isERC1155Item(nftItem);
@@ -65,7 +48,7 @@ const NFTBuyConfirmModal = ({
 
   // Local state for incrementing/decrementing quantity
   const incrementQuantity = () => {
-    if (isERC1155 && onQuantityChange && selectedListing) {
+    if (isERC1155 && onQuantityChange) {
       // Safe check for maxQty
       const maxQty = selectedListing.quantity || 1;
       if (quantity < maxQty) {
@@ -84,15 +67,20 @@ const NFTBuyConfirmModal = ({
     }
   };
 
-  // Calculate total price based on quantity
-  const getTotalPrice = () => {
-    if (!selectedListing) return "0";
+  // // Calculate total price based on quantity
+  // const getTotalPrice = () => {
+  //   // The listing.price is already the price per token
+  //   const pricePerToken = parseInt(selectedListing.price);
 
-    // The listing.price is already the price per token
-    const pricePerToken = parseInt(selectedListing.price);
+  //   // Calculate total price based on selected quantity
+  //   return (pricePerToken * quantity).toString();
+  // };
+  const getTotalPrice = () => {
+    // Convert the price from wei to ETH
+    const pricePerToken = ethers.formatEther(selectedListing.price);
 
     // Calculate total price based on selected quantity
-    return (pricePerToken * quantity).toString();
+    return (parseInt(pricePerToken) * quantity).toString();
   };
 
   return (
@@ -159,49 +147,8 @@ const NFTBuyConfirmModal = ({
                 </div>
               </div>
 
-              {/* Listing selector for ERC1155 */}
-              {isERC1155 && sortedListings.length > 1 && (
-                <div className="mb-4 p-4 bg-blue-950/70 rounded-lg border border-blue-800/50">
-                  <label className="block text-sm font-medium mb-2 text-blue-300">
-                    Select Listing
-                  </label>
-                  <div className="space-y-2">
-                    {sortedListings.map((listing) => (
-                      <button
-                        key={`${listing.seller}-${listing.price}`}
-                        onClick={() => setSelectedListing(listing)}
-                        className={`w-full text-left p-3 rounded-lg border transition-all ${
-                          selectedListing === listing
-                            ? "bg-blue-800/40 border-blue-500"
-                            : "bg-blue-900/30 border-blue-800/30 hover:border-blue-700"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-blue-300 text-sm">Seller</div>
-                            <div className="text-blue-100 font-medium">
-                              {listing.seller.slice(0, 6)}...
-                              {listing.seller.slice(-4)}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-blue-300 text-sm">Price</div>
-                            <div className="text-blue-100 font-bold">
-                              𝔹 {formatNumberWithCommas(listing.price)}
-                            </div>
-                            <div className="text-blue-300 text-xs">
-                              Available: {listing.quantity}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Quantity selector for ERC1155 */}
-              {isERC1155 && onQuantityChange && selectedListing && (
+              {isERC1155 && onQuantityChange && (
                 <div className="mb-4 p-4 bg-blue-950/70 rounded-lg border border-blue-800/50">
                   <label
                     htmlFor="buy-quantity"
@@ -286,7 +233,7 @@ const NFTBuyConfirmModal = ({
                   </div>
                 )}
 
-                {isERC1155 && quantity > 1 && selectedListing && (
+                {isERC1155 && quantity > 1 && (
                   <div className="text-blue-300 text-xs mt-2 border-t border-blue-800 pt-2">
                     <div className="flex justify-between">
                       <span>Price per token:</span>
