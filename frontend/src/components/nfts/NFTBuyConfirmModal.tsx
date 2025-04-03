@@ -67,20 +67,15 @@ const NFTBuyConfirmModal = ({
     }
   };
 
-  // // Calculate total price based on quantity
-  // const getTotalPrice = () => {
-  //   // The listing.price is already the price per token
-  //   const pricePerToken = parseInt(selectedListing.price);
-
-  //   // Calculate total price based on selected quantity
-  //   return (pricePerToken * quantity).toString();
-  // };
+  // Calculate total price based on quantity
   const getTotalPrice = () => {
+    if (!selectedListing?.price) return "0";
+
     // Convert the price from wei to ETH
     const pricePerToken = ethers.formatEther(selectedListing.price);
 
     // Calculate total price based on selected quantity
-    return (parseInt(pricePerToken) * quantity).toString();
+    return (parseFloat(pricePerToken) * quantity).toString();
   };
 
   return (
@@ -148,72 +143,74 @@ const NFTBuyConfirmModal = ({
               </div>
 
               {/* Quantity selector for ERC1155 */}
-              {isERC1155 && onQuantityChange && (
-                <div className="mb-4 p-4 bg-blue-950/70 rounded-lg border border-blue-800/50">
-                  <label
-                    htmlFor="buy-quantity"
-                    className="block text-sm font-medium mb-2 text-blue-300"
-                  >
-                    Quantity to Buy
-                  </label>
-                  <div className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={decrementQuantity}
-                      disabled={quantity <= 1}
-                      className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-l-lg p-2 disabled:opacity-50"
+              {isERC1155 &&
+                onQuantityChange &&
+                selectedListing.quantity > 1 && (
+                  <div className="mb-4 p-4 bg-blue-950/70 rounded-lg border border-blue-800/50">
+                    <label
+                      htmlFor="buy-quantity"
+                      className="block text-sm font-medium mb-2 text-blue-300"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                      Quantity to Buy
+                    </label>
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={decrementQuantity}
+                        disabled={quantity <= 1}
+                        className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-l-lg p-2 disabled:opacity-50"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 12H4"
-                        />
-                      </svg>
-                    </button>
-                    <input
-                      type="number"
-                      id="buy-quantity"
-                      value={quantity}
-                      onChange={onQuantityChange}
-                      min="1"
-                      max={selectedListing.quantity || 1}
-                      className="w-16 py-2 text-center bg-blue-950/80 border-y border-blue-700/50 text-blue-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={incrementQuantity}
-                      disabled={quantity >= (selectedListing.quantity || 1)}
-                      className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-r-lg p-2 disabled:opacity-50"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 12H4"
+                          />
+                        </svg>
+                      </button>
+                      <input
+                        type="text"
+                        id="buy-quantity"
+                        value={quantity}
+                        onChange={onQuantityChange}
+                        min="1"
+                        max={selectedListing.quantity || 1}
+                        className="w-16 py-2 text-center bg-blue-950/80 border-y border-blue-700/50 text-blue-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={incrementQuantity}
+                        disabled={quantity >= (selectedListing.quantity || 1)}
+                        className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-r-lg p-2 disabled:opacity-50"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                    </button>
-                    <div className="ml-3 text-sm text-blue-300">
-                      Available: {selectedListing.quantity || 1}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                      </button>
+                      <div className="ml-3 text-sm text-blue-300">
+                        Available: {selectedListing.quantity || 1}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div className="bg-blue-950/70 rounded-lg p-4 border border-blue-800/50 mb-4">
                 <div className="text-blue-300 text-sm mb-1">
@@ -238,7 +235,10 @@ const NFTBuyConfirmModal = ({
                     <div className="flex justify-between">
                       <span>Price per token:</span>
                       <span>
-                        𝔹 {formatNumberWithCommas(selectedListing.price)}
+                        𝔹{" "}
+                        {formatNumberWithCommas(
+                          ethers.formatEther(selectedListing.price)
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between mt-1">

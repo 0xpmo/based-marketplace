@@ -63,14 +63,6 @@ export interface NFTMetadata {
   }[];
 }
 
-export interface Listing {
-  seller: string;
-  nftContract: string;
-  tokenId: number;
-  price: string;
-  active: boolean;
-}
-
 // New types for ERC1155
 export enum KekTrumpsRarity {
   Bronze = 0,

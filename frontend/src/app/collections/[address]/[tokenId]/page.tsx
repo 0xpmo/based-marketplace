@@ -1,47 +1,44 @@
 // pages/collections/[address]/[tokenId].tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { useAccount, usePublicClient } from "wagmi";
-import { NFTItem, ERC1155Item } from "@/types/contracts";
-import { Listing } from "@/types/listings";
-import { useCollection } from "@/hooks/useERC721Contracts";
+import { useTokenPrice } from "@/contexts/TokenPriceContext";
 import {
   useERC1155Collection,
   useERC1155Token,
 } from "@/hooks/useERC1155Contracts";
+import { useCollection } from "@/hooks/useERC721Contracts";
+import { useTokenListings } from "@/hooks/useListings";
 import {
   useBuyNFT,
-  useListNFT,
   useCancelERC1155Listing,
+  useListNFT,
 } from "@/hooks/useMarketplace";
-import { useTokenListings } from "@/hooks/useListings";
-import { getIPFSGatewayURL } from "@/services/ipfs";
-import { fetchFromIPFS } from "@/services/ipfs";
-import { motion } from "framer-motion";
-import toast from "react-hot-toast";
-import { MARKETPLACE_ADDRESS } from "@/constants/addresses";
 import { getMarketplaceContract } from "@/lib/contracts";
-import confetti from "canvas-confetti";
-import { useTokenPrice } from "@/contexts/TokenPriceContext";
-import { formatNumberWithCommas } from "@/utils/formatting";
+import { fetchFromIPFS, getIPFSGatewayURL } from "@/services/ipfs";
+import { ERC1155Item, NFTItem } from "@/types/contracts";
+import { Listing } from "@/types/listings";
 import { isERC1155Collection } from "@/utils/collectionTypeDetector";
-import { isERC1155Item, isOwnedByUser } from "@/utils/nftTypeUtils";
-import { ethers } from "ethers";
 import { useDeepCompareEffect } from "@/utils/deepComparison";
+import { isOwnedByUser } from "@/utils/nftTypeUtils";
+import confetti from "canvas-confetti";
+import { ethers } from "ethers";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { useAccount, usePublicClient } from "wagmi";
 
 // Import our component parts
-import NFTImageDisplay from "@/components/nfts/NFTImageDisplay";
-import NFTPropertiesSection from "@/components/nfts/NFTPropertiesSection";
-import NFTInfoHeader from "@/components/nfts/NFTInfoHeader";
-import NFTPriceActions from "@/components/nfts/NFTPriceActions";
-import NFTDetailsPanel from "@/components/nfts/NFTDetailsPanel";
 import NFTBuyConfirmModal from "@/components/nfts/NFTBuyConfirmModal";
-import PepeButton from "@/components/ui/PepeButton";
+import NFTDetailsPanel from "@/components/nfts/NFTDetailsPanel";
+import NFTImageDisplay from "@/components/nfts/NFTImageDisplay";
+import NFTInfoHeader from "@/components/nfts/NFTInfoHeader";
 import NFTListModal from "@/components/nfts/NFTListModal";
 import NFTListingsTable from "@/components/nfts/NFTListingsTable";
+import NFTPriceActions from "@/components/nfts/NFTPriceActions";
+import NFTPropertiesSection from "@/components/nfts/NFTPropertiesSection";
+import PepeButton from "@/components/ui/PepeButton";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -408,6 +405,9 @@ export default function NFTDetailsPage() {
       return;
     }
 
+    console.log("Active item listing blobber:", activeItem.listing);
+    console.log("seelcted listin blobber", selectedListing);
+
     // If no specific listing is selected, use the floor listing
     const listingToUse =
       selectedListing ||
@@ -417,7 +417,10 @@ export default function NFTDetailsPage() {
             nftContract: collectionAddress,
             tokenId: tokenId.toString(),
             seller: activeItem.listing.seller,
-            price: activeItem.listing.price,
+            // Convert the price to Wei format if it's not already
+            price: activeItem.listing.price.startsWith("0x")
+              ? activeItem.listing.price // Already in Wei
+              : ethers.parseEther(activeItem.listing.price).toString(), // Convert ETH to Wei
             quantity: isERC1155
               ? (activeItem.listing as { quantity?: number })?.quantity || 1
               : 1,
@@ -436,6 +439,11 @@ export default function NFTDetailsPage() {
       toast.error("This NFT is not available for purchase");
       return;
     }
+
+    console.log("Listing to use blobber:", listingToUse);
+
+    // Reset quantity to 1 when opening modal
+    setQuantity(1);
 
     // Set the selected listing and show the modal
     setSelectedListing(listingToUse);
@@ -732,20 +740,33 @@ export default function NFTDetailsPage() {
     }
   };
 
-  // Handle quantity change for ERC1155 with proper validation
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      // For ERC1155, we should limit the quantity to the user's balance
-      if (isERC1155 && erc1155Token) {
-        const maxQuantity = isOwned
-          ? erc1155Token.balance // If selling, limit to user's balance
-          : erc1155Token.listing?.quantity || 1; // If buying, limit to listing quantity
+  // Helper function to validate buy quantity
+  const validateBuyQuantity = (value: number, listing: Listing) => {
+    if (isNaN(value) || value < 1) return 1;
+    return Math.min(value, listing.quantity || 1);
+  };
 
-        setQuantity(Math.min(value, maxQuantity));
-      } else {
-        setQuantity(value);
-      }
+  // Helper function to validate list quantity
+  const validateListQuantity = (value: number, balance: number) => {
+    if (isNaN(value) || value < 1) return 1;
+    return Math.min(value, balance);
+  };
+
+  // Handle quantity change for listing
+  const handleListQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (isERC1155 && erc1155Token) {
+      setQuantity(validateListQuantity(value, erc1155Token.balance));
+    } else {
+      setQuantity(1); // For ERC721, always 1
+    }
+  };
+
+  // Handle quantity change for buying
+  const handleBuyQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (selectedListing) {
+      setQuantity(validateBuyQuantity(value, selectedListing));
     }
   };
 
@@ -967,7 +988,10 @@ export default function NFTDetailsPage() {
                   isBuying={isBuying}
                   showPurchaseSuccess={showPurchaseSuccess}
                   handleCancelListing={handleCancelListing}
-                  handleBuyNFT={handleBuyNFT}
+                  handleBuyNFT={(buyingListing) => {
+                    setShowBuyConfirmModal(true);
+                    handleBuyNFT(buyingListing);
+                  }}
                   cancelTxHash={cancelTxHash}
                   buyingTxHash={buyingTxHash}
                   showMarketPrompt={showMarketPrompt}
@@ -1021,7 +1045,7 @@ export default function NFTDetailsPage() {
             onConfirmPurchase={confirmBuyNFT}
             calculateUSDPrice={calculateUSDPrice}
             quantity={quantity}
-            onQuantityChange={handleQuantityChange}
+            onQuantityChange={handleBuyQuantityChange}
             selectedListing={selectedListing}
           />
         )}
@@ -1037,7 +1061,7 @@ export default function NFTDetailsPage() {
             price={price}
             onPriceChange={handlePriceChange}
             quantity={quantity}
-            onQuantityChange={handleQuantityChange}
+            onQuantityChange={handleListQuantityChange}
             approvalStep={approvalStep}
             approvalTxHash={approvalTxHash}
             isListing={isListing}

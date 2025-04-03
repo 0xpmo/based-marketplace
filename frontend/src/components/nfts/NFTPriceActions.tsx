@@ -1,6 +1,7 @@
 // components/nfts/NFTPriceActions.tsx
 import { motion, AnimatePresence } from "framer-motion";
 import { NFTItem, ERC1155Item } from "@/types/contracts";
+import { Listing } from "@/types/listings";
 import { isERC1155Item } from "@/utils/nftTypeUtils";
 import PepeButton from "@/components/ui/PepeButton";
 import { formatNumberWithCommas } from "@/utils/formatting";
@@ -19,7 +20,7 @@ interface NFTPriceActionsProps {
   isBuying: boolean;
   showPurchaseSuccess: boolean;
   handleCancelListing: () => void;
-  handleBuyNFT: () => void;
+  handleBuyNFT: (activeListing: Listing) => void;
   cancelTxHash: string | null;
   buyingTxHash: string | null;
   showMarketPrompt: boolean;
@@ -151,7 +152,7 @@ const NFTPriceActions = ({
               <PepeButton
                 variant="primary"
                 className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                onClick={handleBuyNFT}
+                onClick={() => handleBuyNFT(activeListing)}
                 disabled={isBuying}
               >
                 {isBuying ? "Processing..." : "Buy Now"}
