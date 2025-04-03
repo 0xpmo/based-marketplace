@@ -4,6 +4,13 @@ import { NFTItem, ERC1155Item } from "@/types/contracts";
 import { isERC1155Item } from "@/utils/nftTypeUtils";
 import PepeButton from "@/components/ui/PepeButton";
 import { formatNumberWithCommas } from "@/utils/formatting";
+import { useAccount } from "wagmi";
+import { useTokenListings } from "@/hooks/useListings";
+import { ethers } from "ethers";
+
+const formatPrice = (priceInWei: string) => {
+  return formatNumberWithCommas(ethers.formatEther(priceInWei));
+};
 
 interface NFTPriceActionsProps {
   nftItem: NFTItem | ERC1155Item;
@@ -38,48 +45,63 @@ const NFTPriceActions = ({
   txHash,
   calculateUSDPrice,
 }: NFTPriceActionsProps) => {
-  // Determine if the item is an ERC1155 token
+  const { address: userAddress } = useAccount();
   const isERC1155 = isERC1155Item(nftItem);
+
+  // Get all active listings for this token
+  const { listings, isLoading: loadingListings } = useTokenListings(
+    nftItem.collection,
+    nftItem.tokenId
+  );
+
+  // Sort listings by price (lowest first)
+  const sortedListings = [...(listings || [])].sort((a, b) => {
+    const priceA = BigInt(a.price);
+    const priceB = BigInt(b.price);
+    return priceA < priceB ? -1 : 1;
+  });
+
+  // Get the floor listing (lowest price)
+  const floorListing = sortedListings[0];
+
+  // Check if the current user is the seller of the floor listing
+  const isFloorSeller = floorListing?.seller === userAddress;
 
   return (
     <div className="border-t border-blue-800/30 pt-6 mt-6">
-      {nftItem?.listing && nftItem.listing.active ? (
+      {floorListing ? (
         <div className="mb-6">
-          <div className="text-sm text-blue-400">Current price</div>
+          <div className="text-sm text-blue-400">Floor price</div>
           <div className="text-3xl font-bold text-white flex items-center">
-            <span className="mr-2">
-              {formatNumberWithCommas(
-                parseInt(nftItem.listing.price).toString()
-              )}
-            </span>
+            <span className="mr-2">{formatPrice(floorListing.price)}</span>
             <span className="text-blue-300">𝔹</span>
           </div>
           {calculateUSDPrice && (
             <div className="text-sm text-blue-400 mt-1">
               ≈ $
               {formatNumberWithCommas(
-                calculateUSDPrice(nftItem.listing.price) || ""
+                calculateUSDPrice(ethers.formatEther(floorListing.price)) || ""
               )}{" "}
               USD
             </div>
           )}
-          {isERC1155 && nftItem.listing.quantity && (
+          {isERC1155 && floorListing.quantity && (
             <div className="text-sm text-blue-300 mt-2 border-t border-blue-800/30 pt-2">
               <div className="flex justify-between items-center">
                 <span>Available for purchase:</span>
                 <span className="font-medium">
-                  {nftItem.listing.quantity} tokens
+                  {floorListing.quantity} tokens
                 </span>
               </div>
               <div className="flex justify-between items-center mt-1">
                 <span>Price per token:</span>
                 <span className="font-medium">
-                  𝔹 {formatNumberWithCommas(nftItem.listing.price)}
+                  𝔹 {formatPrice(floorListing.price)}
                 </span>
               </div>
             </div>
           )}
-          {isOwned ? (
+          {isFloorSeller ? (
             <div className="mt-4">
               <PepeButton
                 variant="primary"
@@ -251,7 +273,74 @@ const NFTPriceActions = ({
         </div>
       )}
 
-      {isOwned && !nftItem?.listing?.active && showMarketPrompt && (
+      {/* Show all active listings for ERC1155 tokens */}
+      {isERC1155 && sortedListings.length > 1 && (
+        <div className="mt-6 border-t border-blue-800/30 pt-6">
+          <h3 className="text-lg font-semibold text-blue-100 mb-4">
+            All Active Listings
+          </h3>
+          <div className="space-y-4">
+            {sortedListings.map((listing, index) => (
+              <div
+                key={`${listing.seller}-${listing.price}`}
+                className="bg-blue-900/30 border border-blue-800/30 rounded-lg p-4"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="text-blue-300 text-sm">Seller</div>
+                    <div className="text-blue-100 font-medium">
+                      {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-blue-300 text-sm">Price</div>
+                    <div className="text-blue-100 font-bold">
+                      𝔹 {formatPrice(listing.price)}
+                    </div>
+                    {calculateUSDPrice && (
+                      <div className="text-xs text-blue-400">
+                        ≈ $
+                        {formatNumberWithCommas(
+                          calculateUSDPrice(
+                            ethers.formatEther(listing.price)
+                          ) || ""
+                        )}{" "}
+                        USD
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <div className="text-blue-300 text-sm">
+                    Available: {listing.quantity} tokens
+                  </div>
+                  {listing.seller === userAddress ? (
+                    <PepeButton
+                      variant="outline"
+                      onClick={handleCancelListing}
+                      disabled={isCancelling}
+                      className="text-sm px-3 py-1"
+                    >
+                      {isCancelling ? "Cancelling..." : "Cancel"}
+                    </PepeButton>
+                  ) : (
+                    <PepeButton
+                      variant="outline"
+                      onClick={handleBuyNFT}
+                      disabled={isBuying}
+                      className="text-sm px-3 py-1"
+                    >
+                      {isBuying ? "Processing..." : "Buy"}
+                    </PepeButton>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isOwned && !floorListing && showMarketPrompt && (
         <motion.div
           className="mb-6 bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-blue-900/40 p-4 rounded-lg border border-purple-500/30 shadow-lg overflow-hidden relative"
           initial={{ opacity: 0, y: 10 }}

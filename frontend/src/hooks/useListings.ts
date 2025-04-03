@@ -8,6 +8,7 @@ import {
   Listing,
 } from "@/lib/db";
 import { useAccount } from "wagmi";
+import { useDeepCompareEffect } from "@/utils/deepComparison";
 
 /**
  * Hook to fetch all active listings for a specific token
@@ -30,6 +31,9 @@ export function useTokenListings(
     setError(null);
 
     try {
+      console.log(
+        "fetching listings from useTokenListings in UseListings file"
+      );
       const tokenIdStr =
         typeof tokenId === "number" ? tokenId.toString() : tokenId;
       const result = await getActiveListingsForToken(nftContract, tokenIdStr);
@@ -47,7 +51,8 @@ export function useTokenListings(
     }
   }, [nftContract, tokenId]);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
+    console.log("fetch listings changed");
     fetchListings();
   }, [fetchListings]);
 

@@ -21,7 +21,6 @@ import {
   createListing,
   updateListingStatus,
   generateERC1155ListingId,
-  getActiveListingsForToken,
   getListing,
   updateListingQuantityAndPrice,
   Listing,
@@ -198,7 +197,7 @@ export function useListNFT() {
         tokenId: tokenId.toString(),
         seller: onChainListing.seller,
         price: onChainListing.price.toString(),
-        quantity: onChainListing.quantity,
+        quantity: onChainListing.quantity.toString(),
         isPrivate: onChainListing.isPrivate,
         allowedBuyer: onChainListing.allowedBuyer,
         status: "Active",
@@ -208,6 +207,8 @@ export function useListNFT() {
         isERC1155: isERC1155,
         timestamp: Date.now(),
       };
+
+      console.log("listing data", listingData);
 
       const dbSuccess = await createListing(listingData);
 

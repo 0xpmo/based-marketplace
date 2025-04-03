@@ -7,6 +7,8 @@ export async function POST(request: Request) {
     // Parse the request body
     const listing = (await request.json()) as Listing;
 
+    console.log("trying to create listing", listing);
+
     // Validate the listing data
     if (
       !listing.nftContract ||
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
 
     // Create the listing
     const success = await createListing(listing);
+    console.log("suces", success);
 
     // Return the result
     if (success) {

@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAccount, usePublicClient } from "wagmi";
 import { NFTItem, ERC1155Item } from "@/types/contracts";
+import { Listing } from "@/types/listings";
 import { useCollection } from "@/hooks/useERC721Contracts";
 import {
   useERC1155Collection,
@@ -407,6 +408,7 @@ export default function NFTDetailsPage() {
       // Refresh both NFT data and listings
       fetchNFTData();
       refetchListings();
+      console.log("refetching listings from deep compare but why");
 
       // Reset transaction hashes
       if (isListingSuccess) setTxHash(null);
@@ -429,7 +431,6 @@ export default function NFTDetailsPage() {
     isCancelling,
     cancelTxHash,
     fetchNFTData,
-    refetchListings,
   ]);
 
   // Handle refresh button click
@@ -440,13 +441,42 @@ export default function NFTDetailsPage() {
   };
 
   // Handle buying NFT
-  const handleBuyNFT = async () => {
+  const handleBuyNFT = async (selectedListing?: Listing) => {
     if (!isConnected) {
       toast.error("Please connect your wallet first");
       return;
     }
 
-    if (!activeItem || !activeItem.listing || !activeItem.listing.active) {
+    if (!activeItem) {
+      toast.error("NFT data not loaded");
+      return;
+    }
+
+    // If no specific listing is selected, use the floor listing
+    const listingToUse =
+      selectedListing ||
+      (activeItem.listing?.active
+        ? {
+            id: `${collectionAddress}_${tokenId}_${activeItem.listing.seller}`,
+            nftContract: collectionAddress,
+            tokenId: tokenId.toString(),
+            seller: activeItem.listing.seller,
+            price: activeItem.listing.price,
+            quantity: isERC1155
+              ? (activeItem.listing as { quantity?: number })?.quantity || 1
+              : 1,
+            isPrivate: false,
+            allowedBuyer: null,
+            status: "Active" as const,
+            listingId: isERC1155
+              ? `${tokenId}_${activeItem.listing.seller}`
+              : tokenId.toString(),
+            isERC1155: isERC1155,
+            timestamp: Date.now(),
+          }
+        : null);
+
+    if (!listingToUse) {
       toast.error("This NFT is not available for purchase");
       return;
     }
@@ -456,8 +486,38 @@ export default function NFTDetailsPage() {
   };
 
   // Update confirmBuyNFT to handle ERC1155 purchases
-  const confirmBuyNFT = async () => {
-    if (!activeItem || !activeItem.listing || !activeItem.listing.active) {
+  const confirmBuyNFT = async (selectedListing?: Listing) => {
+    if (!activeItem) {
+      toast.error("NFT data not loaded");
+      setShowBuyConfirmModal(false);
+      return;
+    }
+
+    // If no specific listing is selected, use the floor listing
+    const listingToUse =
+      selectedListing ||
+      (activeItem.listing?.active
+        ? {
+            id: `${collectionAddress}_${tokenId}_${activeItem.listing.seller}`,
+            nftContract: collectionAddress,
+            tokenId: tokenId.toString(),
+            seller: activeItem.listing.seller,
+            price: activeItem.listing.price,
+            quantity: isERC1155
+              ? (activeItem.listing as { quantity?: number })?.quantity || 1
+              : 1,
+            isPrivate: false,
+            allowedBuyer: null,
+            status: "Active" as const,
+            listingId: isERC1155
+              ? `${tokenId}_${activeItem.listing.seller}`
+              : tokenId.toString(),
+            isERC1155: isERC1155,
+            timestamp: Date.now(),
+          }
+        : null);
+
+    if (!listingToUse) {
       toast.error("This NFT is not available for purchase");
       setShowBuyConfirmModal(false);
       return;
@@ -474,8 +534,8 @@ export default function NFTDetailsPage() {
           buyNFT(
             collectionAddress,
             tokenId.toString(),
-            activeItem.listing.seller, // Pass seller address for ERC1155
-            activeItem.listing.price,
+            listingToUse.seller, // Pass seller address for ERC1155
+            listingToUse.price,
             quantity, // Use the selected quantity for ERC1155
             isERC1155
           ),
@@ -491,8 +551,8 @@ export default function NFTDetailsPage() {
           buyNFT(
             collectionAddress,
             tokenId.toString(),
-            activeItem.listing.seller,
-            activeItem.listing.price,
+            listingToUse.seller,
+            listingToUse.price,
             1,
             isERC1155
           ),
