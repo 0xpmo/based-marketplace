@@ -283,7 +283,10 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Left column - Collection Image */}
               <div>
-                <div className="relative rounded-xl overflow-hidden aspect-square mb-4 border-2 border-blue-800/50">
+                <div
+                  className="relative rounded-xl overflow-hidden aspect-square mb-4 border-2 border-blue-800/50"
+                  style={{ height: "400px", width: "100%" }}
+                >
                   {imageLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-blue-950">
                       <div className="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -294,6 +297,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                     alt={collection.name}
                     fill
                     className="object-cover"
+                    style={{ height: "400px", width: "100%" }}
                     onLoad={() => setImageLoading(false)}
                     onError={() => {
                       setImageUrl("/images/placeholder-nft.svg");
@@ -326,7 +330,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
 
                       <div className="text-blue-400">Royalty</div>
                       <div className="text-blue-200">
-                        {(collection.royaltyFee / 100).toFixed(2)}%
+                        {collection.royaltyFee.toFixed(2)}%
                       </div>
                     </div>
                   </div>

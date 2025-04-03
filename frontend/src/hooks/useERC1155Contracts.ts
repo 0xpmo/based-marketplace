@@ -636,6 +636,8 @@ export function useERC1155Token(collectionAddress: string, tokenId: number) {
         args: [tokenId],
       });
 
+      console.log("fish  supply", supply);
+
       // Get user's balance if connected
       let balance = 0;
       if (address) {

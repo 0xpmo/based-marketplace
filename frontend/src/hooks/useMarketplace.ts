@@ -52,6 +52,9 @@ export function useListNFT() {
     setApprovalStep(false);
     setApprovalTxHash(null);
 
+    console.log("listing item with price", price);
+    console.log("quantitty", quantity);
+
     try {
       if (!userAddress || !walletClient || !publicClient) {
         throw new Error("Wallet not connected");
@@ -189,6 +192,8 @@ export function useListNFT() {
           ? generateERC1155ListingId(tokenId.toString(), userAddress)
           : tokenId
       );
+
+      console.log("on chain price whale", onChainListing.price.toString());
 
       // Create a listing record in our database with the on-chain data
       const listingData: Listing = {

@@ -209,33 +209,13 @@ contract BasedSeaMarketplaceStorage is
     }
 
     /**
-     * @dev Update the price of a listing
-     * @param nftContract Address of the NFT contract
-     * @param tokenId ID of the token
-     * @param price New listing price
-     */
-    function updateListingPrice(
-        address nftContract,
-        uint256 tokenId,
-        uint256 price
-    ) external onlyOwner {
-        listings[nftContract][tokenId].price = price;
-        emit ListingUpdated(
-            nftContract,
-            tokenId,
-            price,
-            listings[nftContract][tokenId].quantity
-        );
-    }
-
-    /**
      * @dev Update the quantity and price of a listing
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token
      * @param quantity New quantity
-     * @param price New total price
+     * @param price New price per token
      */
-    function updateListingQuantity(
+    function updateListingQuantityAndPrice(
         address nftContract,
         uint256 tokenId,
         uint256 quantity,

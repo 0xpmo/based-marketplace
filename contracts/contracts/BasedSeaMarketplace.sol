@@ -278,9 +278,6 @@ contract BasedSeaMarketplace is
         require(price > 0, "Price must be greater than zero");
         require(quantity > 0, "Quantity must be greater than zero");
 
-        // Calculate total price
-        uint256 totalPrice = price * quantity;
-
         // Create a unique listing ID for this seller+tokenId combination
         uint256 listingId = _createERC1155ListingId(tokenId, msg.sender);
 
@@ -289,7 +286,7 @@ contract BasedSeaMarketplace is
             nftContract,
             listingId,
             msg.sender,
-            totalPrice,
+            price,
             false,
             address(0),
             quantity
@@ -300,7 +297,7 @@ contract BasedSeaMarketplace is
             msg.sender,
             nftContract,
             tokenId, // Use original tokenId in events for frontend compatibility
-            totalPrice,
+            price,
             false,
             address(0),
             quantity
@@ -311,7 +308,7 @@ contract BasedSeaMarketplace is
      * @dev Create a private listing for a specific buyer
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token
-     * @param price Listing price in wei
+     * @param price Listing price in wei per token
      * @param allowedBuyer Address of the allowed buyer
      * @param quantity Quantity of tokens (default 1 for ERC721)
      */
@@ -458,7 +455,7 @@ contract BasedSeaMarketplace is
      * @dev Update the price of a listing
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token
-     * @param newPrice New listing price
+     * @param newPrice New listing price per token
      */
     function updateListingPrice(
         address nftContract,
@@ -484,7 +481,12 @@ contract BasedSeaMarketplace is
         }
 
         // Update listing price
-        marketplaceStorage.updateListingPrice(nftContract, tokenId, newPrice);
+        marketplaceStorage.updateListingQuantityAndPrice(
+            nftContract,
+            tokenId,
+            listing.quantity,
+            newPrice
+        );
 
         emit UpdatedListing(
             msg.sender,
@@ -496,11 +498,11 @@ contract BasedSeaMarketplace is
     }
 
     /**
-     * @dev Update the price of an ERC1155 listing
+     * @dev Update the price and quantity of an ERC1155 listing
      * @param nftContract Address of the ERC1155 contract
      * @param tokenId Original token ID (not the combined ID)
      * @param newPrice New price per token
-     * @param newQuantity New quantity to list
+     * @param newQuantity New quantity
      */
     function updateERC1155ListingPrice(
         address nftContract,
@@ -522,7 +524,6 @@ contract BasedSeaMarketplace is
         );
         require(newPrice > 0, "Price must be greater than zero");
         require(newQuantity > 0, "Quantity must be greater than zero");
-
         // Verify it's an ERC1155 token
         require(
             IERC165(nftContract).supportsInterface(0xd9b67a26), // ERC1155 interface ID
@@ -536,28 +537,19 @@ contract BasedSeaMarketplace is
             "Insufficient token balance"
         );
 
-        // Calculate total price
-        uint256 totalPrice = newPrice * newQuantity;
-
         // Update listing price
-        marketplaceStorage.updateListingPrice(
-            nftContract,
-            listingId,
-            totalPrice
-        );
-        // Update both price and quantity
-        marketplaceStorage.updateListingQuantity(
+        marketplaceStorage.updateListingQuantityAndPrice(
             nftContract,
             listingId,
             newQuantity,
-            totalPrice
+            newPrice
         );
 
         emit UpdatedListing(
             msg.sender,
             nftContract,
             tokenId,
-            totalPrice,
+            newPrice,
             newQuantity
         ); // Use original tokenId in events
     }
@@ -697,18 +689,12 @@ contract BasedSeaMarketplace is
         } else {
             // Update the listing with remaining quantity
             uint256 remainingQuantity = listing.quantity - quantity;
-            uint256 remainingPrice = listing.price - buyPrice;
-            marketplaceStorage.updateListingPrice(
-                nftContract,
-                listingId,
-                remainingPrice
-            );
             // Update the listing with remaining quantity and adjusted price
-            marketplaceStorage.updateListingQuantity(
+            marketplaceStorage.updateListingQuantityAndPrice(
                 nftContract,
                 listingId,
                 remainingQuantity,
-                remainingPrice
+                listing.price
             );
         }
 
@@ -931,7 +917,7 @@ contract BasedSeaMarketplace is
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token to list
      * @param seller Address of the NFT owner who is selling
-     * @param price Listing price in wei
+     * @param price Listing price in wei per token
      * @param isPrivate Whether this is a private listing
      * @param allowedBuyer If private, the address allowed to purchase (otherwise address(0))
      * @param quantity Quantity of tokens (1 for ERC721, variable for ERC1155)

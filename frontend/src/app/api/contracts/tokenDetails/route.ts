@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       // Get contract
       const contract = await getNFTContractByAddress(collection);
 
+      console.log("fish  contract", contract);
       try {
         // Get token details - wrapped in try/catch to handle non-existent tokens
         const owner = await contract.ownerOf(tokenId).catch(() => null);

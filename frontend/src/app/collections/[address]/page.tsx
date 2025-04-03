@@ -750,7 +750,7 @@ export default function CollectionDetailsPage() {
                 {/* No NFTs Message */}
                 {!loadingNFTs && nfts.length === 0 ? (
                   <div className="text-center py-16 border border-dashed border-slate-700 rounded-xl">
-                    <div className="text-6xl mb-4">🧠</div>
+                    <div className="text-6xl mb-4">🐳</div>
                     <h3 className="text-xl font-bold text-slate-300 mb-2">
                       {collection.mintingEnabled === false
                         ? "Minting is Currently Paused"
@@ -767,7 +767,7 @@ export default function CollectionDetailsPage() {
                           Number(collection.totalSupply) >=
                             Number(collection.maxSupply)
                         ? "All NFTs in this collection have been minted. Check the marketplace for listings."
-                        : "This collection doesn't have any NFTs yet. If you're the creator, you can mint some!"}
+                        : "This collection doesn't have any NFTs yet. Mint some!"}
                     </p>
 
                     {isConnected && collection && isMintingAvailable() && (

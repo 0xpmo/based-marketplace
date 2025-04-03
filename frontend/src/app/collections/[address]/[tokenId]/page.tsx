@@ -41,6 +41,7 @@ import NFTDetailsPanel from "@/components/nfts/NFTDetailsPanel";
 import NFTBuyConfirmModal from "@/components/nfts/NFTBuyConfirmModal";
 import PepeButton from "@/components/ui/PepeButton";
 import NFTListModal from "@/components/nfts/NFTListModal";
+import NFTListingsTable from "@/components/nfts/NFTListingsTable";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -74,8 +75,9 @@ export default function NFTDetailsPage() {
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Get collection data
-  const { collection: erc721Collection } = useCollection(collectionAddress);
-  const { collection: erc1155Collection } =
+  const { collection: erc721Collection, loading: isLoadingERC721 } =
+    useCollection(collectionAddress);
+  const { collection: erc1155Collection, loading: isLoadingERC1155 } =
     useERC1155Collection(collectionAddress);
 
   // Determine if this is an ERC1155 collection
@@ -189,66 +191,17 @@ export default function NFTDetailsPage() {
     }
   };
 
-  // Also fetch listings when DB listings change
+  // Fetch NFT data only when collections are loaded
   useDeepCompareEffect(() => {
-    if (dbListings && dbListings.length > 0 && !isLoadingListings) {
-      // Update listings in memory if the listing came from our database
-      if (nft && !isERC1155) {
-        // Create a deep copy of the NFT
-        const updatedNft = { ...nft };
-
-        // Find the first listing (lowest price)
-        const firstListing = dbListings.sort((a, b) => {
-          const priceA = BigInt(a.price);
-          const priceB = BigInt(b.price);
-          return priceA < priceB ? -1 : 1;
-        })[0];
-
-        // Format listing for compatibility with existing code
-        updatedNft.listing = {
-          price: ethers.formatEther(firstListing.price),
-          seller: firstListing.seller,
-          active: firstListing.status === "Active",
-        };
-
-        setNft(updatedNft);
-      } else if (erc1155Token && isERC1155) {
-        // Handle ERC1155 token listings
-        const updatedToken = { ...erc1155Token };
-
-        // Find the first listing (lowest price)
-        const firstListing = dbListings.sort((a, b) => {
-          const priceA = BigInt(a.price);
-          const priceB = BigInt(b.price);
-          return priceA < priceB ? -1 : 1;
-        })[0];
-
-        // Format listing for compatibility with existing code
-        updatedToken.listing = {
-          price: ethers.formatEther(firstListing.price),
-          seller: firstListing.seller,
-          active: firstListing.status === "Active",
-          quantity: firstListing.quantity,
-        };
-
-        setErc1155Token(updatedToken);
-      }
-    }
-  }, [dbListings, isLoadingListings, nft, erc1155Token, isERC1155]);
-
-  // Effect to handle ERC1155 token data updates
-  useDeepCompareEffect(() => {
-    if (isERC1155 && fetchedErc1155Token && !loadingErc1155Token) {
-      setErc1155Token(fetchedErc1155Token);
-      setLoading(false);
-    }
-  }, [isERC1155, fetchedErc1155Token, loadingErc1155Token]);
-
-  useDeepCompareEffect(() => {
-    if (collectionAddress && !isNaN(tokenId)) {
+    if (
+      !isLoadingERC721 &&
+      !isLoadingERC1155 &&
+      collectionAddress &&
+      !isNaN(tokenId)
+    ) {
       fetchNFTData();
     }
-  }, [collectionAddress, tokenId]);
+  }, [collectionAddress, tokenId, isLoadingERC721, isLoadingERC1155]);
 
   // Get the active item (either ERC721 or ERC1155)
   const activeItem = isERC1155 ? erc1155Token : nft;
@@ -333,6 +286,9 @@ export default function NFTDetailsPage() {
     try {
       setTxHash(null);
       setListingJustCompleted(false);
+
+      console.log("token id page blob price", price);
+      console.log("token id page blob quantity", quantity);
 
       // Determine if this is an ERC1155 token and pass the appropriate quantity
       const success = await listNFT(
@@ -430,7 +386,6 @@ export default function NFTDetailsPage() {
     isCancelERC1155Success,
     isCancelling,
     cancelTxHash,
-    fetchNFTData,
   ]);
 
   // Handle refresh button click
@@ -802,6 +757,7 @@ export default function NFTDetailsPage() {
     // Validate that it's a proper number
     if (value === "" || !isNaN(parseInt(value))) {
       setPrice(value);
+      console.log("setting id page blob price", value);
     }
   };
 
@@ -829,6 +785,61 @@ export default function NFTDetailsPage() {
       setUsdPrice(usdValue);
     }
   }, [price, tokenUSDRate, calculateUSDPrice]);
+
+  // Also fetch listings when DB listings change
+  useDeepCompareEffect(() => {
+    if (dbListings && dbListings.length > 0 && !isLoadingListings) {
+      // Update listings in memory if the listing came from our database
+      if (nft && !isERC1155) {
+        // Create a deep copy of the NFT
+        const updatedNft = { ...nft };
+
+        // Find the first listing (lowest price)
+        const firstListing = dbListings.sort((a, b) => {
+          const priceA = BigInt(a.price);
+          const priceB = BigInt(b.price);
+          return priceA < priceB ? -1 : 1;
+        })[0];
+
+        // Format listing for compatibility with existing code
+        updatedNft.listing = {
+          price: ethers.formatEther(firstListing.price),
+          seller: firstListing.seller,
+          active: firstListing.status === "Active",
+        };
+
+        setNft(updatedNft);
+      } else if (erc1155Token && isERC1155) {
+        // Handle ERC1155 token listings
+        const updatedToken = { ...erc1155Token };
+
+        // Find the first listing (lowest price)
+        const firstListing = dbListings.sort((a, b) => {
+          const priceA = BigInt(a.price);
+          const priceB = BigInt(b.price);
+          return priceA < priceB ? -1 : 1;
+        })[0];
+
+        // Format listing for compatibility with existing code
+        updatedToken.listing = {
+          price: ethers.formatEther(firstListing.price),
+          seller: firstListing.seller,
+          active: firstListing.status === "Active",
+          quantity: firstListing.quantity,
+        };
+
+        setErc1155Token(updatedToken);
+      }
+    }
+  }, [dbListings, isLoadingListings, nft, erc1155Token, isERC1155]);
+
+  // Effect to handle ERC1155 token data updates
+  useDeepCompareEffect(() => {
+    if (isERC1155 && fetchedErc1155Token && !loadingErc1155Token) {
+      setErc1155Token(fetchedErc1155Token);
+      setLoading(false);
+    }
+  }, [isERC1155, fetchedErc1155Token, loadingErc1155Token]);
 
   if (loading) {
     return (
@@ -1008,6 +1019,36 @@ export default function NFTDetailsPage() {
           </motion.div>
         </div>
 
+        {/* All Listings Table */}
+        <NFTListingsTable
+          listings={dbListings || []}
+          onBuyClick={(listing) => {
+            setShowBuyConfirmModal(true);
+            handleBuyNFT(listing);
+          }}
+          onCancelClick={handleCancelListing}
+          onCreateListing={() => setShowListModal(true)}
+          calculateUSDPrice={calculateUSDPrice}
+          userBalance={
+            isERC1155 ? (activeItem as ERC1155Item).balance : isOwned ? 1 : 0
+          }
+          isLoadingListings={isLoadingListings}
+        />
+
+        {/* NFT Buy Confirmation Modal */}
+        {activeItem && (
+          <NFTBuyConfirmModal
+            nftItem={activeItem}
+            imageUrl={imageUrl}
+            showModal={showBuyConfirmModal}
+            onClose={() => setShowBuyConfirmModal(false)}
+            onConfirmPurchase={confirmBuyNFT}
+            calculateUSDPrice={calculateUSDPrice}
+            quantity={quantity}
+            onQuantityChange={handleQuantityChange}
+          />
+        )}
+
         {/* NFT List Modal */}
         {activeItem && (
           <NFTListModal
@@ -1029,20 +1070,6 @@ export default function NFTDetailsPage() {
             txHash={txHash}
             calculateUSDPrice={calculateUSDPrice}
             usdPrice={usdPrice}
-          />
-        )}
-
-        {/* NFT Buy Confirmation Modal */}
-        {activeItem && (
-          <NFTBuyConfirmModal
-            nftItem={activeItem}
-            imageUrl={imageUrl}
-            showModal={showBuyConfirmModal}
-            onClose={() => setShowBuyConfirmModal(false)}
-            onConfirmPurchase={confirmBuyNFT}
-            calculateUSDPrice={calculateUSDPrice}
-            quantity={quantity}
-            onQuantityChange={isERC1155 ? handleQuantityChange : undefined}
           />
         )}
       </motion.div>

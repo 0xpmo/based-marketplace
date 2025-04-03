@@ -99,7 +99,6 @@ export async function getListing(
 // Create a new listing
 export async function createListing(listing: Listing): Promise<boolean> {
   try {
-    console.log("creating listing fish!!");
     const response = await fetch("/api/listings/create", {
       method: "POST",
       headers: {

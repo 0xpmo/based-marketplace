@@ -42,7 +42,6 @@ export function isOwnedByUser(
 ): boolean {
   if (!item || !userAddress) return false;
 
-  console.log("owned by user item", item);
   if (isERC1155Item(item)) {
     return item.balance > 0;
   } else {

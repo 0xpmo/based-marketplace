@@ -8,16 +8,6 @@ import { useAccount } from "wagmi";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
 import { formatNumberWithCommas } from "@/utils/formatting";
 
-// Define rarity names for display
-const RARITY_NAMES = ["Bronze", "Silver", "Gold", "Green"];
-// Define rarity colors for display
-const RARITY_COLORS = {
-  0: "bg-amber-700", // Bronze
-  1: "bg-gray-400", // Silver
-  2: "bg-yellow-500", // Gold
-  3: "bg-green-500", // Green
-};
-
 type UnifiedNftCardProps = {
   item: NFTItem | ERC1155Item;
   collectionAddress?: string;
@@ -109,21 +99,20 @@ const UnifiedNftCard = memo(function UnifiedNftCard({
   // Handle the item name display
   const itemName = item.metadata?.name || `NFT #${item.tokenId}`;
 
-  // Determine border color based on rarity for ERC1155
-  const borderColorClass =
-    isERC1155 && item.rarity !== undefined
-      ? RARITY_COLORS[item.rarity as keyof typeof RARITY_COLORS] ||
-        "bg-blue-500"
-      : "bg-blue-500";
-
   return (
     <Link
       href={`/collections/${collection}/${item.tokenId}`}
       className="block h-full"
     >
-      <div className="bg-blue-900/30 border border-blue-800/30 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full backdrop-blur-sm relative group cursor-pointer hover:scale-[1.03]">
+      <div
+        className="bg-blue-900/30 border border-blue-800/30 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full backdrop-blur-sm relative group cursor-pointer hover:scale-[1.03]"
+        style={{ width: "100%" }}
+      >
         {/* Image Container */}
-        <div className="aspect-square relative overflow-hidden">
+        <div
+          className="relative overflow-hidden"
+          style={{ paddingBottom: "100%", height: "0", width: "100%" }}
+        >
           {/* Your NFT Badge - only shown when user owns this NFT */}
           {isOwnedByUser && (
             <div className="absolute top-3 left-3 z-20 bg-gradient-to-r from-purple-600 to-blue-500 px-3 py-1 rounded-full shadow-lg border border-purple-300/30">
@@ -147,7 +136,7 @@ const UnifiedNftCard = memo(function UnifiedNftCard({
             src={imageUrl}
             alt={itemName}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-contain transition-transform duration-500 group-hover:scale-105"
             onError={() => {
               setImageError(true);
               setImageUrl("/images/placeholder-nft.svg");
@@ -174,7 +163,7 @@ const UnifiedNftCard = memo(function UnifiedNftCard({
         </div>
 
         {/* Card Content */}
-        <div className="p-4 relative">
+        <div className="p-4 relative mt-2">
           {/* Add subtle glow for owned NFTs */}
           {isOwnedByUser && (
             <div className="absolute inset-0 bg-gradient-to-t from-purple-700/20 via-blue-600/10 to-transparent rounded-b-xl pointer-events-none"></div>
