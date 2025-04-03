@@ -1,6 +1,7 @@
 // components/nfts/NFTBuyConfirmModal.tsx
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { NFTItem, ERC1155Item } from "@/types/contracts";
 import { isERC1155Item } from "@/utils/nftTypeUtils";
 import PepeButton from "@/components/ui/PepeButton";
@@ -16,6 +17,8 @@ interface NFTBuyConfirmModalProps {
   onClose: () => void;
   onConfirmPurchase: () => void;
   calculateUSDPrice: (price: string) => string | null;
+  quantity?: number;
+  onQuantityChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const NFTBuyConfirmModal = ({
@@ -25,6 +28,8 @@ const NFTBuyConfirmModal = ({
   onClose,
   onConfirmPurchase,
   calculateUSDPrice,
+  quantity = 1,
+  onQuantityChange,
 }: NFTBuyConfirmModalProps) => {
   // Only render if there's a valid item with an active listing
   if (!nftItem?.listing?.active) return null;
@@ -37,6 +42,40 @@ const NFTBuyConfirmModal = ({
     isERC1155 && nftItem.rarity !== undefined
       ? RARITY_NAMES[nftItem.rarity]
       : null;
+
+  // Local state for incrementing/decrementing quantity
+  const incrementQuantity = () => {
+    if (isERC1155 && onQuantityChange && nftItem.listing) {
+      // Safe check for maxQty
+      const maxQty = nftItem.listing.quantity || 1;
+      if (quantity < maxQty) {
+        onQuantityChange({
+          target: { value: (quantity + 1).toString() },
+        } as React.ChangeEvent<HTMLInputElement>);
+      }
+    }
+  };
+
+  const decrementQuantity = () => {
+    if (isERC1155 && onQuantityChange && quantity > 1) {
+      onQuantityChange({
+        target: { value: (quantity - 1).toString() },
+      } as React.ChangeEvent<HTMLInputElement>);
+    }
+  };
+
+  // Calculate total price based on quantity
+  const getTotalPrice = () => {
+    if (!nftItem.listing) return "0";
+
+    // For ERC1155 tokens, calculate price per token
+    const listingQuantity =
+      isERC1155 && nftItem.listing.quantity ? nftItem.listing.quantity : 1;
+    const pricePerToken = parseInt(nftItem.listing.price) / listingQuantity;
+
+    // Calculate total price based on selected quantity
+    return (pricePerToken * quantity).toString();
+  };
 
   return (
     <AnimatePresence>
@@ -102,19 +141,110 @@ const NFTBuyConfirmModal = ({
                 </div>
               </div>
 
+              {/* Quantity selector for ERC1155 */}
+              {isERC1155 && onQuantityChange && nftItem.listing && (
+                <div className="mb-4 p-4 bg-blue-950/70 rounded-lg border border-blue-800/50">
+                  <label
+                    htmlFor="buy-quantity"
+                    className="block text-sm font-medium mb-2 text-blue-300"
+                  >
+                    Quantity to Buy
+                  </label>
+                  <div className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={decrementQuantity}
+                      disabled={quantity <= 1}
+                      className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-l-lg p-2 disabled:opacity-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M20 12H4"
+                        />
+                      </svg>
+                    </button>
+                    <input
+                      type="number"
+                      id="buy-quantity"
+                      value={quantity}
+                      onChange={onQuantityChange}
+                      min="1"
+                      max={nftItem.listing.quantity || 1}
+                      className="w-16 py-2 text-center bg-blue-950/80 border-y border-blue-700/50 text-blue-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={incrementQuantity}
+                      disabled={quantity >= (nftItem.listing.quantity || 1)}
+                      className="bg-blue-700/50 hover:bg-blue-700 text-white rounded-r-lg p-2 disabled:opacity-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </button>
+                    <div className="ml-3 text-sm text-blue-300">
+                      Available: {nftItem.listing.quantity || 1}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-blue-950/70 rounded-lg p-4 border border-blue-800/50 mb-4">
-                <div className="text-blue-300 text-sm mb-1">Purchase price</div>
+                <div className="text-blue-300 text-sm mb-1">
+                  {isERC1155 && quantity > 1
+                    ? "Total purchase price"
+                    : "Purchase price"}
+                </div>
                 <div className="text-white text-2xl font-bold flex items-center">
                   <span className="mr-2">
-                    {formatNumberWithCommas(
-                      parseInt(nftItem.listing.price).toString()
-                    )}
+                    {formatNumberWithCommas(getTotalPrice())}
                   </span>
                   <span className="text-blue-300">𝔹</span>
                 </div>
                 {calculateUSDPrice && (
                   <div className="text-blue-400 text-sm mt-1">
-                    ≈ ${calculateUSDPrice(nftItem.listing.price)} USD
+                    ≈ ${calculateUSDPrice(getTotalPrice())} USD
+                  </div>
+                )}
+
+                {isERC1155 && quantity > 1 && nftItem.listing.quantity && (
+                  <div className="text-blue-300 text-xs mt-2 border-t border-blue-800 pt-2">
+                    <div className="flex justify-between">
+                      <span>Price per token:</span>
+                      <span>
+                        𝔹{" "}
+                        {formatNumberWithCommas(
+                          (
+                            parseInt(nftItem.listing.price) /
+                            nftItem.listing.quantity
+                          ).toString()
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Quantity:</span>
+                      <span>× {quantity}</span>
+                    </div>
                   </div>
                 )}
               </div>

@@ -4,7 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Collection, ERC1155Collection } from "@/types/contracts";
+import {
+  Collection,
+  ERC1155Collection,
+  ERC1155Item,
+  NFTItem,
+} from "@/types/contracts";
 import PepeButton from "@/components/ui/PepeButton";
 import NFTCard from "@/components/nfts/NftCard";
 import UnifiedNftCard from "@/components/nfts/UnifiedNFTCard";
@@ -19,9 +24,22 @@ import { useTokenPrice } from "@/contexts/TokenPriceContext";
 import { formatNumberWithCommas } from "@/utils/formatting";
 import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 import CollectionStatusBadge from "@/components/collections/CollectionStatusBadge";
+import { useCollectionListings } from "@/hooks/useListings";
+import { ethers } from "ethers";
+import { useDeepCompareEffect } from "@/utils/deepComparison";
+// Add a TypeScript interface for the listing data
+interface CollectionListing {
+  price: string;
+  seller: string;
+  active: boolean;
+  quantity: number;
+  isERC1155: boolean;
+  allowedBuyer: string | null;
+  isPrivate: boolean;
+}
 
 export default function CollectionDetailsPage() {
-  const { address } = useParams();
+  const params = useParams();
   const { isConnected } = useAccount();
   const { collections } = useAllCollections();
   const { tokenUSDRate, calculateUSDPrice } = useTokenPrice();
@@ -42,11 +60,12 @@ export default function CollectionDetailsPage() {
   const [isCollectionImageLoading, setIsCollectionImageLoading] =
     useState(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [displayNfts, setDisplayNfts] = useState<(NFTItem | ERC1155Item)[]>([]);
 
   // Collection address normalization
-  const collectionAddr = Array.isArray(address)
-    ? address[0]
-    : (address as string);
+  const collectionAddr = Array.isArray(params.address)
+    ? params.address[0]
+    : (params.address as string);
 
   // Check if the collection is an ERC1155 collection
   const isERC1155 = useMemo(
@@ -83,28 +102,76 @@ export default function CollectionDetailsPage() {
     : metadataLoadingERC721;
   const fetchError = isERC1155 ? fetchErrorERC1155 : fetchErrorERC721;
 
-  // Refresh function based on collection type
+  // Use  hook instead of direct API calls
+  const {
+    floorListings,
+    isLoading: isLoadingListings,
+    refetch: refetchListings,
+  } = useCollectionListings(collectionAddr);
+
+  // Update the refresh function to use our hook
   const refreshNFTs = () => {
     if (isERC1155) {
       refreshERC1155Tokens();
     } else {
       refreshERC721NFTs();
     }
+    // Use refetchListings from the hook
+    refetchListings();
   };
 
-  // Calculate floor price from NFTs with active listings
+  useDeepCompareEffect(() => {
+    // Simple update logic: when NFTs change, update display NFTs with listings
+    if (nfts.length > 0) {
+      const updatedNfts = nfts.map((nft) => {
+        const tokenId = nft.tokenId.toString();
+        const listing = floorListings[tokenId];
+
+        // If the NFT has a listing, add listing data
+        if (listing) {
+          return {
+            ...nft, // This preserves metadata and all other properties
+            listing: {
+              price: ethers.formatEther(listing.price),
+              seller: listing.seller,
+              active: listing.status === "Active",
+              quantity: listing.quantity,
+            },
+          };
+        }
+
+        // Otherwise return the NFT as-is (with metadata intact)
+        return nft;
+      });
+
+      setDisplayNfts(updatedNfts);
+    } else {
+      // If there are no NFTs, clear the display
+      setDisplayNfts([]);
+    }
+  }, [nfts, floorListings]); // Only depend on what we use directly
+
+  // Calculate floor price from database listings
   const floorPrice = useMemo(() => {
-    // Only calculate floor price when metadata loading is complete
-    if (metadataLoading) return null;
+    // Return null if we're still loading metadata or listings
+    if (metadataLoading || isLoadingListings) return null;
 
-    const activeListings = nfts
-      .filter((nft) => nft.listing && nft.listing.active)
-      .map((nft) => parseFloat(nft.listing!.price));
+    const activePrices = Object.values(floorListings).map((listing) =>
+      parseFloat(ethers.formatEther(listing.price))
+    );
 
-    if (activeListings.length === 0) return null;
+    if (activePrices.length === 0) {
+      // Fallback to using nfts with active listings
+      const activeListings = nfts
+        .filter((nft) => nft.listing && nft.listing.active)
+        .map((nft) => parseFloat(nft.listing!.price));
 
-    return Math.min(...activeListings);
-  }, [nfts, metadataLoading]);
+      if (activeListings.length === 0) return null;
+      return Math.min(...activeListings);
+    }
+
+    return Math.min(...activePrices);
+  }, [nfts, metadataLoading, floorListings, isLoadingListings]);
 
   // Format floor price for display
   const formattedFloorPrice = useMemo(() => {
@@ -119,25 +186,42 @@ export default function CollectionDetailsPage() {
   }, [floorPrice, tokenUSDRate, calculateUSDPrice]);
 
   // Find collection from all collections
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (collections.length > 0) {
       const collectionData = collections.find(
-        (c) => c.address.toLowerCase() === String(address).toLowerCase()
+        (c) => c.address.toLowerCase() === String(params.address).toLowerCase()
       );
       if (collectionData) {
         setCollection(collectionData);
-        setLoading(false);
       }
     }
-  }, [collections, address]);
+  }, [collections, params.address]);
 
-  // Set collection image with error handling
-  useEffect(() => {
+  useDeepCompareEffect(() => {
+    // Only set loading to false when all data loading is complete
+    if (
+      !loadingNFTs &&
+      !metadataLoading &&
+      !isLoadingListings &&
+      collections.length > 0
+    ) {
+      setLoading(false);
+    }
+  }, [loadingNFTs, metadataLoading, isLoadingListings, collections.length]);
+
+  useDeepCompareEffect(() => {
     if (collection?.metadata?.image && !collectionImageError) {
       try {
         const url = getIPFSGatewayURL(collection.metadata.image);
-        setCollectionImageUrl(url);
-        setIsCollectionImageLoading(true);
+
+        // Only update URL and loading state if URL actually changed
+        setCollectionImageUrl((prevUrl) => {
+          if (prevUrl !== url) {
+            setIsCollectionImageLoading(true);
+            return url;
+          }
+          return prevUrl;
+        });
       } catch (err) {
         console.error("Error parsing collection image URL:", err);
         setCollectionImageError(true);
@@ -150,8 +234,7 @@ export default function CollectionDetailsPage() {
     }
   }, [collection?.metadata?.image, collectionImageError]);
 
-  // Set banner image with error handling
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     if (
       (collection?.metadata?.banner_image_url || collection?.metadata?.image) &&
       !bannerError
@@ -160,8 +243,15 @@ export default function CollectionDetailsPage() {
         const url = getIPFSGatewayURL(
           collection.metadata?.banner_image_url || collection.metadata?.image
         );
-        setBannerImageUrl(url);
-        setIsBannerLoading(true);
+
+        // Only update URL and loading state if URL actually changed
+        setBannerImageUrl((prevUrl) => {
+          if (prevUrl !== url) {
+            setIsBannerLoading(true);
+            return url;
+          }
+          return prevUrl;
+        });
       } catch (err) {
         console.error("Error parsing banner image URL:", err);
         setBannerError(true);
@@ -178,10 +268,12 @@ export default function CollectionDetailsPage() {
     bannerError,
   ]);
 
+  console.log("dislpay nfts", displayNfts);
+
   // Create a stable reference for sort function to prevent jumpiness during loading
   const sortedAndFilteredNFTs = useMemo(() => {
     // First create a copy to avoid mutating the original array
-    let result = [...nfts];
+    let result = [...displayNfts];
 
     // Only use price-based sorting when metadata loading is complete
     // During loading, maintain stable order based on token ID
@@ -241,7 +333,7 @@ export default function CollectionDetailsPage() {
     }
 
     return result;
-  }, [nfts, sortOption, filterForSale, metadataLoading]);
+  }, [displayNfts, sortOption, filterForSale, metadataLoading]);
 
   // Handle toggle for sale only
   const handleToggleForSale = () => {

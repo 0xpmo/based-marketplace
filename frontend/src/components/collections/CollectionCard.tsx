@@ -14,7 +14,6 @@ interface CollectionCardProps {
 export default function CollectionCard({ collection }: CollectionCardProps) {
   const { address, name, metadata, totalSupply, maxSupply, source } =
     collection;
-  console.log("collection", collection);
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
@@ -26,9 +25,7 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
 
   // For ERC1155, calculate total supply and minted differently
   const displayMintInfo = () => {
-    console.log("collection failure", collection);
     if (collection && isERC1155Collection(collection)) {
-      console.log("collection success", collection);
       // For ERC1155, just show total minted since maxSupply is per token
       return `${totalSupply.toLocaleString()} minted`;
     } else {

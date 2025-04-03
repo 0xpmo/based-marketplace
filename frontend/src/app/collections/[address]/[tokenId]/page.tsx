@@ -11,7 +11,12 @@ import {
   useERC1155Collection,
   useERC1155Token,
 } from "@/hooks/useERC1155Contracts";
-import { useBuyNFT, useListNFT } from "@/hooks/useMarketplace";
+import {
+  useBuyNFT,
+  useListNFT,
+  useCancelERC1155Listing,
+} from "@/hooks/useMarketplace";
+import { useTokenListings } from "@/hooks/useListings";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import { fetchFromIPFS } from "@/services/ipfs";
 import { motion } from "framer-motion";
@@ -23,6 +28,7 @@ import { useTokenPrice } from "@/contexts/TokenPriceContext";
 import { formatNumberWithCommas } from "@/utils/formatting";
 import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 import { isERC1155Item, isOwnedByUser } from "@/utils/nftTypeUtils";
+import { ethers } from "ethers";
 
 // Import our component parts
 import NFTImageDisplay from "@/components/nfts/NFTImageDisplay";
@@ -106,6 +112,22 @@ export default function NFTDetailsPage() {
     txHash: buyingTxHash,
   } = useBuyNFT();
 
+  // Add the new hook for canceling ERC1155 listings
+  const {
+    cancelERC1155Listing,
+    isLoading: isCancellingERC1155,
+    isSuccess: isCancelERC1155Success,
+    error: cancelERC1155Error,
+    txHash: cancelERC1155TxHash,
+  } = useCancelERC1155Listing();
+
+  // Add the hook to fetch token listings from our database
+  const {
+    listings: dbListings,
+    isLoading: isLoadingListings,
+    refetch: refetchListings,
+  } = useTokenListings(collectionAddress, tokenId);
+
   // Fetch NFT data
   const fetchNFTData = async () => {
     setLoading(true);
@@ -143,14 +165,15 @@ export default function NFTDetailsPage() {
           }
         }
 
-        // Check if token is listed
+        // Check if token is listed - use the new DB endpoint
         const listingResponse = await fetch(
-          `/api/contracts/tokenListing?collection=${collectionAddress}&tokenId=${tokenId}`
+          `/api/contracts/db-tokenListing?collection=${collectionAddress}&tokenId=${tokenId}`
         );
 
         if (listingResponse.ok) {
           const listingData = await listingResponse.json();
           data.listing = listingData.listing;
+          data.allListings = listingData.allListings;
         }
 
         setNft(data);
@@ -163,6 +186,53 @@ export default function NFTDetailsPage() {
       setRefreshing(false);
     }
   };
+
+  // Also fetch listings when DB listings change
+  useEffect(() => {
+    if (dbListings && dbListings.length > 0 && !isLoadingListings) {
+      // Update listings in memory if the listing came from our database
+      if (nft && !isERC1155) {
+        // Create a deep copy of the NFT
+        const updatedNft = { ...nft };
+
+        // Find the first listing (lowest price)
+        const firstListing = dbListings.sort((a, b) => {
+          const priceA = BigInt(a.price);
+          const priceB = BigInt(b.price);
+          return priceA < priceB ? -1 : 1;
+        })[0];
+
+        // Format listing for compatibility with existing code
+        updatedNft.listing = {
+          price: ethers.formatEther(firstListing.price),
+          seller: firstListing.seller,
+          active: firstListing.status === "Active",
+        };
+
+        setNft(updatedNft);
+      } else if (erc1155Token && isERC1155) {
+        // Handle ERC1155 token listings
+        const updatedToken = { ...erc1155Token };
+
+        // Find the first listing (lowest price)
+        const firstListing = dbListings.sort((a, b) => {
+          const priceA = BigInt(a.price);
+          const priceB = BigInt(b.price);
+          return priceA < priceB ? -1 : 1;
+        })[0];
+
+        // Format listing for compatibility with existing code
+        updatedToken.listing = {
+          price: ethers.formatEther(firstListing.price),
+          seller: firstListing.seller,
+          active: firstListing.status === "Active",
+          quantity: firstListing.quantity,
+        };
+
+        setErc1155Token(updatedToken);
+      }
+    }
+  }, [dbListings, isLoadingListings, nft, erc1155Token, isERC1155]);
 
   // Effect to handle ERC1155 token data updates
   useEffect(() => {
@@ -262,14 +332,13 @@ export default function NFTDetailsPage() {
       setTxHash(null);
       setListingJustCompleted(false);
 
-      // For both ERC721 and ERC1155, use the standard listing process
-      // The hook handles the appropriate approval method based on token type
+      // Determine if this is an ERC1155 token and pass the appropriate quantity
       const success = await listNFT(
         collectionAddress,
         tokenId,
         price,
-        1, // Always use quantity 1 since contract doesn't support multiple quantity
-        isERC1155 // Just pass this for the approval step
+        isERC1155 ? quantity : 1, // Use quantity for ERC1155, 1 for ERC721
+        isERC1155
       );
 
       if (success) {
@@ -347,7 +416,7 @@ export default function NFTDetailsPage() {
     setShowBuyConfirmModal(true);
   };
 
-  // Add a new function for the actual purchase
+  // Update confirmBuyNFT to handle ERC1155 purchases
   const confirmBuyNFT = async () => {
     if (!activeItem || !activeItem.listing || !activeItem.listing.active) {
       toast.error("This NFT is not available for purchase");
@@ -359,15 +428,35 @@ export default function NFTDetailsPage() {
       setTxHash(null);
       setShowBuyConfirmModal(false); // Close the modal
 
-      // For both ERC721 and ERC1155, use the standard buying process
-      toast.promise(
-        buyNFT(collectionAddress, tokenId, activeItem.listing.price),
-        {
-          loading: "Initiating purchase...",
-          success: "Transaction submitted! Waiting for confirmation...",
-          error: "Failed to initiate purchase",
-        }
-      );
+      // Handle buying differently for ERC1155 tokens
+      if (isERC1155) {
+        // For ERC1155, we need to pass seller address and quantity
+        toast.promise(
+          buyNFT(
+            collectionAddress,
+            tokenId,
+            activeItem.listing.price,
+            quantity, // Use the selected quantity for ERC1155
+            isERC1155,
+            activeItem.listing.seller // Pass seller address for ERC1155
+          ),
+          {
+            loading: "Initiating purchase...",
+            success: "Transaction submitted! Waiting for confirmation...",
+            error: "Failed to initiate purchase",
+          }
+        );
+      } else {
+        // For ERC721, use the standard approach
+        toast.promise(
+          buyNFT(collectionAddress, tokenId, activeItem.listing.price),
+          {
+            loading: "Initiating purchase...",
+            success: "Transaction submitted! Waiting for confirmation...",
+            error: "Failed to initiate purchase",
+          }
+        );
+      }
     } catch (err) {
       console.error("Error buying NFT:", err);
 
@@ -523,7 +612,7 @@ export default function NFTDetailsPage() {
     }
   }, [buyingError]);
 
-  // Handle cancel listing
+  // Update handleCancelListing to use the appropriate cancel function based on token type
   const handleCancelListing = async () => {
     if (!isConnected || !publicClient) {
       toast.error("Please connect your wallet first");
@@ -544,35 +633,45 @@ export default function NFTDetailsPage() {
       setIsCancelling(true);
       setCancelTxHash(null);
 
-      // Get marketplace contract
-      const marketplaceContract = await getMarketplaceContract();
+      if (isERC1155) {
+        // Use the special cancelERC1155Listing function for ERC1155 tokens
+        toast.promise(cancelERC1155Listing(collectionAddress, tokenId), {
+          loading: "Canceling ERC1155 listing...",
+          success: "Cancellation submitted! Waiting for confirmation...",
+          error: "Failed to cancel listing",
+        });
 
-      // Get the next nonce
-      const nonce = await publicClient.getTransactionCount({
-        address: userAddress as `0x${string}`,
-        blockTag: "pending",
-      });
+        setCancelTxHash(cancelERC1155TxHash);
+      } else {
+        // For ERC721, use the standard cancelListing function
+        // Get marketplace contract
+        const marketplaceContract = await getMarketplaceContract();
 
-      // For both ERC721 and ERC1155, use the standard cancelListing function
-      // The contract will handle the token type appropriately
-      const tx = await marketplaceContract.cancelListing(
-        collectionAddress,
-        tokenId,
-        process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
-          ? {
-              gasPrice: 9,
-              gasLimit: 3000000,
-              nonce: nonce,
-            }
-          : {}
-      );
+        // Get the next nonce
+        const nonce = await publicClient.getTransactionCount({
+          address: userAddress as `0x${string}`,
+          blockTag: "pending",
+        });
 
-      setCancelTxHash(tx.hash);
+        const tx = await marketplaceContract.cancelListing(
+          collectionAddress,
+          tokenId,
+          process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
+            ? {
+                gasPrice: 9,
+                gasLimit: 3000000,
+                nonce: nonce,
+              }
+            : {}
+        );
 
-      toast.success("Cancellation submitted! Waiting for confirmation...");
+        setCancelTxHash(tx.hash);
 
-      // Wait for transaction to complete
-      const receipt = await tx.wait();
+        toast.success("Cancellation submitted! Waiting for confirmation...");
+
+        // Wait for transaction to complete
+        const receipt = await tx.wait();
+      }
 
       // Refresh the NFT data to show updated listing status
       toast.success("Listing cancelled successfully!");
@@ -600,13 +699,17 @@ export default function NFTDetailsPage() {
     }
   };
 
-  // Handle quantity change for ERC1155
+  // Handle quantity change for ERC1155 with proper validation
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value > 0) {
       // For ERC1155, we should limit the quantity to the user's balance
       if (isERC1155 && erc1155Token) {
-        setQuantity(Math.min(value, erc1155Token.balance));
+        const maxQuantity = isOwned
+          ? erc1155Token.balance // If selling, limit to user's balance
+          : erc1155Token.listing?.quantity || 1; // If buying, limit to listing quantity
+
+        setQuantity(Math.min(value, maxQuantity));
       } else {
         setQuantity(value);
       }
@@ -620,6 +723,19 @@ export default function NFTDetailsPage() {
       setUsdPrice(usdValue);
     }
   }, [price, tokenUSDRate, calculateUSDPrice]);
+
+  // Effect to refresh listings when needed
+  useEffect(() => {
+    // Refresh listings after successful operations
+    if (isListingSuccess || isBuyingSuccess || isCancelERC1155Success) {
+      refetchListings();
+    }
+  }, [
+    isListingSuccess,
+    isBuyingSuccess,
+    isCancelERC1155Success,
+    refetchListings,
+  ]);
 
   if (loading) {
     return (
@@ -832,6 +948,8 @@ export default function NFTDetailsPage() {
             onClose={() => setShowBuyConfirmModal(false)}
             onConfirmPurchase={confirmBuyNFT}
             calculateUSDPrice={calculateUSDPrice}
+            quantity={quantity}
+            onQuantityChange={isERC1155 ? handleQuantityChange : undefined}
           />
         )}
       </motion.div>

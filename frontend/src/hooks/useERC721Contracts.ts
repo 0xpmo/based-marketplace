@@ -40,21 +40,12 @@ export function useBasedCollections() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  console.log("Factory address:", NFT_FACTORY_ADDRESS);
-
   // Read collections from factory
   const { data: collectionAddresses, error: contractError } = useReadContract({
     address: NFT_FACTORY_ADDRESS as `0x${string}`,
     abi: FactoryABI.abi,
     functionName: "getCollections",
   });
-
-  // Debug logs
-  useEffect(() => {
-    console.log("Factory Address:", NFT_FACTORY_ADDRESS);
-    console.log("Contract Error:", contractError);
-    console.log("Collection Addresses:", collectionAddresses);
-  }, [collectionAddresses, contractError]);
 
   const fetchCollectionDetails = useCallback(async () => {
     if (!collectionAddresses) {
@@ -99,7 +90,6 @@ export function useBasedCollections() {
             "totalSupply",
             false
           );
-          console.log("FISH MANNNNNN WHALE TOTAL SUPLY", totalSupply);
           const royaltyInfo = await readCollectionProperty(
             address,
             "royaltyInfo",
@@ -255,20 +245,13 @@ async function readCollectionProperty(
 
         // First, try to import a collection-specific ABI file
         abi = (await import(`@/contracts/${contractAddress}.json`)).abi;
-        console.log(`Using specific ABI for collection ${collectionAddress}`);
       } catch (error) {
         // If specific ABI not found, check if it's a manually deployed BasedNFT
         if (manualBasedCollection) {
           abi = CollectionABI.abi;
-          console.log(
-            `Using BasedNFT ABI for manually deployed collection ${collectionAddress}`
-          );
         } else {
           // Otherwise, use the generic ERC721 ABI as fallback
           abi = (await import("@/contracts/ExternalERC721.json")).abi;
-          console.log(
-            `Using generic ERC721 ABI for collection ${collectionAddress}`
-          );
         }
       }
     } else {
@@ -298,16 +281,6 @@ export function useMintNFT(collectionAddress: string) {
   const publicClient = usePublicClient();
   const config = useConfig();
   const targetChainId = getActiveChain().id;
-
-  // Log the active chain when the hook is initialized
-  useEffect(() => {
-    console.log("Active chain in useMintNFT:", publicClient?.chain);
-    console.log(
-      "Target chain for minting:",
-      getActiveChain().name,
-      targetChainId
-    );
-  }, [publicClient, targetChainId]);
 
   const mintNFT = async (price: string) => {
     if (!address) throw new Error("Wallet not connected");
@@ -598,7 +571,6 @@ export function useCollectionNFTs(collectionAddress: string) {
       return;
     }
 
-    console.log(`Fetching all NFTs for collection ${collectionAddress}`);
     setLoading(true);
 
     try {
@@ -637,7 +609,6 @@ export function useCollectionNFTs(collectionAddress: string) {
       }
 
       const tokensWithBasicData = tokenDataBatches.filter(Boolean) as NFTItem[];
-      console.log(`Fetched data for ${tokensWithBasicData.length} tokens`);
 
       // Update state with basic token data
       setNfts(tokensWithBasicData);
@@ -860,8 +831,6 @@ export function useUpdateCollection(collectionAddress: string) {
     royaltyFee: number
   ) => {
     if (!address) throw new Error("Wallet not connected");
-
-    console.log(`Updating collection with royaltyFee: ${royaltyFee}`); // Using param to avoid linter error
 
     // Update collection URI
     await writeContract({

@@ -11,6 +11,7 @@ import Image from "next/image";
 import PepeButton from "./ui/PepeButton";
 import { useState, useEffect } from "react";
 import { TokenPriceProvider } from "@/contexts/TokenPriceContext";
+// Database initialization is now handled server-side
 
 // Import ClientOnly with SSR disabled
 const ClientOnly = dynamic(() => import("@/components/ClientOnly"), {

@@ -229,7 +229,7 @@ export default function CollectionsPage() {
       </section>
 
       {/* Create Collection CTA */}
-      {!loading && !error && sortedCollections.length > 0 && (
+      {/* {!loading && !error && sortedCollections.length > 0 && (
         <section className="w-full py-16 bg-gradient-to-b from-blue-950 to-blue-900 mt-12">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl font-bold mb-4 text-white">
@@ -265,7 +265,7 @@ export default function CollectionsPage() {
             </div>
           </div>
         </section>
-      )}
+      )} */}
     </main>
   );
 }
