@@ -473,11 +473,11 @@ export default function NFTDetailsPage() {
         toast.promise(
           buyNFT(
             collectionAddress,
-            tokenId,
+            tokenId.toString(),
+            activeItem.listing.seller, // Pass seller address for ERC1155
             activeItem.listing.price,
             quantity, // Use the selected quantity for ERC1155
-            isERC1155,
-            activeItem.listing.seller // Pass seller address for ERC1155
+            isERC1155
           ),
           {
             loading: "Initiating purchase...",
@@ -488,7 +488,14 @@ export default function NFTDetailsPage() {
       } else {
         // For ERC721, use the standard approach
         toast.promise(
-          buyNFT(collectionAddress, tokenId, activeItem.listing.price),
+          buyNFT(
+            collectionAddress,
+            tokenId.toString(),
+            activeItem.listing.seller,
+            activeItem.listing.price,
+            1,
+            isERC1155
+          ),
           {
             loading: "Initiating purchase...",
             success: "Transaction submitted! Waiting for confirmation...",

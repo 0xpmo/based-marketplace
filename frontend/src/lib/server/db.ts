@@ -190,6 +190,31 @@ export async function updateListingStatus(
   }
 }
 
+// Update a listing's quantity and price
+export async function updateListingQuantityAndPrice(
+  nftContract: string,
+  tokenId: string,
+  seller: string,
+  newQuantity: number,
+  newPrice: string
+): Promise<boolean> {
+  try {
+    const id = `${nftContract}_${tokenId}_${seller}`;
+    const result = await sql`
+      UPDATE listings 
+      SET quantity = ${newQuantity},
+          price = ${newPrice},
+          timestamp = ${Date.now()}
+      WHERE id = ${id}
+    `;
+
+    return true;
+  } catch (error) {
+    console.error("Error updating listing quantity and price:", error);
+    return false;
+  }
+}
+
 // Helper function for ERC1155 listing ID generation
 export function generateERC1155ListingId(
   tokenId: string,

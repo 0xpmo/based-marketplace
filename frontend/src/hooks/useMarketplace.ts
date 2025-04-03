@@ -22,6 +22,8 @@ import {
   updateListingStatus,
   generateERC1155ListingId,
   getActiveListingsForToken,
+  getListing,
+  updateListingQuantityAndPrice,
   Listing,
 } from "@/lib/db";
 
@@ -181,26 +183,28 @@ export function useListNFT() {
       const receipt = await tx.wait();
       console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
 
-      // 3. Now update the database with the listing information
-      console.log("Updating database with listing information...");
+      // Get the listing from the smart contract to ensure we have the latest data
+      const onChainListing = await marketplaceContract.getListing(
+        collectionAddress,
+        isERC1155
+          ? generateERC1155ListingId(tokenId.toString(), userAddress)
+          : tokenId
+      );
 
-      // Generate a listing ID that will match what's stored in the contract
-      const listingId = isERC1155
-        ? generateERC1155ListingId(tokenId.toString(), userAddress)
-        : tokenId.toString();
-
-      // Create a listing record in our database
+      // Create a listing record in our database with the on-chain data
       const listingData: Listing = {
         id: `${collectionAddress}_${tokenId}_${userAddress}`,
         nftContract: collectionAddress,
         tokenId: tokenId.toString(),
-        seller: userAddress,
-        price: priceInWei.toString(),
-        quantity: quantity,
-        isPrivate: false,
-        allowedBuyer: null,
+        seller: onChainListing.seller,
+        price: onChainListing.price.toString(),
+        quantity: onChainListing.quantity,
+        isPrivate: onChainListing.isPrivate,
+        allowedBuyer: onChainListing.allowedBuyer,
         status: "Active",
-        listingId: listingId,
+        listingId: isERC1155
+          ? generateERC1155ListingId(tokenId.toString(), userAddress)
+          : tokenId.toString(),
         isERC1155: isERC1155,
         timestamp: Date.now(),
       };
@@ -241,142 +245,122 @@ export function useListNFT() {
 
 // Hook for buying an NFT
 export function useBuyNFT() {
-  const { address } = useAccount();
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
+  const { address: userAddress } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  const buyNFT = async (
-    nftContract: string,
-    tokenId: number,
-    price: string,
-    quantity: number = 1,
-    isERC1155: boolean = false,
-    seller: string = ""
-  ) => {
-    if (!address || !walletClient || !publicClient)
-      throw new Error("Wallet not connected");
-
-    setIsLoading(true);
-    setIsSuccess(false);
-    setError(null);
-    setTxHash(null);
-
-    try {
-      // Get the next nonce
-      const nonce = await publicClient.getTransactionCount({
-        address,
-        blockTag: "pending",
-      });
-
-      // Get marketplace contract
-      const marketplaceContract = await getMarketplaceContract();
-      const txSettings =
-        process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
-          ? {
-              gasPrice: 9,
-              gasLimit: 3000000,
-              nonce: nonce, // Use the nonce from publicClient
-            }
-          : {};
-
-      let tx;
-
-      if (isERC1155) {
-        // For ERC1155 tokens, use the new buyERC1155Item function
-        // Seller address is required for ERC1155 purchases
-        if (!seller) {
-          throw new Error("Seller address is required for ERC1155 purchases");
-        }
-
-        tx = await marketplaceContract.buyERC1155Item(
-          nftContract,
-          tokenId,
-          seller,
-          quantity,
-          {
-            value: parseEther(price),
-            ...txSettings,
-          }
-        );
-      } else {
-        // For ERC721 tokens, use the standard buyItem function
-        tx = await marketplaceContract.buyItem(nftContract, tokenId, {
-          value: parseEther(price),
-          ...txSettings,
-        });
+  const buyNFT = useCallback(
+    async (
+      collectionAddress: string,
+      tokenId: string,
+      seller: string,
+      price: string,
+      quantity: number = 1,
+      isERC1155: boolean = false
+    ) => {
+      if (!userAddress) {
+        throw new Error("No wallet connected");
       }
 
-      setTxHash(tx.hash);
-      console.log(`Purchase transaction submitted: ${tx.hash}`);
+      setIsLoading(true);
+      setError(null);
+      setTxHash(null);
 
-      // Wait for transaction to complete
-      const receipt = await tx.wait();
-      console.log(`Purchase confirmed in block ${receipt.blockNumber}`);
+      try {
+        const marketplaceContract = await getMarketplaceContract();
 
-      // Update database with the new status
-      console.log("Updating database with purchase information...");
-
-      // If no seller is provided for an ERC721, try to get it from the receipt events
-      // This is a simplification - a more robust implementation would parse events
-      if (!seller && !isERC1155) {
-        try {
-          // Try to find the seller from transaction events
-          // This assumes the contract emits an event with the seller address
-          // For simplicity we'll use a placeholder - in a real app you'd parse events
-          console.warn(
-            "Seller address not provided for ERC721 purchase, using fallback approach"
-          );
-
-          // Get active listings for this token to find the seller
-          const listings = await getActiveListingsForToken(
-            nftContract,
-            tokenId.toString()
-          );
-          if (listings.length > 0) {
-            seller = listings[0].seller;
-          } else {
-            console.warn("Could not identify seller for database update");
+        let listing;
+        if (isERC1155) {
+          // For ERC1155, first try to get from database since we need the combined listing ID
+          listing = await getListing(collectionAddress, tokenId, seller);
+          console.log("db listing", listing);
+          if (!listing) {
+            throw new Error("ERC1155 listing not found");
           }
-        } catch (err) {
-          console.error("Error identifying seller:", err);
+        } else {
+          // For ERC721, get directly from smart contract
+          listing = await marketplaceContract.getListing(
+            collectionAddress,
+            tokenId
+          );
+          console.log("contract listing", listing);
+          if (!listing || listing.status !== 1) {
+            // 1 = Active in the ListingStatus enum
+            throw new Error("ERC721 listing not found or not active");
+          }
+          // Verify the seller matches
+          if (listing.seller.toLowerCase() !== seller.toLowerCase()) {
+            throw new Error("Seller mismatch");
+          }
         }
-      }
 
-      if (seller) {
-        const dbSuccess = await updateListingStatus(
-          nftContract,
-          tokenId.toString(),
-          seller,
-          "Sold"
-        );
+        let tx;
+        if (isERC1155) {
+          // Listing price is PER token and is in wei already
+          const buyPrice = BigInt(listing.price) * BigInt(quantity);
 
-        if (!dbSuccess) {
-          console.warn(
-            "Blockchain purchase succeeded but database update failed. UI might be out of sync."
+          tx = await marketplaceContract.buyERC1155Item(
+            collectionAddress,
+            tokenId,
+            seller,
+            quantity,
+            { value: buyPrice }
           );
         } else {
-          console.log(
-            "Database updated successfully with purchase information"
+          tx = await marketplaceContract.buyItem(
+            collectionAddress,
+            tokenId,
+            seller,
+            { value: BigInt(listing.price) }
           );
         }
-      } else {
-        console.warn("Could not update database - seller unknown");
-      }
 
-      setIsSuccess(true);
-      return true;
-    } catch (err) {
-      console.error("Error buying:", err);
-      setError(err instanceof Error ? err : new Error("Failed to buy"));
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setTxHash(tx.hash);
+        console.log(`Transaction submitted: ${tx.hash}`);
+
+        // Wait for transaction to complete
+        const receipt = await tx.wait();
+        console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
+
+        // Update our database to stay in sync
+        // For ERC1155, check if it was a partial purchase
+        if (isERC1155) {
+          const remainingQuantity = listing.quantity - quantity;
+          if (remainingQuantity > 0) {
+            // Partial purchase - update the listing with remaining quantity
+            await updateListingQuantityAndPrice(
+              collectionAddress,
+              tokenId,
+              seller,
+              remainingQuantity,
+              listing.price // Keep the same price per token
+            );
+          } else {
+            // Complete purchase - mark listing as sold
+            await updateListingStatus(
+              collectionAddress,
+              tokenId,
+              seller,
+              "Sold"
+            );
+          }
+        } else {
+          // For ERC721, always mark as sold
+          await updateListingStatus(collectionAddress, tokenId, seller, "Sold");
+        }
+
+        setIsSuccess(true);
+      } catch (err) {
+        console.error("Error buying NFT:", err);
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userAddress]
+  );
 
   return {
     buyNFT,
@@ -579,6 +563,51 @@ export function usePrivateListing() {
     }
   }, [isError, pendingListingId, address]);
 
+  // Add effect to sync database when transaction succeeds
+  useEffect(() => {
+    const syncDatabase = async () => {
+      if (isSuccess && pendingListingId && address) {
+        try {
+          // Extract tokenId and nftContract from pendingListingId
+          const [nftContract, tokenId] = pendingListingId.split("_");
+          if (!nftContract || !tokenId) return;
+
+          // Get the listing from the smart contract to ensure we have the latest data
+          const marketplaceContract = await getMarketplaceContract();
+          const onChainListing = await marketplaceContract.getListing(
+            nftContract,
+            tokenId
+          );
+
+          // Update the database with the confirmed on-chain data
+          const listingData: Listing = {
+            id: pendingListingId,
+            nftContract: nftContract,
+            tokenId: tokenId,
+            seller: onChainListing.seller,
+            price: onChainListing.price.toString(),
+            quantity: onChainListing.quantity,
+            isPrivate: onChainListing.isPrivate,
+            allowedBuyer: onChainListing.allowedBuyer,
+            status: "Active",
+            listingId: tokenId,
+            isERC1155: onChainListing.quantity > 1,
+            timestamp: Date.now(),
+          };
+
+          await createListing(listingData);
+          console.log("Database synchronized with on-chain listing");
+        } catch (err) {
+          console.error("Error syncing database with on-chain listing:", err);
+        } finally {
+          setPendingListingId(null);
+        }
+      }
+    };
+
+    syncDatabase();
+  }, [isSuccess, pendingListingId, address]);
+
   const createPrivateListing = async (
     nftContract: string,
     tokenId: number,
@@ -591,39 +620,9 @@ export function usePrivateListing() {
 
     const priceInWei = parseEther(price);
 
-    // Try to add to database before blockchain interaction
-    const listingId = isERC1155
-      ? generateERC1155ListingId(tokenId.toString(), address)
-      : tokenId.toString();
-
     // Create a unique ID for tracking this listing
     const uniqueListingId = `${nftContract}_${tokenId}_${address}`;
     setPendingListingId(uniqueListingId);
-
-    try {
-      console.log("Creating private listing in database...");
-
-      // Add to database first, marked as pending
-      const listingData: Listing = {
-        id: uniqueListingId,
-        nftContract: nftContract,
-        tokenId: tokenId.toString(),
-        seller: address,
-        price: priceInWei.toString(),
-        quantity: quantity,
-        isPrivate: true,
-        allowedBuyer: allowedBuyer,
-        status: "Active", // We'll mark as active and update if the transaction fails
-        listingId: listingId,
-        isERC1155: isERC1155,
-        timestamp: Date.now(),
-      };
-
-      await createListing(listingData);
-    } catch (err) {
-      console.error("Error pre-creating database listing:", err);
-      // Continue with blockchain transaction even if DB fails
-    }
 
     writeContract({
       address: MARKETPLACE_ADDRESS as `0x${string}`,
@@ -634,15 +633,10 @@ export function usePrivateListing() {
         BigInt(tokenId),
         priceInWei,
         allowedBuyer as `0x${string}`,
-        BigInt(quantity), // Add quantity parameter
+        BigInt(quantity),
       ],
     });
 
-    // Note: Since this uses wagmi's hooks, we can't await the transaction result
-    // Instead, the component using this hook should watch isSuccess and then update UI
-
-    // With wagmi hooks, we can't directly wait for the transaction to complete here
-    // The calling component should use the returned isSuccess to update UI accordingly
     return { txHash: data };
   };
 

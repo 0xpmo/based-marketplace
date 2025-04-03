@@ -147,6 +147,41 @@ export async function updateListingStatus(
   }
 }
 
+// Update a listing's quantity and price
+export async function updateListingQuantityAndPrice(
+  nftContract: string,
+  tokenId: string,
+  seller: string,
+  newQuantity: number,
+  newPrice: string
+): Promise<boolean> {
+  try {
+    const response = await fetch("/api/listings/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        address: nftContract,
+        tokenId,
+        seller,
+        newQuantity,
+        newPrice,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error("Error updating listing:", error);
+    return false;
+  }
+}
+
 // Helper function for ERC1155 listing ID generation
 export function generateERC1155ListingId(
   tokenId: string,

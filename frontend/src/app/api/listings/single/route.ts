@@ -8,6 +8,10 @@ export async function GET(request: Request) {
   const tokenId = searchParams.get("tokenId");
   const seller = searchParams.get("seller");
 
+  console.log("addy", address);
+  console.log("tokenId", tokenId);
+  console.log("seller", seller);
+
   // Validate input
   if (!address || !tokenId || !seller) {
     return NextResponse.json(
