@@ -196,7 +196,7 @@ const NFTListModal = ({
                       max={(nftItem as ERC1155Item).balance}
                       value={quantity}
                       onChange={onQuantityChange}
-                      className="bg-blue-950/80 text-center border-t border-b border-blue-700/50 text-blue-100 py-2 w-16 focus:outline-none"
+                      className="bg-blue-950/80 text-center border-t border-b border-blue-700/50 text-blue-100 py-2 w-16 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none select-none"
                     />
                     <button
                       type="button"

@@ -57,7 +57,7 @@ const NFTInfoHeader = ({
               <span className="text-purple-300 font-medium flex items-center">
                 <motion.div
                   animate={{ rotate: [0, 10, 0, -10, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
+                  transition={{ duration: 5, repeat: Infinity }}
                 >
                   💎
                 </motion.div>

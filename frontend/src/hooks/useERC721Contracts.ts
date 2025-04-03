@@ -29,7 +29,10 @@ import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 import KekTrumpsABI from "@/contracts/KekTrumps.json";
-import { isERC1155Collection } from "@/utils/collectionTypeDetector";
+import {
+  isERC1155Collection,
+  isERC1155CollectionAddress,
+} from "@/utils/collectionTypeDetector";
 
 // Hook for fetching based collections from factory
 export function useBasedCollections() {
@@ -495,18 +498,6 @@ export function useCollection(collectionAddress: string) {
         "totalSupply",
         isExternal
       );
-      console.log("FISH TOTAL SUPLY", totalSupply);
-      // const totalMinted =
-      //   (await readCollectionProperty(
-      //     collectionAddress,
-      //     "totalMinted",
-      //     isExternal
-      //   )) ||
-      //   (await readCollectionProperty(
-      //     collectionAddress,
-      //     "totalSupply",
-      //     isExternal
-      //   ));
 
       const royaltyFee = await readCollectionProperty(
         collectionAddress,
@@ -585,10 +576,10 @@ export function useCollection(collectionAddress: string) {
   }, [collectionAddress]);
 
   useEffect(() => {
-    if (collection && !isERC1155Collection(collection)) {
+    if (collectionAddress && !isERC1155CollectionAddress(collectionAddress)) {
       fetchCollection();
     }
-  }, [collection, fetchCollection]);
+  }, [collectionAddress, fetchCollection]);
 
   return { collection, loading, error };
 }

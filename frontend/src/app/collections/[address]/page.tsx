@@ -36,8 +36,6 @@ export default function CollectionDetailsPage() {
   const [collectionImageUrl, setCollectionImageUrl] = useState<string>(
     "/images/placeholder-collection.svg"
   );
-
-  console.log("collection", collection);
   const [bannerError, setBannerError] = useState(false);
   const [collectionImageError, setCollectionImageError] = useState(false);
   const [isBannerLoading, setIsBannerLoading] = useState(true);

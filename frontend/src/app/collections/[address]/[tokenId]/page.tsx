@@ -106,13 +106,6 @@ export default function NFTDetailsPage() {
     txHash: buyingTxHash,
   } = useBuyNFT();
 
-  // Format address for display
-  const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(
-      address.length - 4
-    )}`;
-  };
-
   // Fetch NFT data
   const fetchNFTData = async () => {
     setLoading(true);

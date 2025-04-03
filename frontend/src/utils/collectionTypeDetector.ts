@@ -1,4 +1,5 @@
 // utils/collectionTypeDetector.ts
+import { ERC1155_CONTRACT_ADDRESSES } from "@/constants/addresses";
 import { Collection, ERC1155Collection } from "@/types/contracts";
 
 /**
@@ -12,6 +13,15 @@ export function isERC1155Collection(
   return (
     collection !== null && (collection as ERC1155Collection).isERC1155 === true
   );
+}
+
+export function isERC1155CollectionAddress(
+  collectionAddress: string | undefined
+) {
+  if (ERC1155_CONTRACT_ADDRESSES.includes(collectionAddress as string)) {
+    return true;
+  }
+  return false;
 }
 
 /**
