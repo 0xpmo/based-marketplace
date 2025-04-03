@@ -168,56 +168,35 @@ const NFTListModal = ({
                     htmlFor="quantity"
                     className="block text-sm font-medium mb-2 text-blue-300"
                   >
-                    Quantity to list (Max: {(nftItem as ERC1155Item).balance})
+                    <div className="flex items-center">
+                      <span>Quantity</span>
+                      <div className="relative ml-2 group">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-blue-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 rounded shadow-lg text-xs text-blue-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                          Currently, only single token listings are supported
+                          for ERC1155 tokens. Multi-quantity listings will be
+                          available in a future update.
+                        </div>
+                      </div>
+                    </div>
                   </label>
-                  <div className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={decrementQuantity}
-                      className="bg-blue-800 hover:bg-blue-700 text-white rounded-l-lg p-2 transition-colors"
-                      disabled={quantity <= 1}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      max={(nftItem as ERC1155Item).balance}
-                      value={quantity}
-                      onChange={onQuantityChange}
-                      className="bg-blue-950/80 text-center border-t border-b border-blue-700/50 text-blue-100 py-2 w-16 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none select-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={incrementQuantity}
-                      className="bg-blue-800 hover:bg-blue-700 text-white rounded-r-lg p-2 transition-colors"
-                      disabled={quantity >= (nftItem as ERC1155Item).balance}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </div>
+                  <p className="text-sm text-blue-400">
+                    Currently, only single token listings are supported. You
+                    have {(nftItem as ERC1155Item).balance} of this token.
+                  </p>
                 </div>
               )}
 

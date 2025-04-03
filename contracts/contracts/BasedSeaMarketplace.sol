@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "./IBasedSeaMarketplaceStorage.sol";
 
 /**
@@ -52,7 +53,8 @@ contract BasedSeaMarketplace is
         uint256 tokenId,
         uint256 price,
         bool isPrivate,
-        address allowedBuyer
+        address allowedBuyer,
+        uint256 quantity
     );
 
     event ItemSold(
@@ -73,7 +75,8 @@ contract BasedSeaMarketplace is
         address indexed seller,
         address indexed nftContract,
         uint256 tokenId,
-        uint256 newPrice
+        uint256 newPrice,
+        uint256 newQuantity
     );
 
     // Bid events
@@ -239,7 +242,68 @@ contract BasedSeaMarketplace is
             msg.sender,
             price,
             false,
-            address(0)
+            address(0),
+            1 // Always 1 for ERC721
+        );
+    }
+
+    /**
+     * @dev List an ERC1155 token for sale
+     * @param nftContract Address of the ERC1155 contract
+     * @param tokenId ID of the token to list
+     * @param quantity Number of tokens to list
+     * @param price Listing price per token in wei
+     */
+    function listERC1155Item(
+        address nftContract,
+        uint256 tokenId,
+        uint256 quantity,
+        uint256 price
+    ) external whenNotPaused {
+        // Check if it's an ERC1155 token
+        require(
+            IERC165(nftContract).supportsInterface(0xd9b67a26), // ERC1155 interface ID
+            "Not an ERC1155 contract"
+        );
+
+        IERC1155 nft = IERC1155(nftContract);
+        require(
+            nft.balanceOf(msg.sender, tokenId) >= quantity,
+            "Insufficient token balance"
+        );
+        require(
+            nft.isApprovedForAll(msg.sender, address(this)),
+            "Marketplace not approved"
+        );
+        require(price > 0, "Price must be greater than zero");
+        require(quantity > 0, "Quantity must be greater than zero");
+
+        // Calculate total price
+        uint256 totalPrice = price * quantity;
+
+        // Create a unique listing ID for this seller+tokenId combination
+        uint256 listingId = _createERC1155ListingId(tokenId, msg.sender);
+
+        // Use the standard _createListing function with our special ID
+        _createListing(
+            nftContract,
+            listingId,
+            msg.sender,
+            totalPrice,
+            false,
+            address(0),
+            quantity
+        );
+
+        // Emit event with original tokenId for frontend compatibility
+        emit ItemListed(
+            msg.sender,
+            nftContract,
+            tokenId, // Use original tokenId in events for frontend compatibility
+            totalPrice,
+            false,
+            address(0),
+            quantity
         );
     }
 
@@ -249,20 +313,15 @@ contract BasedSeaMarketplace is
      * @param tokenId ID of the token
      * @param price Listing price in wei
      * @param allowedBuyer Address of the allowed buyer
+     * @param quantity Quantity of tokens (default 1 for ERC721)
      */
     function createPrivateListing(
         address nftContract,
         uint256 tokenId,
         uint256 price,
-        address allowedBuyer
+        address allowedBuyer,
+        uint256 quantity
     ) external whenNotPaused {
-        IERC721 nft = IERC721(nftContract);
-        require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
-        require(
-            nft.isApprovedForAll(msg.sender, address(this)) ||
-                nft.getApproved(tokenId) == address(this),
-            "Marketplace not approved"
-        );
         require(price > 0, "Price must be greater than zero");
         require(allowedBuyer != address(0), "Invalid buyer address");
         require(
@@ -270,13 +329,41 @@ contract BasedSeaMarketplace is
             "Cannot create private listing for yourself"
         );
 
+        // Check if it's an ERC1155 or ERC721
+        bool isERC1155 = IERC165(nftContract).supportsInterface(0xd9b67a26);
+
+        if (isERC1155) {
+            // ERC1155 handling
+            require(quantity > 0, "Quantity must be greater than zero");
+            IERC1155 nft = IERC1155(nftContract);
+            require(
+                nft.balanceOf(msg.sender, tokenId) >= quantity,
+                "Insufficient token balance"
+            );
+            require(
+                nft.isApprovedForAll(msg.sender, address(this)),
+                "Marketplace not approved"
+            );
+        } else {
+            // ERC721 handling
+            quantity = 1; // Always 1 for ERC721
+            IERC721 nft = IERC721(nftContract);
+            require(nft.ownerOf(tokenId) == msg.sender, "Not the owner");
+            require(
+                nft.isApprovedForAll(msg.sender, address(this)) ||
+                    nft.getApproved(tokenId) == address(this),
+                "Marketplace not approved"
+            );
+        }
+
         marketplaceStorage.setListing(
             nftContract,
             tokenId,
             msg.sender,
             price,
             true,
-            allowedBuyer
+            allowedBuyer,
+            quantity
         );
 
         emit ItemListed(
@@ -285,7 +372,8 @@ contract BasedSeaMarketplace is
             tokenId,
             price,
             true,
-            allowedBuyer
+            allowedBuyer,
+            quantity
         );
     }
 
@@ -329,6 +417,44 @@ contract BasedSeaMarketplace is
     }
 
     /**
+     * @dev Cancel an ERC1155 listing
+     * @param nftContract Address of the ERC1155 contract
+     * @param tokenId Original token ID (not the combined ID)
+     */
+    function cancelERC1155Listing(
+        address nftContract,
+        uint256 tokenId
+    ) external {
+        // Generate the listing ID
+        uint256 listingId = _createERC1155ListingId(tokenId, msg.sender);
+
+        // Get listing details
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, listingId);
+
+        require(listing.seller == msg.sender, "Not the seller");
+        require(
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
+            "Listing not active"
+        );
+
+        // Verify it's an ERC1155 token
+        require(
+            IERC165(nftContract).supportsInterface(0xd9b67a26), // ERC1155 interface ID
+            "Not an ERC1155 contract"
+        );
+
+        // Update listing status
+        marketplaceStorage.updateListingStatus(
+            nftContract,
+            listingId, // Use combined ID for storage
+            IBasedSeaMarketplaceStorage.ListingStatus.Canceled
+        );
+
+        emit ItemCanceled(msg.sender, nftContract, tokenId); // Use original tokenId in events
+    }
+
+    /**
      * @dev Update the price of a listing
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token
@@ -360,7 +486,80 @@ contract BasedSeaMarketplace is
         // Update listing price
         marketplaceStorage.updateListingPrice(nftContract, tokenId, newPrice);
 
-        emit UpdatedListing(msg.sender, nftContract, tokenId, newPrice);
+        emit UpdatedListing(
+            msg.sender,
+            nftContract,
+            tokenId,
+            newPrice,
+            listing.quantity
+        );
+    }
+
+    /**
+     * @dev Update the price of an ERC1155 listing
+     * @param nftContract Address of the ERC1155 contract
+     * @param tokenId Original token ID (not the combined ID)
+     * @param newPrice New price per token
+     * @param newQuantity New quantity to list
+     */
+    function updateERC1155ListingPrice(
+        address nftContract,
+        uint256 tokenId,
+        uint256 newPrice,
+        uint256 newQuantity
+    ) external whenNotPaused {
+        // Generate the listing ID
+        uint256 listingId = _createERC1155ListingId(tokenId, msg.sender);
+
+        // Get listing details
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, listingId);
+
+        require(listing.seller == msg.sender, "Not the seller");
+        require(
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
+            "Listing not active"
+        );
+        require(newPrice > 0, "Price must be greater than zero");
+        require(newQuantity > 0, "Quantity must be greater than zero");
+
+        // Verify it's an ERC1155 token
+        require(
+            IERC165(nftContract).supportsInterface(0xd9b67a26), // ERC1155 interface ID
+            "Not an ERC1155 contract"
+        );
+
+        // Verify seller still owns enough tokens
+        IERC1155 nft = IERC1155(nftContract);
+        require(
+            nft.balanceOf(msg.sender, tokenId) >= newQuantity,
+            "Insufficient token balance"
+        );
+
+        // Calculate total price
+        uint256 totalPrice = newPrice * newQuantity;
+
+        // Update listing price
+        marketplaceStorage.updateListingPrice(
+            nftContract,
+            listingId,
+            totalPrice
+        );
+        // Update both price and quantity
+        marketplaceStorage.updateListingQuantity(
+            nftContract,
+            listingId,
+            newQuantity,
+            totalPrice
+        );
+
+        emit UpdatedListing(
+            msg.sender,
+            nftContract,
+            tokenId,
+            totalPrice,
+            newQuantity
+        ); // Use original tokenId in events
     }
 
     // ===== PURCHASE FUNCTIONS =====
@@ -425,6 +624,115 @@ contract BasedSeaMarketplace is
 
         // Refund any excess payment
         uint256 excess = msg.value - listing.price;
+        if (excess > 0) {
+            (bool success, ) = payable(msg.sender).call{value: excess}("");
+            if (!success) {
+                emit PaymentFailed(msg.sender, excess, "Excess refund");
+            } else {
+                emit PaymentSent(msg.sender, excess, "Excess refund");
+            }
+        }
+    }
+
+    /**
+     * @dev Buy a listed ERC1155 token
+     * @param nftContract Address of the ERC1155 contract
+     * @param tokenId Original token ID (not the combined ID)
+     * @param seller Address of the seller
+     * @param quantity Number of tokens to buy
+     */
+    function buyERC1155Item(
+        address nftContract,
+        uint256 tokenId,
+        address seller,
+        uint256 quantity
+    ) external payable nonReentrant whenNotPaused {
+        // Generate the same listing ID used when listing
+        uint256 listingId = _createERC1155ListingId(tokenId, seller);
+
+        // Get the listing using the combined ID
+        IBasedSeaMarketplaceStorage.Listing memory listing = marketplaceStorage
+            .getListing(nftContract, listingId);
+
+        require(
+            listing.status == IBasedSeaMarketplaceStorage.ListingStatus.Active,
+            "Item not active"
+        );
+
+        require(quantity > 0, "Quantity must be greater than zero");
+        require(quantity <= listing.quantity, "Cannot buy more than listed");
+
+        // Calculate price based on proportion of tokens bought
+        uint256 buyPrice = (listing.price * quantity) / listing.quantity;
+        require(msg.value >= buyPrice, "Insufficient funds");
+
+        // Check if this is a private listing
+        if (listing.isPrivate) {
+            require(
+                msg.sender == listing.allowedBuyer,
+                "Not authorized for this private listing"
+            );
+        }
+
+        // Verify it's an ERC1155 token
+        require(
+            IERC165(nftContract).supportsInterface(0xd9b67a26),
+            "Not an ERC1155 contract"
+        );
+
+        // Verify seller still owns enough tokens
+        IERC1155 nft = IERC1155(nftContract);
+        require(
+            nft.balanceOf(seller, tokenId) >= quantity,
+            "Seller has insufficient tokens"
+        );
+
+        // If buying all tokens, mark as sold, otherwise update quantity
+        if (quantity == listing.quantity) {
+            marketplaceStorage.updateListingStatus(
+                nftContract,
+                listingId, // Use combined ID for storage operations
+                IBasedSeaMarketplaceStorage.ListingStatus.Sold
+            );
+        } else {
+            // Update the listing with remaining quantity
+            uint256 remainingQuantity = listing.quantity - quantity;
+            uint256 remainingPrice = listing.price - buyPrice;
+            marketplaceStorage.updateListingPrice(
+                nftContract,
+                listingId,
+                remainingPrice
+            );
+            // Update the listing with remaining quantity and adjusted price
+            marketplaceStorage.updateListingQuantity(
+                nftContract,
+                listingId,
+                remainingQuantity,
+                remainingPrice
+            );
+        }
+
+        // Process the payment and transfer tokens
+        // Note: We use the original tokenId for the actual transfer
+        _processERC1155Sale(
+            nftContract,
+            tokenId, // Use original tokenId for token transfer
+            quantity,
+            seller,
+            msg.sender,
+            buyPrice
+        );
+
+        emit ItemSold(
+            seller,
+            msg.sender,
+            nftContract,
+            tokenId, // Use original tokenId in events
+            buyPrice
+        );
+
+        // Refund any excess payment
+        uint256 excess = msg.value - buyPrice;
         if (excess > 0) {
             (bool success, ) = payable(msg.sender).call{value: excess}("");
             if (!success) {
@@ -606,6 +914,19 @@ contract BasedSeaMarketplace is
     // ===== HELPER FUNCTIONS =====
 
     /**
+     * @dev Creates a unique ID for ERC1155 listings by combining tokenId and seller
+     * @param tokenId Original ERC1155 token ID
+     * @param seller Address of the seller
+     * @return Combined ID to use for storage
+     */
+    function _createERC1155ListingId(
+        uint256 tokenId,
+        address seller
+    ) internal pure returns (uint256) {
+        return uint256(keccak256(abi.encode(tokenId, seller)));
+    }
+
+    /**
      * @dev Internal function to create a new listing
      * @param nftContract Address of the NFT contract
      * @param tokenId ID of the token to list
@@ -613,6 +934,7 @@ contract BasedSeaMarketplace is
      * @param price Listing price in wei
      * @param isPrivate Whether this is a private listing
      * @param allowedBuyer If private, the address allowed to purchase (otherwise address(0))
+     * @param quantity Quantity of tokens (1 for ERC721, variable for ERC1155)
      */
     function _createListing(
         address nftContract,
@@ -620,7 +942,8 @@ contract BasedSeaMarketplace is
         address seller,
         uint256 price,
         bool isPrivate,
-        address allowedBuyer
+        address allowedBuyer,
+        uint256 quantity
     ) internal {
         try
             marketplaceStorage.setListing(
@@ -629,7 +952,8 @@ contract BasedSeaMarketplace is
                 seller,
                 price,
                 isPrivate,
-                allowedBuyer
+                allowedBuyer,
+                quantity
             )
         {
             emit ItemListed(
@@ -638,7 +962,8 @@ contract BasedSeaMarketplace is
                 tokenId,
                 price,
                 isPrivate,
-                allowedBuyer
+                allowedBuyer,
+                quantity
             );
         } catch Error(string memory reason) {
             revert(
@@ -688,6 +1013,39 @@ contract BasedSeaMarketplace is
     }
 
     /**
+     * @dev Process the ERC1155 sale payment and distribute funds
+     */
+    function _processERC1155Sale(
+        address nftContract,
+        uint256 tokenId,
+        uint256 quantity,
+        address seller,
+        address buyer,
+        uint256 amount
+    ) internal {
+        // Calculate fees with minimal variables
+        uint256 marketFeeAmount = _calculateMarketFee(amount);
+
+        // Transfer the tokens first
+        _transferERC1155(nftContract, tokenId, quantity, seller, buyer);
+
+        // Handle royalty payments
+        uint256 royaltyAmount = _handleRoyaltyPayment(
+            nftContract,
+            tokenId,
+            amount
+        );
+
+        // Track marketplace fees
+        marketplaceStorage.addAccumulatedFees(marketFeeAmount);
+        emit PaymentSent(address(this), marketFeeAmount, "Marketplace fee");
+
+        // Pay seller (remainder after fees and royalties)
+        uint256 sellerAmount = amount - marketFeeAmount - royaltyAmount;
+        _paySeller(seller, sellerAmount);
+    }
+
+    /**
      * @dev Calculates the marketplace fee for a given amount
      * @param amount Total sale amount in wei
      * @return The calculated marketplace fee
@@ -696,6 +1054,33 @@ contract BasedSeaMarketplace is
         uint256 amount
     ) internal view returns (uint256) {
         return (amount * marketplaceStorage.marketFee()) / 10000;
+    }
+
+    /**
+     * @dev Transfers ERC1155 tokens from seller to buyer
+     * @param nftContract Address of the ERC1155 contract
+     * @param tokenId ID of the token to transfer
+     * @param quantity Number of tokens to transfer
+     * @param seller Current owner of the tokens
+     * @param buyer Recipient of the tokens
+     */
+    function _transferERC1155(
+        address nftContract,
+        uint256 tokenId,
+        uint256 quantity,
+        address seller,
+        address buyer
+    ) internal {
+        IERC1155 nft = IERC1155(nftContract);
+        try nft.safeTransferFrom(seller, buyer, tokenId, quantity, "") {
+            // Success, do nothing
+        } catch Error(string memory reason) {
+            revert(
+                string(abi.encodePacked("ERC1155 transfer failed: ", reason))
+            );
+        } catch {
+            revert("ERC1155 transfer failed");
+        }
     }
 
     /**
@@ -869,6 +1254,23 @@ contract BasedSeaMarketplace is
         }
 
         return (address(0), 0);
+    }
+
+    /**
+     * @dev Transfer ownership of the storage contract to a new owner
+     * @param newOwner Address of the new owner
+     */
+    function transferStorageOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner is the zero address");
+
+        // Get the address of the storage contract
+        address storageAddr = address(marketplaceStorage);
+
+        // Cast it to OwnableUpgradeable
+        OwnableUpgradeable ownableStorage = OwnableUpgradeable(storageAddr);
+
+        // Now we can call transferOwnership
+        ownableStorage.transferOwnership(newOwner);
     }
 
     /**

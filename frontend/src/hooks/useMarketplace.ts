@@ -13,7 +13,9 @@ import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 import {
   getMarketplaceContract,
   getNFTContractWithSigner,
+  getERC1155ContractWithSigner,
 } from "@/lib/contracts";
+import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 
 // Hook for listing an NFT
 export function useListNFT() {
@@ -30,7 +32,9 @@ export function useListNFT() {
   const listNFT = async (
     collectionAddress: string,
     tokenId: number,
-    price: string
+    price: string,
+    quantity: number = 1,
+    isERC1155: boolean = false
   ) => {
     setIsLoading(true);
     setIsSuccess(false);
@@ -45,39 +49,76 @@ export function useListNFT() {
       }
 
       console.log(
-        `Listing NFT: Collection=${collectionAddress}, TokenId=${tokenId}, Price=${price}`
+        `Listing ${
+          isERC1155 ? "ERC1155" : "NFT"
+        }: Collection=${collectionAddress}, TokenId=${tokenId}, Price=${price}`
       );
 
-      // 1. First step: Approve the marketplace to manage THIS SPECIFIC token
+      // 1. First step: Approve the marketplace
       try {
         console.log(`Requesting marketplace approval for token #${tokenId}...`);
         setApprovalStep(true);
 
-        // Get the NFT contract
-        const nftContract = await getNFTContractWithSigner(collectionAddress);
+        if (isERC1155) {
+          // For ERC1155, we need to use setApprovalForAll
+          const erc1155Contract = await getERC1155ContractWithSigner(
+            collectionAddress
+          );
 
-        // Request approval for marketplace to manage ONLY this specific NFT token
-        const approvalTx = await nftContract.approve(
-          MARKETPLACE_ADDRESS,
-          tokenId
-        );
-        setApprovalTxHash(approvalTx.hash);
+          // Check if already approved
+          const isApproved = await erc1155Contract.isApprovedForAll(
+            userAddress,
+            MARKETPLACE_ADDRESS
+          );
 
-        console.log(`Approval transaction submitted: ${approvalTx.hash}`);
-        console.log("Waiting for approval confirmation...");
+          if (!isApproved) {
+            // Request approval for marketplace to manage all tokens (required for ERC1155)
+            const approvalTx = await erc1155Contract.setApprovalForAll(
+              MARKETPLACE_ADDRESS,
+              true
+            );
+            setApprovalTxHash(approvalTx.hash);
 
-        // Wait for approval transaction to complete
-        const approvalReceipt = await approvalTx.wait();
-        console.log(
-          `Approval confirmed in block ${approvalReceipt.blockNumber}`
-        );
+            console.log(
+              `ERC1155 Approval transaction submitted: ${approvalTx.hash}`
+            );
+            console.log("Waiting for ERC1155 approval confirmation...");
+
+            // Wait for approval transaction to complete
+            const approvalReceipt = await approvalTx.wait();
+            console.log(
+              `ERC1155 Approval confirmed in block ${approvalReceipt.blockNumber}`
+            );
+          } else {
+            console.log("Marketplace already approved for ERC1155 collection");
+          }
+        } else {
+          // For ERC721, we approve a specific token
+          const nftContract = await getNFTContractWithSigner(collectionAddress);
+
+          // Request approval for marketplace to manage ONLY this specific NFT token
+          const approvalTx = await nftContract.approve(
+            MARKETPLACE_ADDRESS,
+            tokenId
+          );
+          setApprovalTxHash(approvalTx.hash);
+
+          console.log(`Approval transaction submitted: ${approvalTx.hash}`);
+          console.log("Waiting for approval confirmation...");
+
+          // Wait for approval transaction to complete
+          const approvalReceipt = await approvalTx.wait();
+          console.log(
+            `Approval confirmed in block ${approvalReceipt.blockNumber}`
+          );
+        }
       } catch (approvalError) {
         console.error("Approval failed:", approvalError);
         throw new Error("Failed to approve marketplace. Please try again.");
       }
 
       // 2. Second step: List the NFT on the marketplace
-      console.log("Proceeding to list NFT on marketplace...");
+      console.log("Proceeding to list on marketplace...");
       setApprovalStep(false);
 
       // Convert price to wei (or your token's smallest unit)
@@ -94,7 +135,9 @@ export function useListNFT() {
         blockTag: "pending",
       });
 
-      // Call the contract's listItem function with proper gas settings and nonce
+      // We use the standard listItem function for all tokens
+      // The contract only supports ERC721 currently, so we need to make sure
+      // the approval is correct (setApprovalForAll for ERC1155)
       const tx = await marketplaceContract.listItem(
         collectionAddress,
         tokenId,
@@ -103,7 +146,7 @@ export function useListNFT() {
           ? {
               gasPrice: 9,
               gasLimit: 3000000,
-              nonce: nonce, // Use the nonce from publicClient
+              nonce: nonce,
             }
           : {}
       );
@@ -120,9 +163,9 @@ export function useListNFT() {
       setIsSuccess(true);
       return true;
     } catch (err) {
-      console.error("Error listing NFT for sale:", err);
+      console.error("Error listing for sale:", err);
       setError(
-        err instanceof Error ? err : new Error("Failed to list NFT for sale")
+        err instanceof Error ? err : new Error("Failed to list for sale")
       );
       return false;
     } finally {
@@ -143,9 +186,6 @@ export function useListNFT() {
 
 // Hook for buying an NFT
 export function useBuyNFT() {
-  // const { writeContract, data, isError, error } = useWriteContract();
-  // const { isLoading, isSuccess } = useTransaction({ hash: data });
-
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
@@ -157,7 +197,9 @@ export function useBuyNFT() {
   const buyNFT = async (
     nftContract: string,
     tokenId: number,
-    price: string
+    price: string,
+    quantity: number = 1,
+    isERC1155: boolean = false
   ) => {
     if (!address || !walletClient || !publicClient)
       throw new Error("Wallet not connected");
@@ -184,7 +226,8 @@ export function useBuyNFT() {
               nonce: nonce, // Use the nonce from publicClient
             }
           : {};
-      // Call the contract's buyItem function with proper gas settings and nonce
+
+      // Current marketplace contract only supports standard ERC721 buyItem
       const tx = await marketplaceContract.buyItem(nftContract, tokenId, {
         value: parseEther(price),
         ...txSettings,
@@ -198,8 +241,8 @@ export function useBuyNFT() {
       setIsSuccess(true);
       return true;
     } catch (err) {
-      console.error("Error buying NFT:", err);
-      setError(err instanceof Error ? err : new Error("Failed to buy NFT"));
+      console.error("Error buying:", err);
+      setError(err instanceof Error ? err : new Error("Failed to buy"));
       throw err;
     } finally {
       setIsLoading(false);

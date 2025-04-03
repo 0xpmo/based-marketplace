@@ -5,6 +5,7 @@ import { getDefaultProvider } from "./web3";
 // import { CollectionABI } from "@/contracts/abis/CollectionABI";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
+import KekTrumpsABI from "@/contracts/KekTrumps.json";
 
 // Get provider
 export const getProvider = async () => {
@@ -22,6 +23,13 @@ export const getNFTContractWithSigner = async (address: string) => {
   const provider = await getProvider();
   const signer = await provider.getSigner();
   return new ethers.Contract(address, CollectionABI.abi, signer);
+};
+
+// Get ERC1155 contract with signer
+export const getERC1155ContractWithSigner = async (address: string) => {
+  const provider = await getProvider();
+  const signer = await provider.getSigner();
+  return new ethers.Contract(address, KekTrumpsABI.abi, signer);
 };
 
 // Get marketplace contract

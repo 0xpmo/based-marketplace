@@ -42,12 +42,14 @@ contract BasedSeaMarketplaceStorage is
         address indexed nftContract,
         uint256 indexed tokenId,
         address seller,
-        uint256 price
+        uint256 price,
+        uint256 quantity
     );
     event ListingUpdated(
         address indexed nftContract,
         uint256 indexed tokenId,
-        uint256 newPrice
+        uint256 newPrice,
+        uint256 newQuantity
     );
     event ListingStatusChanged(
         address indexed nftContract,
@@ -166,6 +168,7 @@ contract BasedSeaMarketplaceStorage is
      * @param price Listing price
      * @param isPrivate Whether the listing is private
      * @param allowedBuyer Address of the allowed buyer (for private listings)
+     * @param quantity Quantity of tokens (1 for ERC721, variable for ERC1155)
      */
     function setListing(
         address nftContract,
@@ -173,7 +176,8 @@ contract BasedSeaMarketplaceStorage is
         address seller,
         uint256 price,
         bool isPrivate,
-        address allowedBuyer
+        address allowedBuyer,
+        uint256 quantity
     ) external onlyOwner {
         listings[nftContract][tokenId] = Listing({
             seller: seller,
@@ -182,10 +186,11 @@ contract BasedSeaMarketplaceStorage is
             price: price,
             isPrivate: isPrivate,
             allowedBuyer: allowedBuyer,
-            status: ListingStatus.Active
+            status: ListingStatus.Active,
+            quantity: quantity
         });
 
-        emit ListingCreated(nftContract, tokenId, seller, price);
+        emit ListingCreated(nftContract, tokenId, seller, price, quantity);
     }
 
     /**
@@ -215,7 +220,30 @@ contract BasedSeaMarketplaceStorage is
         uint256 price
     ) external onlyOwner {
         listings[nftContract][tokenId].price = price;
-        emit ListingUpdated(nftContract, tokenId, price);
+        emit ListingUpdated(
+            nftContract,
+            tokenId,
+            price,
+            listings[nftContract][tokenId].quantity
+        );
+    }
+
+    /**
+     * @dev Update the quantity and price of a listing
+     * @param nftContract Address of the NFT contract
+     * @param tokenId ID of the token
+     * @param quantity New quantity
+     * @param price New total price
+     */
+    function updateListingQuantity(
+        address nftContract,
+        uint256 tokenId,
+        uint256 quantity,
+        uint256 price
+    ) external onlyOwner {
+        listings[nftContract][tokenId].quantity = quantity;
+        listings[nftContract][tokenId].price = price;
+        emit ListingUpdated(nftContract, tokenId, price, quantity);
     }
 
     /**

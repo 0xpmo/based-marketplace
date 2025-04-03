@@ -258,25 +258,28 @@ export default function NFTDetailsPage() {
       return;
     }
 
-    if (isERC1155) {
-      // TODO: Implement ERC1155 listing functionality
-      toast.error("ERC1155 listing is not yet implemented");
-      return;
-    } else {
-      try {
-        setTxHash(null);
-        setListingJustCompleted(false);
-        const success = await listNFT(collectionAddress, tokenId, price);
-        if (success) {
-          setListingJustCompleted(true);
-          // Set txHash after setting listingJustCompleted
-          if (listingTxHash) {
-            setTxHash(listingTxHash);
-          }
+    try {
+      setTxHash(null);
+      setListingJustCompleted(false);
+
+      // For both ERC721 and ERC1155, use the standard listing process
+      // The hook handles the appropriate approval method based on token type
+      const success = await listNFT(
+        collectionAddress,
+        tokenId,
+        price,
+        1, // Always use quantity 1 since contract doesn't support multiple quantity
+        isERC1155 // Just pass this for the approval step
+      );
+
+      if (success) {
+        setListingJustCompleted(true);
+        if (listingTxHash) {
+          setTxHash(listingTxHash);
         }
-      } catch (err) {
-        console.error("Error listing NFT:", err);
       }
+    } catch (err) {
+      console.error("Error listing for sale:", err);
     }
   };
 
@@ -340,12 +343,7 @@ export default function NFTDetailsPage() {
       return;
     }
 
-    if (isERC1155) {
-      // TODO: Implement ERC1155 purchase functionality
-      toast.error("ERC1155 purchasing is not yet implemented");
-      return;
-    }
-
+    // Show confirmation modal for both token types
     setShowBuyConfirmModal(true);
   };
 
@@ -361,6 +359,7 @@ export default function NFTDetailsPage() {
       setTxHash(null);
       setShowBuyConfirmModal(false); // Close the modal
 
+      // For both ERC721 and ERC1155, use the standard buying process
       toast.promise(
         buyNFT(collectionAddress, tokenId, activeItem.listing.price),
         {
@@ -541,12 +540,6 @@ export default function NFTDetailsPage() {
       return;
     }
 
-    if (isERC1155) {
-      // TODO: Implement ERC1155 cancel listing functionality
-      toast.error("ERC1155 listing cancellation is not yet implemented");
-      return;
-    }
-
     try {
       setIsCancelling(true);
       setCancelTxHash(null);
@@ -560,7 +553,8 @@ export default function NFTDetailsPage() {
         blockTag: "pending",
       });
 
-      // Call the cancelListing function
+      // For both ERC721 and ERC1155, use the standard cancelListing function
+      // The contract will handle the token type appropriately
       const tx = await marketplaceContract.cancelListing(
         collectionAddress,
         tokenId,
@@ -568,7 +562,7 @@ export default function NFTDetailsPage() {
           ? {
               gasPrice: 9,
               gasLimit: 3000000,
-              nonce: nonce, // Use the nonce from publicClient
+              nonce: nonce,
             }
           : {}
       );

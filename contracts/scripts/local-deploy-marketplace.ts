@@ -28,6 +28,7 @@ async function main() {
     [DEFAULT_FEE, deployer.address],
     {
       initializer: "initialize",
+      kind: "uups",
     }
   );
 
