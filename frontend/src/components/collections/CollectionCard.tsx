@@ -108,12 +108,14 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
 
           <div className="flex justify-between items-center">
             <div className="flex-1">
-              <div className="h-2 w-full bg-blue-800/50 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-400 to-cyan-400"
-                  style={{ width: `${getProgress()}%` }}
-                />
-              </div>
+              {collection && !isERC1155Collection(collection) && (
+                <div className="h-2 w-full bg-blue-800/50 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-400 to-cyan-400"
+                    style={{ width: `${getProgress()}%` }}
+                  />
+                </div>
+              )}
               <p className="text-sm text-blue-300 mt-1">{displayMintInfo()}</p>
             </div>
           </div>
