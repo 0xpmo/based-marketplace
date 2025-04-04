@@ -10,11 +10,9 @@ import { useCollection } from "@/hooks/useERC721Contracts";
 import { useTokenListings } from "@/hooks/useListings";
 import {
   useBuyNFT,
-  useCancelERC1155Listing,
   useCancelListing,
   useListNFT,
 } from "@/hooks/useMarketplace";
-import { getMarketplaceContract } from "@/lib/contracts";
 import { fetchFromIPFS, getIPFSGatewayURL } from "@/services/ipfs";
 import { ERC1155Item, NFTItem } from "@/types/contracts";
 import { Listing } from "@/types/listings";
@@ -40,6 +38,7 @@ import NFTListingsTable from "@/components/nfts/NFTListingsTable";
 import NFTPriceActions from "@/components/nfts/NFTPriceActions";
 import NFTPropertiesSection from "@/components/nfts/NFTPropertiesSection";
 import PepeButton from "@/components/ui/PepeButton";
+import { LOADING_MESSAGES } from "@/utils/formatting";
 
 export default function NFTDetailsPage() {
   const params = useParams();
@@ -1119,34 +1118,3 @@ export default function NFTDetailsPage() {
     </div>
   );
 }
-
-export const LOADING_MESSAGES = [
-  // Ocean themed
-  "Diving into the collection...",
-  "Swimming through the blockchain...",
-  "Fishing for NFTs...",
-  "Exploring the digital depths...",
-  "Surfing the metadata waves...",
-  "Catching rare digital fish...",
-  "Navigating the NFT ocean...",
-  "Consulting the sea creatures...",
-  "Summoning the Kraken...",
-  "Waiting for committer to communicate",
-  "Whales eat tacos for breakfast",
-  "You're ghey...",
-  "So who is ghey?",
-  "I'm a toaster",
-  "Coal will rise again",
-  "Justice for coal",
-  "Building the pepecoin world order",
-  "The pepecoin world order is being built",
-  "Whoooooooooooooooo la la (loading)",
-  "Kekity kek",
-  "Kekity kekity kekity kekity kekity kekity kekity kek",
-
-  // Self-deprecating/dark humor
-  "Committing toaster bath",
-  "Our intern doesn't get paid enough for this shit",
-  "Alt+F4 for instant results...",
-  "Go touch some grass",
-];

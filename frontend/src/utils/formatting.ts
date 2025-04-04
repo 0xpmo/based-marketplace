@@ -20,3 +20,34 @@ export const formatNumberWithCommas = (value: number | string) => {
   // Join back with decimal part if it exists
   return parts.join(".");
 };
+
+export const LOADING_MESSAGES = [
+  // Ocean themed
+  "Diving into the collection...",
+  "Swimming through the blockchain...",
+  "Fishing for NFTs...",
+  "Exploring the digital depths...",
+  "Surfing the metadata waves...",
+  "Catching rare digital fish...",
+  "Navigating the NFT ocean...",
+  "Consulting the sea creatures...",
+  "Summoning the Kraken...",
+  "Waiting for committer to communicate",
+  "Whales eat tacos for breakfast",
+  "You're ghey...",
+  "So who is ghey?",
+  "I'm a toaster",
+  "Coal will rise again",
+  "Justice for coal",
+  "Building the pepecoin world order",
+  "The pepecoin world order is being built",
+  "Whoooooooooooooooo la la (loading)",
+  "Kekity kek",
+  "Kekity kekity kekity kekity kekity kekity kekity kek",
+
+  // Self-deprecating/dark humor
+  "Committing toaster bath",
+  "Our intern doesn't get paid enough for this shit",
+  "Alt+F4 for instant results...",
+  "Go touch some grass",
+];

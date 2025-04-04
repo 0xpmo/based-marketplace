@@ -21,13 +21,12 @@ import MintNftModal from "@/components/nfts/MintNftModal";
 import ERC1155MintModal from "@/components/nfts/ERC1155MintModal";
 import { useAccount } from "wagmi";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
-import { formatNumberWithCommas } from "@/utils/formatting";
+import { formatNumberWithCommas, LOADING_MESSAGES } from "@/utils/formatting";
 import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 import CollectionStatusBadge from "@/components/collections/CollectionStatusBadge";
 import { useCollectionListings } from "@/hooks/useListings";
 import { ethers } from "ethers";
 import { useDeepCompareEffect } from "@/utils/deepComparison";
-import { LOADING_MESSAGES } from "./[tokenId]/page";
 
 export default function CollectionDetailsPage() {
   const params = useParams();
