@@ -65,6 +65,9 @@ export default function NFTDetailsPage() {
   const [showBuyConfirmModal, setShowBuyConfirmModal] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState(
+    () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]
+  );
   const publicClient = usePublicClient();
 
   // Use the shared token price context
@@ -294,24 +297,31 @@ export default function NFTDetailsPage() {
       setTxHash(null);
       setListingJustCompleted(false);
 
-      console.log("token id page blob price", price);
-      console.log("token id page blob quantity", quantity);
-
-      // Determine if this is an ERC1155 token and pass the appropriate quantity
-      const success = await listNFT(
-        collectionAddress,
-        tokenId,
-        price,
-        isERC1155 ? quantity : 1, // Use quantity for ERC1155, 1 for ERC721
-        isERC1155
-      );
-
-      if (success) {
-        setListingJustCompleted(true);
-        if (listingTxHash) {
-          setTxHash(listingTxHash);
+      await toast.promise(
+        listNFT(
+          collectionAddress,
+          tokenId,
+          price,
+          isERC1155 ? quantity : 1,
+          isERC1155
+        ),
+        {
+          loading: "Creating listing...",
+          success: () => {
+            // Refresh NFT data after successful listing
+            fetchNFTData();
+            refetchListings();
+            // Close the modal after a short delay
+            setTimeout(() => {
+              setShowListModal(false);
+            }, 2000);
+            return "NFT listed successfully!";
+          },
+          error: (err) => {
+            return `Failed to list NFT: ${err.message}`;
+          },
         }
-      }
+      );
     } catch (err) {
       console.error("Error listing for sale:", err);
     }
@@ -337,17 +347,26 @@ export default function NFTDetailsPage() {
   }, [showListModal, isListingSuccess]);
 
   // Handle success - close modal after listing with delay
+  // useDeepCompareEffect(() => {
+  //   if (isListingSuccess) {
+  //     // Make sure listingJustCompleted is set to true when isListingSuccess becomes true
+  //     setListingJustCompleted(true);
+
+  //     // Close the modal after a delay to show the success message
+  //     setTimeout(() => {
+  //       setShowListModal(false);
+  //       // Refresh the page to show updated listing status
+  //       fetchNFTData();
+  //     }, 5000); // 5 seconds is enough time to see the success message
+  //   }
+  // }, [isListingSuccess]);
   useDeepCompareEffect(() => {
     if (isListingSuccess) {
-      // Make sure listingJustCompleted is set to true when isListingSuccess becomes true
-      setListingJustCompleted(true);
-
-      // Close the modal after a delay to show the success message
       setTimeout(() => {
-        setShowListModal(false);
-        // Refresh the page to show updated listing status
+        // Just refresh the data
         fetchNFTData();
-      }, 5000); // 5 seconds is enough time to see the success message
+        refetchListings();
+      }, 2000);
     }
   }, [isListingSuccess]);
 
@@ -610,22 +629,41 @@ export default function NFTDetailsPage() {
       setShowPurchaseSuccess(true);
       setJustPurchased(true);
 
+      // Immediately update the NFT state to reflect ownership change
+      if (nft && !isERC1155 && userAddress) {
+        // Add userAddress check
+        const updatedNft = { ...nft };
+        updatedNft.owner = userAddress;
+        updatedNft.listing = { active: false, price: "0", seller: "" };
+        setNft(updatedNft);
+      } else if (erc1155Token && isERC1155 && userAddress) {
+        // Add userAddress check
+        const updatedToken = { ...erc1155Token };
+        updatedToken.balance = (updatedToken.balance || 0) + quantity; // Update balance instead of owner
+        updatedToken.listing = {
+          active: false,
+          price: "0",
+          seller: "",
+          quantity: 0,
+        };
+        setErc1155Token(updatedToken);
+      }
+
       // Trigger confetti
       triggerConfetti();
 
       // Refresh the NFT data to show updated ownership
-      setTimeout(() => {
-        fetchNFTData();
-        // Hide the success animation after a longer time
-        setTimeout(() => {
-          setShowPurchaseSuccess(false);
+      fetchNFTData();
+      refetchListings();
 
-          // Reset the justPurchased flag after a day
-          setTimeout(() => {
-            setJustPurchased(false);
-          }, 24 * 60 * 60 * 1000); // 24 hours
-        }, 8000); // Increased from 5000 to 8000 ms
-      }, 2000);
+      // Hide the success animation after a delay
+      setTimeout(() => {
+        setShowPurchaseSuccess(false);
+        // Reset the justPurchased flag after a day
+        setTimeout(() => {
+          setJustPurchased(false);
+        }, 24 * 60 * 60 * 1000); // 24 hours
+      }, 8000);
     }
   }, [isBuyingSuccess]);
 
@@ -685,7 +723,10 @@ export default function NFTDetailsPage() {
         cancelListing(collectionAddress, tokenId.toString(), isERC1155),
         {
           loading: "Canceling listing...",
-          success: "Cancellation submitted! Waiting for confirmation...",
+          success: () => {
+            fetchNFTData();
+            return "Cancellation submitted! Waiting for confirmation...";
+          },
           error: (err) => {
             // Check for specific error messages
             const errorMessage = err.message || "Unknown error";
@@ -774,17 +815,17 @@ export default function NFTDetailsPage() {
   // Also fetch listings when DB listings change
   useDeepCompareEffect(() => {
     if (dbListings && dbListings.length > 0 && !isLoadingListings) {
+      // Find the first listing (lowest price)
+      const firstListing = dbListings.sort((a, b) => {
+        const priceA = BigInt(a.price);
+        const priceB = BigInt(b.price);
+        return priceA < priceB ? -1 : 1;
+      })[0];
+
       // Update listings in memory if the listing came from our database
       if (nft && !isERC1155) {
         // Create a deep copy of the NFT
         const updatedNft = { ...nft };
-
-        // Find the first listing (lowest price)
-        const firstListing = dbListings.sort((a, b) => {
-          const priceA = BigInt(a.price);
-          const priceB = BigInt(b.price);
-          return priceA < priceB ? -1 : 1;
-        })[0];
 
         // Format listing for compatibility with existing code
         updatedNft.listing = {
@@ -798,13 +839,6 @@ export default function NFTDetailsPage() {
         // Handle ERC1155 token listings
         const updatedToken = { ...erc1155Token };
 
-        // Find the first listing (lowest price)
-        const firstListing = dbListings.sort((a, b) => {
-          const priceA = BigInt(a.price);
-          const priceB = BigInt(b.price);
-          return priceA < priceB ? -1 : 1;
-        })[0];
-
         // Format listing for compatibility with existing code
         updatedToken.listing = {
           price: ethers.formatEther(firstListing.price),
@@ -815,9 +849,24 @@ export default function NFTDetailsPage() {
 
         setErc1155Token(updatedToken);
       }
+    } else {
+      // If there are no listings, update the NFT/token to show as not listed
+      if (nft && !isERC1155) {
+        const updatedNft = { ...nft };
+        updatedNft.listing = { active: false, price: "0", seller: "" };
+        setNft(updatedNft);
+      } else if (erc1155Token && isERC1155) {
+        const updatedToken = { ...erc1155Token };
+        updatedToken.listing = {
+          active: false,
+          price: "0",
+          seller: "",
+          quantity: 0,
+        };
+        setErc1155Token(updatedToken);
+      }
     }
   }, [dbListings, isLoadingListings, nft, erc1155Token, isERC1155]);
-
   // Effect to handle ERC1155 token data updates
   useDeepCompareEffect(() => {
     if (isERC1155 && fetchedErc1155Token && !loadingErc1155Token) {
@@ -836,7 +885,7 @@ export default function NFTDetailsPage() {
               <div className="animate-spin h-16 w-16 border-4 border-blue-400 border-t-transparent rounded-full relative"></div>
             </div>
             <p className="text-xl font-medium text-blue-100">
-              Diving into the ocean depths...
+              {loadingMessage}
             </p>
           </div>
         </div>
@@ -1070,3 +1119,34 @@ export default function NFTDetailsPage() {
     </div>
   );
 }
+
+export const LOADING_MESSAGES = [
+  // Ocean themed
+  "Diving into the collection...",
+  "Swimming through the blockchain...",
+  "Fishing for NFTs...",
+  "Exploring the digital depths...",
+  "Surfing the metadata waves...",
+  "Catching rare digital fish...",
+  "Navigating the NFT ocean...",
+  "Consulting the sea creatures...",
+  "Summoning the Kraken...",
+  "Waiting for committer to communicate",
+  "Whales eat tacos for breakfast",
+  "You're ghey...",
+  "So who is ghey?",
+  "I'm a toaster",
+  "Coal will rise again",
+  "Justice for coal",
+  "Building the pepecoin world order",
+  "The pepecoin world order is being built",
+  "Whoooooooooooooooo la la (loading)",
+  "Kekity kek",
+  "Kekity kekity kekity kekity kekity kekity kekity kek",
+
+  // Self-deprecating/dark humor
+  "Committing toaster bath",
+  "Our intern doesn't get paid enough for this shit",
+  "Alt+F4 for instant results...",
+  "Go touch some grass",
+];

@@ -12,8 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 
 /**
  * @title KekTrumps
- * @dev ERC1155 contract supporting multiple characters and rarity tiers with future-proofed minting and burning functionality.
- * Tracks mint and burn counts per rarity/character and includes fair distribution logic for batch minting.
+ * @dev ERC1155 contract supporting multiple characters and rarity tiers
  */
 contract KekTrumps is
     Initializable,
@@ -276,6 +275,35 @@ contract KekTrumps is
     }
 
     /**
+     * @dev Allows the owner to mint specific characters with specific rarities to any address.
+     * @param to Recipient address
+     * @param characterId Character ID to mint
+     * @param rarity Rarity tier to mint
+     * @param amount Number of tokens to mint
+     */
+    function ownerMint(
+        address to,
+        uint256 characterId,
+        Rarity rarity,
+        uint256 amount
+    ) external onlyOwner nonReentrant {
+        require(to != address(0), "Zero address");
+        require(amount > 0, "Invalid amount");
+        require(characters[characterId].enabled, "Character not enabled");
+
+        Character storage c = characters[characterId];
+        require(
+            c.minted[rarity] + amount <= c.maxSupply[rarity],
+            "Would exceed max supply"
+        );
+
+        c.minted[rarity] += amount;
+        _mint(to, c.tokenId[rarity], amount, "");
+
+        emit TokenMinted(to, c.tokenId[rarity], c.characterId, rarity, amount);
+    }
+
+    /**
      * @dev Burns tokens from the sender or approved address.
      * Only the token holder or approved operator can burn.
      */
@@ -412,6 +440,35 @@ contract KekTrumps is
         _safeTransfer(wallet2, a2);
         _safeTransfer(wallet3, a3);
         _safeTransfer(wallet4, a4);
+    }
+
+    /**
+     * @dev Updates the default royalty recipient and percentage.
+     * @param recipient Address to receive royalties
+     * @param feeNumerator New royalty fee numerator (denominator is 10000, so 1000 = 10%)
+     */
+    function updateDefaultRoyalty(
+        address recipient,
+        uint96 feeNumerator
+    ) external onlyOwner {
+        require(recipient != address(0), "Zero address");
+        _setDefaultRoyalty(recipient, feeNumerator);
+    }
+
+    /**
+     * @dev Updates the base URI for all token metadata.
+     * @param newBaseURI New base URI for token metadata
+     */
+    function setBaseURI(string memory newBaseURI) external onlyOwner {
+        _baseTokenURI = newBaseURI;
+    }
+
+    /**
+     * @dev Updates the contract URI for collection metadata.
+     * @param newContractURI New URI for collection metadata
+     */
+    function setContractURI(string memory newContractURI) external onlyOwner {
+        _contractURI = newContractURI;
     }
 
     function _safeTransfer(address to, uint256 amount) private {

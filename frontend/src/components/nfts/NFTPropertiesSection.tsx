@@ -48,10 +48,10 @@ const NFTPropertiesSection = ({ attributes }: NFTPropertiesSectionProps) => {
             className="bg-blue-950/50 border border-blue-800/30 rounded-lg p-3 text-center hover:border-blue-500/50 transition-colors group relative"
             title={`${attribute.trait_type}: ${attribute.value.toString()}`}
           >
-            <div className="text-xs text-blue-400 uppercase mb-1 font-semibold break-words">
+            <div className="text-xs text-blue-400 uppercase mb-1 font-semibold">
               {attribute.trait_type}
             </div>
-            <div className="font-semibold text-blue-100 break-words">
+            <div className="font-semibold text-blue-100">
               {attribute.value.toString()}
             </div>
             {/* Tooltip that appears on hover */}

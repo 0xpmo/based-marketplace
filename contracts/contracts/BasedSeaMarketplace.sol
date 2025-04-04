@@ -654,8 +654,8 @@ contract BasedSeaMarketplace is
         require(quantity > 0, "Quantity must be greater than zero");
         require(quantity <= listing.quantity, "Cannot buy more than listed");
 
-        // Calculate price based on proportion of tokens bought
-        uint256 buyPrice = (listing.price * quantity) / listing.quantity;
+        // Listing price is per token, so we multiply by quantity
+        uint256 buyPrice = listing.price * quantity;
         require(msg.value >= buyPrice, "Insufficient funds");
 
         // Check if this is a private listing

@@ -27,6 +27,7 @@ import CollectionStatusBadge from "@/components/collections/CollectionStatusBadg
 import { useCollectionListings } from "@/hooks/useListings";
 import { ethers } from "ethers";
 import { useDeepCompareEffect } from "@/utils/deepComparison";
+import { LOADING_MESSAGES } from "./[tokenId]/page";
 
 export default function CollectionDetailsPage() {
   const params = useParams();
@@ -51,6 +52,9 @@ export default function CollectionDetailsPage() {
     useState(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [displayNfts, setDisplayNfts] = useState<(NFTItem | ERC1155Item)[]>([]);
+  const [loadingMessage, setLoadingMessage] = useState(
+    () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]
+  );
 
   // Collection address normalization
   const collectionAddr = Array.isArray(params.address)
@@ -68,15 +72,15 @@ export default function CollectionDetailsPage() {
     nfts: erc721Nfts,
     loading: loadingERC721NFTs,
     metadataLoading: metadataLoadingERC721,
-    error: fetchErrorERC721,
+    // error: fetchErrorERC721,
     refresh: refreshERC721NFTs,
   } = useCollectionNFTs(isERC1155 || !collection ? "" : collectionAddr);
 
   const {
     tokens: erc1155Tokens,
     loading: loadingERC1155Tokens,
-    metadataLoading: metadataLoadingERC1155,
-    error: fetchErrorERC1155,
+    // metadataLoading: metadataLoadingERC1155,
+    // error: fetchErrorERC1155,
     refresh: refreshERC1155Tokens,
   } = useERC1155CollectionTokens(collection && isERC1155 ? collectionAddr : "");
 
@@ -88,9 +92,9 @@ export default function CollectionDetailsPage() {
   // Unified loading states
   const loadingNFTs = isERC1155 ? loadingERC1155Tokens : loadingERC721NFTs;
   const metadataLoading = isERC1155
-    ? metadataLoadingERC1155
+    ? loadingERC1155Tokens
     : metadataLoadingERC721;
-  const fetchError = isERC1155 ? fetchErrorERC1155 : fetchErrorERC721;
+  // const fetchError = isERC1155 ? fetchErrorERC1155 : fetchErrorERC721;
 
   // Use  hook instead of direct API calls
   const {
@@ -395,7 +399,7 @@ export default function CollectionDetailsPage() {
               <div className="animate-spin h-16 w-16 border-4 border-blue-400 border-t-transparent rounded-full relative"></div>
             </div>
             <p className="text-xl font-medium text-blue-100">
-              Diving into the collection...
+              {loadingMessage}
             </p>
           </div>
         </div>

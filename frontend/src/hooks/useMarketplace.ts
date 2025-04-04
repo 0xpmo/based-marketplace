@@ -429,6 +429,9 @@ export function useBuyNFT() {
 
           // const buyPrice = onChainListing[3] * BigInt(quantity);
           const buyPrice = BigInt(price) * BigInt(quantity);
+          console.log("buying at total price", buyPrice);
+          console.log("buying at individual price", price);
+          console.log("buying at quantity", quantity);
           tx = await marketplaceContract.buyERC1155Item(
             collectionAddress,
             tokenId,
