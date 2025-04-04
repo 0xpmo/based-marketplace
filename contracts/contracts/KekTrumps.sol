@@ -471,6 +471,14 @@ contract KekTrumps is
         _contractURI = newContractURI;
     }
 
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
     function _safeTransfer(address to, uint256 amount) private {
         (bool success, ) = payable(to).call{value: amount}("");
         require(success, "Transfer failed");

@@ -47,6 +47,8 @@ const NFTListModal = ({
   calculateUSDPrice,
   usdPrice,
 }: NFTListModalProps) => {
+  const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
+
   // Determine if the item is an ERC1155 token
   const isERC1155 = isERC1155Item(nftItem);
 
@@ -253,106 +255,153 @@ const NFTListModal = ({
 
               {/* Fee breakdown section */}
               {price && parseInt(price) > 0 && collection && (
-                <div className="mb-6 p-4 bg-blue-800/20 border border-blue-700/30 rounded-lg">
-                  <h3 className="text-blue-100 font-medium mb-3">
-                    Fee Breakdown
-                  </h3>
+                <div className="mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
+                    className="w-full flex items-center justify-between p-3 bg-blue-800/20 border border-blue-700/30 rounded-lg text-blue-100 hover:bg-blue-800/30 transition-colors"
+                  >
+                    <span className="font-medium">Fee Breakdown</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-5 w-5 transform transition-transform ${
+                        showFeeBreakdown ? "rotate-180" : ""
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
 
-                  {/* Creator royalty - assuming this exists in collection data */}
-                  {collection?.royaltyFee &&
-                  Number(collection.royaltyFee) > 0 ? (
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-blue-300 text-sm">
-                        Creator Royalty (
-                        {(Number(collection.royaltyFee) / 100).toFixed(2)}%)
-                      </span>
-                      <span className="text-blue-200 text-sm">
-                        𝔹{" "}
-                        {formatNumberWithCommas(
-                          (
-                            parseInt(price) *
-                            (Number(collection.royaltyFee) / 10000)
-                          ).toFixed(0)
-                        )}
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {/* Marketplace fee */}
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center">
-                      <span className="text-blue-300 text-sm">
-                        Marketplace Fee (4.5%)
-                      </span>
-                      <div className="relative ml-1 group">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 text-blue-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 rounded shadow-lg text-xs text-blue-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                          This fee is used to maintain the BasedSea marketplace
-                          and support ongoing development.
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-blue-200 text-sm">
-                      𝔹{" "}
-                      {formatNumberWithCommas(
-                        (parseInt(price) * 0.045).toFixed(0)
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Divider line */}
-                  <div className="border-t border-blue-700/30 my-3"></div>
-
-                  {/* Total payout calculation */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-blue-100 font-medium">
-                      Your payout (per token)
-                    </span>
-                    <span className="text-blue-100 font-medium">
-                      𝔹{" "}
-                      {formatNumberWithCommas(
-                        (
-                          parseInt(price) -
-                          parseInt(price) * 0.045 -
-                          (collection?.royaltyFee
-                            ? parseInt(price) *
-                              (Number(collection.royaltyFee) / 10000)
-                            : 0)
-                        ).toFixed(0)
-                      )}
-                    </span>
-                  </div>
-
-                  {/* USD equivalent if available */}
-                  {usdPrice && (
-                    <div className="flex justify-end mt-1">
-                      <span className="text-blue-400 text-xs">
-                        ≈ $
-                        {calculateUSDPrice(
-                          (
-                            parseInt(price) -
-                            parseInt(price) * 0.045 -
-                            (collection?.royaltyFee
-                              ? parseInt(price) *
+                  {showFeeBreakdown && (
+                    <div className="mt-2 p-4 bg-blue-800/20 border border-blue-700/30 rounded-lg">
+                      {/* Creator royalty - assuming this exists in collection data */}
+                      {collection?.royaltyFee &&
+                      Number(collection.royaltyFee) > 0 ? (
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex items-center">
+                            <span className="text-blue-300 text-sm">
+                              Creator Royalty (
+                              {(Number(collection.royaltyFee) / 100).toFixed(2)}
+                              %)
+                            </span>
+                            <div className="relative ml-1 group">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4 text-blue-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 rounded shadow-lg text-xs text-blue-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                                This fee goes directly to the NFT
+                                collection&apos;s creators. The marketplace does
+                                not take any portion of this fee.
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-blue-200 text-sm">
+                            𝔹{" "}
+                            {formatNumberWithCommas(
+                              (
+                                parseInt(price) *
                                 (Number(collection.royaltyFee) / 10000)
-                              : 0)
-                          ).toFixed(0)
-                        )}{" "}
-                        USD
-                      </span>
+                              ).toFixed(0)
+                            )}
+                          </span>
+                        </div>
+                      ) : null}
+
+                      {/* Marketplace fee - Updated to 2.45% */}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center">
+                          <span className="text-blue-300 text-sm">
+                            Marketplace Fee (2.45%)
+                          </span>
+                          <div className="relative ml-1 group">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-blue-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 rounded shadow-lg text-xs text-blue-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                              This fee is used to maintain the BasedSea
+                              marketplace and support ongoing development.
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-blue-200 text-sm">
+                          𝔹{" "}
+                          {formatNumberWithCommas(
+                            (parseInt(price) * 0.0245).toFixed(0)
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Rest of the fee breakdown content */}
+                      <div className="border-t border-blue-700/30 my-3"></div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-blue-100 font-medium">
+                          Your payout (per token)
+                        </span>
+                        <span className="text-blue-100 font-medium">
+                          𝔹{" "}
+                          {formatNumberWithCommas(
+                            (
+                              parseInt(price) -
+                              parseInt(price) * 0.0245 -
+                              (collection?.royaltyFee
+                                ? parseInt(price) *
+                                  (Number(collection.royaltyFee) / 10000)
+                                : 0)
+                            ).toFixed(0)
+                          )}
+                        </span>
+                      </div>
+
+                      {/* USD equivalent if available */}
+                      {usdPrice && (
+                        <div className="flex justify-end mt-1">
+                          <span className="text-blue-400 text-xs">
+                            ≈ $
+                            {calculateUSDPrice(
+                              (
+                                parseInt(price) -
+                                parseInt(price) * 0.0245 -
+                                (collection?.royaltyFee
+                                  ? parseInt(price) *
+                                    (Number(collection.royaltyFee) / 10000)
+                                  : 0)
+                              ).toFixed(0)
+                            )}{" "}
+                            USD
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

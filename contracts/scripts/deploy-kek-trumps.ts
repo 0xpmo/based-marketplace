@@ -11,7 +11,7 @@ async function main() {
   console.log("Deploying KekTrumps NFT contract...");
 
   const FOLDER_HASH =
-    "bafybeia5hgzy7p5jxvquppygdsiuzk5p6kcc7qjdcckzkfolb5psel66ui";
+    "bafybeibejwwzwqxgfj4rgwrmlj6p7hpxbhf6yfil33bzhc3ccvitjwpnsu";
 
   const baseURI = `ipfs://${FOLDER_HASH}/`;
   const contractURI = `ipfs://${FOLDER_HASH}/collection`;
@@ -40,7 +40,7 @@ async function main() {
       baseURI, // Base URI for token metadata
       contractURI, // Contract URI for collection metadata
       "0x7320C98A88A982D9d194FffBfdc52AD65841334D", // Royalty recipient (using the 75% recipient from withdraw)
-      500, // Royalty percentage in basis points (5%) - using uint96 as required by OpenZeppelin's ERC2981
+      250, // Royalty percentage in basis points (2.5%) - using uint96 as required by OpenZeppelin's ERC2981
       [
         ethers.parseEther("0.05"), // Bronze price
         ethers.parseEther("0.10"), // Silver price

@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 import { sql } from "@vercel/postgres";
-import MarketplaceABI from "../frontend/src/contracts/BasedSeaMarketplace.json";
-import ERC721ABI from "../frontend/src/contracts/IERC721.json";
-import ERC1155ABI from "../frontend/src/contracts/IERC1155.json";
-import { generateERC1155ListingId } from "../frontend/src/lib/db";
+import MarketplaceABI from "../src/contracts/BasedSeaMarketplace.json";
+import ERC721ABI from "../src/contracts/IERC721.json";
+import ERC1155ABI from "../src/contracts/IERC1155.json";
+import { generateERC1155ListingId } from "../src/lib/db";
 
 // Configure these addresses
 const COLLECTIONS_TO_SYNC = [

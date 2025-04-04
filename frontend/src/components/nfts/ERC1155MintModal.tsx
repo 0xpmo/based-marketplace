@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import ERC1155MintRevealModal, { MintedNFT } from "./ERC1155MintRevealModal";
 
 interface UpdatedERC1155MintModalProps {
   collection: ERC1155Collection;
@@ -25,7 +26,6 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  // State
   const [selectedRarity, setSelectedRarity] = useState<KekTrumpsRarity>(
     KekTrumpsRarity.Bronze
   );
@@ -40,13 +40,14 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
     KekTrumpsRarity.Bronze
   );
   const [imageLoading, setImageLoading] = useState(true);
+  const [showRevealModal, setShowRevealModal] = useState(false);
+  const [mintedNFTs, setMintedNFTs] = useState<MintedNFT[]>([]);
 
   // Hooks
   const { tokenUSDRate, calculateUSDPrice } = useTokenPrice();
   const { mintERC1155, isLoading, isSuccess, isError, error, txHash } =
     useMintERC1155(collection.address);
 
-  console.log("blobber loading mint", isLoading);
   // Use our rarity info hook
   const {
     raritiesInfo,

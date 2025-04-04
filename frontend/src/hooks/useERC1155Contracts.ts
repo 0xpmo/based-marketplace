@@ -328,7 +328,6 @@ export function useMintERC1155(collectionAddress: string) {
 
       // Calculate total price
       const totalPrice = parseEther((parseFloat(price) * amount).toString());
-
       await writeContract({
         address: collectionAddress as `0x${string}`,
         abi: KekTrumpsABI.abi,

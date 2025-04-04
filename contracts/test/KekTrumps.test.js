@@ -140,6 +140,153 @@ describe("KekTrumps", function () {
       expect(totalMinted).to.equal(mintAmount);
     });
 
+    describe("Complex Minting Scenarios", function () {
+      it("Should handle multiple successive mints of different rarities", async function () {
+        // Test sequence of mints
+        const mintSequence = [
+          { rarity: 0, amount: 3 }, // Bronze
+          { rarity: 1, amount: 2 }, // Silver
+          { rarity: 0, amount: 3 }, // Bronze again
+          { rarity: 2, amount: 1 }, // Gold
+          { rarity: 1, amount: 2 }, // Silver again
+        ];
+
+        console.log("\n=== Starting Multiple Mint Test ===");
+
+        for (let i = 0; i < mintSequence.length; i++) {
+          const { rarity, amount } = mintSequence[i];
+          const price = RARITY_PRICES[rarity];
+          const totalCost = price * BigInt(amount);
+
+          console.log(`\nAttempting mint #${i + 1}:`);
+          console.log(`Rarity: ${rarity}, Amount: ${amount}`);
+
+          // Get state before mint
+          const beforeState = await getContractState(kekTrumps, rarity);
+          console.log("Before mint state:", beforeState);
+
+          // Perform mint
+          const mintTx = await kekTrumps
+            .connect(addr1)
+            .mint(addr1.address, rarity, amount, { value: totalCost });
+
+          const receipt = await mintTx.wait();
+
+          // Log minting events
+          console.log("\nMint events:");
+          for (const log of receipt.logs) {
+            try {
+              const event = kekTrumps.interface.parseLog(log);
+              if (event && event.name === "TokenMinted") {
+                console.log(
+                  `Token minted - ID: ${event.args.tokenId}, Character: ${event.args.characterId}, Rarity: ${event.args.rarity}`
+                );
+              }
+            } catch (e) {
+              // Skip non-contract events
+            }
+          }
+
+          // Get state after mint
+          const afterState = await getContractState(kekTrumps, rarity);
+          console.log("After mint state:", afterState);
+
+          // Verify changes
+          expect(afterState.totalMinted).to.equal(
+            beforeState.totalMinted + amount
+          );
+        }
+      });
+
+      it("Should handle minting at supply boundaries", async function () {
+        // Add a character with VERY limited supply
+        await kekTrumps.addCharacter(
+          5, // characterId
+          "LimitedChar",
+          2, // bronze - extremely limited
+          2, // silver - extremely limited
+          2, // gold - extremely limited
+          1 // green - extremely limited
+        );
+
+        // Test each rarity
+        for (let rarity = 0; rarity < 4; rarity++) {
+          console.log(`\n=== Testing rarity ${rarity} supply limits ===`);
+          const price = RARITY_PRICES[rarity];
+
+          // Log initial state
+          const initialState = await getContractState(kekTrumps, rarity);
+          console.log("Initial state:", initialState);
+
+          // First mint: Mint all but one
+          const firstMintAmount = 1;
+          console.log(`Minting ${firstMintAmount} tokens...`);
+          await kekTrumps
+            .connect(addr1)
+            .mint(addr1.address, rarity, firstMintAmount, {
+              value: price * BigInt(firstMintAmount),
+            });
+
+          // Log middle state
+          const middleState = await getContractState(kekTrumps, rarity);
+          console.log("After first mint:", middleState);
+
+          // Second mint: Mint the last one
+          console.log("Minting final token...");
+          await kekTrumps
+            .connect(addr1)
+            .mint(addr1.address, rarity, 1, { value: price });
+
+          // Log state after filling supply
+          const finalState = await getContractState(kekTrumps, rarity);
+          console.log("After final mint:", finalState);
+
+          // Third mint: Should fail as supply is exhausted
+          console.log("Attempting to mint beyond supply...");
+          await expect(
+            kekTrumps
+              .connect(addr1)
+              .mint(addr1.address, rarity, 1, { value: price })
+          ).to.be.revertedWith("Supply exhausted during mint");
+
+          console.log(`=== Completed rarity ${rarity} test ===\n`);
+        }
+      });
+
+      it("Should handle rapid successive mints correctly", async function () {
+        // Simulate multiple users minting simultaneously
+        const users = [addr1, addr2];
+        const mintPromises = [];
+
+        for (let user of users) {
+          // Each user attempts multiple mints of different rarities
+          mintPromises.push(
+            kekTrumps.connect(user).mint(
+              user.address,
+              0, // Bronze
+              3,
+              { value: RARITY_PRICES[0] * BigInt(3) }
+            )
+          );
+          mintPromises.push(
+            kekTrumps.connect(user).mint(
+              user.address,
+              1, // Silver
+              2,
+              { value: RARITY_PRICES[1] * BigInt(2) }
+            )
+          );
+        }
+
+        // Execute all mints simultaneously
+        await Promise.all(mintPromises);
+
+        // Verify final state
+        const finalState = await getContractState(kekTrumps, 0);
+        console.log("Final state after rapid mints:", finalState);
+      });
+    });
+
     it("Should fail when trying to mint with insufficient payment", async function () {
       const mintAmount = 5;
       const price = RARITY_PRICES[0]; // Bronze price
@@ -170,3 +317,37 @@ describe("KekTrumps", function () {
     });
   });
 });
+
+// Helper function to get contract state
+async function getContractState(contract, rarity) {
+  const state = {
+    totalMinted: 0,
+    availableCharacters: [],
+    characterSupplies: {},
+  };
+
+  // Get available characters
+  const available = await contract.getAvailableCharactersForRarity(rarity);
+  state.availableCharacters = available.map((x) => x.toString());
+
+  // Get minted amounts for each character
+  for (let i = 1; i <= 4; i++) {
+    const charInfo = await contract.getCharacter(i);
+    state.characterSupplies[i] = {
+      minted: Number(charInfo.minted[rarity]),
+      maxSupply: Number(charInfo.maxSupply[rarity]),
+    };
+    state.totalMinted += Number(charInfo.minted[rarity]);
+  }
+
+  return state;
+}
+
+async function getAvailableSupply(contract, rarity) {
+  const available = await contract.getAvailableCharactersForRarity(rarity);
+  console.log(
+    `Available characters for rarity ${rarity}:`,
+    available.map((x) => x.toString())
+  );
+  return available.length;
+}
