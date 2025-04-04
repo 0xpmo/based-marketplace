@@ -221,6 +221,10 @@ export default function EditCollectionPage() {
 
   // Handle NFT upload
   const handleUploadNfts = async (e: React.FormEvent) => {
+    if (!collection.maxSupply) {
+      alert("Collection has no max supply");
+      return;
+    }
     e.preventDefault();
 
     if (nftFiles.length === 0) {
@@ -228,10 +232,10 @@ export default function EditCollectionPage() {
       return;
     }
 
-    if (nftFiles.length > collection.maxSupply - collection.totalMinted) {
+    if (nftFiles.length > collection.maxSupply - collection.totalSupply) {
       alert(
         `You can only upload ${
-          collection.maxSupply - collection.totalMinted
+          collection.maxSupply - collection.totalSupply
         } more NFTs`
       );
       return;
@@ -261,7 +265,7 @@ export default function EditCollectionPage() {
 
         // Create metadata for this NFT
         const nftMetadata = {
-          name: `${collection.name} #${collection.totalMinted + i + 1}`,
+          name: `${collection.name} #${collection.totalSupply + i + 1}`,
           description: collection.metadata?.description || "",
           image: imageUri,
           attributes: [],
@@ -378,7 +382,7 @@ export default function EditCollectionPage() {
         <div>
           <h1 className="text-3xl font-bold">{collection.name}</h1>
           <p className="text-gray-400">
-            {collection.totalMinted} / {collection.maxSupply} items minted
+            {collection.totalSupply} / {collection.maxSupply} items minted
           </p>
         </div>
         <div className="flex gap-3">
@@ -596,9 +600,10 @@ export default function EditCollectionPage() {
           <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
             <h3 className="text-xl font-bold mb-4">Upload NFT Media</h3>
             <p className="text-gray-400 mb-6">
-              Upload up to {collection.maxSupply - collection.totalMinted}{" "}
-              images to mint as NFTs in this collection. Supports JPG, PNG, SVG,
-              and GIF files up to 100MB each.
+              Upload up to{" "}
+              {(collection.maxSupply ?? 0) - collection.totalSupply} images to
+              mint as NFTs in this collection. Supports JPG, PNG, SVG, and GIF
+              files up to 100MB each.
             </p>
 
             <form onSubmit={handleUploadNfts} className="space-y-6">

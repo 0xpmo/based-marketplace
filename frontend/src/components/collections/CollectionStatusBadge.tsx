@@ -13,7 +13,7 @@ const CollectionStatusBadge = ({ collection }: CollectionStatusBadgeProps) => {
   const isPaused = collection.mintingEnabled === false;
   const isSoldOut =
     !isERC1155 &&
-    Number(collection.totalMinted) >= Number(collection.maxSupply);
+    Number(collection.totalSupply) >= Number(collection.maxSupply);
 
   const isActive = !isPaused && !isSoldOut;
 

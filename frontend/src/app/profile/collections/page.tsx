@@ -164,7 +164,7 @@ function CollectionCard({ collection }: CollectionCardProps) {
           </h3>
           <div className="flex justify-between items-center">
             <div className="text-sm text-cyan-200/80">
-              {collection.totalMinted} / {collection.maxSupply} minted
+              {collection.totalSupply} / {collection.maxSupply} minted
             </div>
             <div
               className={`text-xs px-2 py-1 rounded ${

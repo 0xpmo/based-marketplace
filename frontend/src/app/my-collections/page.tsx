@@ -117,7 +117,7 @@ export default function MyCollectionsPage() {
               <div className="p-4">
                 <h3 className="text-lg font-bold mb-1">{collection.name}</h3>
                 <p className="text-sm text-gray-400 mb-2">
-                  {collection.symbol} • {collection.totalMinted}/
+                  {collection.symbol} • {collection.totalSupply}/
                   {collection.maxSupply} minted
                 </p>
                 <p className="text-sm text-gray-400 mb-4">
