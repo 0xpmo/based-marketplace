@@ -172,14 +172,26 @@ export function useERC1155Collections() {
                 break; // No more characters
               }
             } catch (err) {
-              console.log(
-                `No more characters found after index ${characterId}`
-              );
-              break;
+              // If character doesn't exist, just continue to next one
+              characterId++;
+              continue;
             }
           }
 
-          // Get any royalty information
+          // Check if contract is paused
+          let mintingEnabled = true;
+          try {
+            const paused = await publicClient.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: KekTrumpsABI.abi,
+              functionName: "paused",
+            });
+            mintingEnabled = !(paused as boolean);
+          } catch (err) {
+            console.error(`Failed to check if contract is paused:`, err);
+          }
+
+          // Get royalty information
           let royaltyFee = 0;
           try {
             const royaltyInfo = await publicClient.readContract({
@@ -210,7 +222,7 @@ export function useERC1155Collections() {
             royaltyFee,
             owner: owner as string,
             metadata: metadata as unknown as CollectionMetadata,
-            mintingEnabled: true, // Assume enabled by default
+            mintingEnabled,
             source: "external",
             isERC1155: true,
             characters,
@@ -265,6 +277,7 @@ export function useMintERC1155(collectionAddress: string) {
     price: string
   ) => {
     if (!address) throw new Error("Wallet not connected");
+    if (!publicClient) throw new Error("No provider available");
 
     // Check if on the correct chain
     if (chainId !== targetChainId) {
@@ -286,17 +299,34 @@ export function useMintERC1155(collectionAddress: string) {
       }
     }
 
-    console.log(
-      "Minting on chain:",
-      publicClient?.chain?.name || targetChainId
-    );
-    console.log("Minting to collection:", collectionAddress);
-    console.log("Mint rarity:", rarityType);
-    console.log("Mint amount:", amount);
-    console.log("Mint price:", price);
-
     try {
-      // Call the mint function with price calculated for the number of tokens
+      // Get maxMintPerTx for this rarity
+      const maxMintPerTx = (await publicClient.readContract({
+        address: collectionAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "maxMintPerTx",
+        args: [rarityType],
+      })) as number;
+
+      // Validate amount against maxMintPerTx
+      if (amount <= 0 || amount > maxMintPerTx) {
+        throw new Error(
+          `Can only mint between 1 and ${maxMintPerTx} tokens at a time for this rarity`
+        );
+      }
+
+      // Check if contract is paused
+      const paused = (await publicClient.readContract({
+        address: collectionAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "paused",
+      })) as boolean;
+
+      if (paused) {
+        throw new Error("Minting is currently paused");
+      }
+
+      // Calculate total price
       const totalPrice = parseEther((parseFloat(price) * amount).toString());
 
       await writeContract({
@@ -338,70 +368,44 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
   const { address } = useAccount();
   const [tokens, setTokens] = useState<ERC1155Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [metadataLoading, setMetadataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [characterStats, setCharacterStats] = useState<{
-    [characterId: number]: {
-      [rarity: number]: {
-        minted: number;
-        maxSupply: number;
-      };
-    };
-  }>({});
 
   const fetchAllTokens = useCallback(async () => {
-    if (!collectionAddress || collectionAddress === "") {
-      console.log("No collection address, skipping fetch");
+    if (!collectionAddress) {
+      setTokens([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
 
     try {
-      // Create public client
       const publicClient = createPublicClient({
         chain: getActiveChain(),
         transport: http(),
       });
 
-      // First get all available characters for each rarity
-      // This will only return characters that have available supply or have been minted
-      const tokens: ERC1155Item[] = [];
+      const allTokens: ERC1155Item[] = [];
 
-      // Get available characters for each rarity
-      for (let rarity = 0; rarity < 4; rarity++) {
+      // Iterate through all possible character IDs (1-10 based on contract)
+      for (let characterId = 1; characterId <= 10; characterId++) {
         try {
-          const availableCharacters = (await publicClient.readContract({
+          // Get character info for each character
+          const characterInfo = (await publicClient.readContract({
             address: collectionAddress as `0x${string}`,
             abi: KekTrumpsABI.abi,
-            functionName: "getAvailableCharactersForRarity",
-            args: [rarity],
-          })) as number[];
+            functionName: "getCharacter",
+            args: [characterId],
+          })) as CharacterInfo;
 
-          console.log("available characteres", availableCharacters);
+          // Skip if character is not enabled
+          if (!characterInfo.enabled) continue;
 
-          // For each available character, get its details
-          for (const characterId of availableCharacters) {
-            console.log("getting character", characterId);
-            // Get character info (includes all data we need)
-            const characterInfo = (await publicClient.readContract({
-              address: collectionAddress as `0x${string}`,
-              abi: KekTrumpsABI.abi,
-              functionName: "getCharacter",
-              args: [characterId],
-            })) as CharacterInfo;
-
-            console.log("characterInfo", characterInfo);
-
-            // Only process if the character is enabled and has either minted tokens or available supply
-            if (
-              characterInfo.enabled &&
-              (characterInfo.minted[rarity] > 0 ||
-                characterInfo.maxSupply[rarity] > 0)
-            ) {
+          // Check each rarity for this character
+          for (let rarity = 0; rarity < 4; rarity++) {
+            // Only process if tokens have been minted for this rarity
+            if (characterInfo.minted[rarity] > 0) {
               const tokenId = characterInfo.tokenId[rarity];
-
-              console.log("getting tokenUri for tokenid", tokenId);
 
               // Get token URI
               const uri = (await publicClient.readContract({
@@ -410,96 +414,81 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
                 functionName: "uri",
                 args: [tokenId],
               })) as string;
-              console.log("uri", uri);
 
-              // Get user balance if address is provided
-              let balance = 0;
-              if (address) {
-                try {
-                  console.log("balance of", address, tokenId);
-                  const userBalance = await publicClient.readContract({
-                    address: collectionAddress as `0x${string}`,
-                    abi: KekTrumpsABI.abi,
-                    functionName: "balanceOf",
-                    args: [address, tokenId],
-                  });
-                  console.log("userBalance", userBalance);
-                  balance = Number(userBalance);
-                } catch (err) {
-                  console.error(
-                    `Failed to get balance for token ${tokenId}:`,
-                    err
-                  );
+              // Get current circulating supply
+              const supply = (await publicClient.readContract({
+                address: collectionAddress as `0x${string}`,
+                abi: KekTrumpsABI.abi,
+                functionName: "circulatingSupply",
+                args: [tokenId],
+              })) as bigint;
+
+              // Only add token if it has circulating supply
+              if (Number(supply) > 0) {
+                // Get user balance if connected
+                let balance = 0;
+                if (address) {
+                  try {
+                    const userBalance = (await publicClient.readContract({
+                      address: collectionAddress as `0x${string}`,
+                      abi: KekTrumpsABI.abi,
+                      functionName: "balanceOf",
+                      args: [address, tokenId],
+                    })) as bigint;
+                    balance = Number(userBalance);
+                  } catch (err) {
+                    console.error(
+                      `Failed to get balance for token ${tokenId}:`,
+                      err
+                    );
+                  }
                 }
-              }
 
-              console.log("minted", characterInfo.minted[rarity]);
-              // console.log("maxSupply", characterInfo.maxSupply[rarity]);
-              if (characterInfo.minted[rarity]) {
-                console.log("passing first check");
-              }
-
-              if (
-                Number(
-                  characterInfo.minted[rarity] &&
-                    Number(characterInfo.minted[rarity] > 0)
-                )
-              ) {
-                console.log("pushing token", tokenId);
-                tokens.push({
+                allTokens.push({
                   tokenId: Number(tokenId),
-                  characterId: characterId,
+                  characterId,
                   rarity,
                   uri,
-                  supply: Number(characterInfo.minted[rarity]),
+                  supply: Number(supply),
                   maxSupply: Number(characterInfo.maxSupply[rarity]),
                   balance,
                   collection: collectionAddress,
-                  metadata: undefined, // Will fetch in batches
+                  metadata: undefined, // Will be fetched separately
                 });
               }
             }
           }
         } catch (err) {
-          console.error(
-            `Failed to get available characters for rarity ${rarity}:`,
-            err
-          );
+          // If character doesn't exist, just continue to next one
+          continue;
         }
       }
 
-      console.log("setting tokens", tokens);
+      // Sort tokens by character ID and rarity
+      const sortedTokens = allTokens.sort((a, b) => {
+        const aCharId = a.characterId ?? 0;
+        const bCharId = b.characterId ?? 0;
+        if (aCharId !== bCharId) {
+          return aCharId - bCharId;
+        }
+        return (a.rarity ?? 0) - (b.rarity ?? 0);
+      });
 
-      // Update state with basic token data
-      setTokens(tokens);
-      setLoading(false);
+      setTokens(sortedTokens);
+      setError(null);
 
-      // Fetch metadata in batches
-      fetchMetadataInBatches(tokens);
-    } catch (error) {
-      console.error("Error fetching ERC1155 tokens:", error);
-      setError("Failed to load tokens. Please try again later.");
+      // Fetch metadata in background
+      fetchMetadataForTokens(sortedTokens);
+    } catch (err) {
+      console.error("Error fetching ERC1155 tokens:", err);
+      setError("Failed to load tokens");
+    } finally {
       setLoading(false);
     }
-
-    // Update state with basic token data
-    // setTokens(tokensData);
-    // setLoading(false);
-
-    // Now fetch metadata in batches
-    // fetchMetadataInBatches(tokensData);
-    // } catch (err) {
-    //   console.error("Error fetching ERC1155 tokens:", err);
-    //   setError("Failed to load tokens. Please try again later.");
-    //   setLoading(false);
-    // }
   }, [collectionAddress, address]);
 
-  // Function to fetch metadata in batches
-  const fetchMetadataInBatches = async (tokens: ERC1155Item[]) => {
-    setMetadataLoading(true);
-
-    // Process in batches of 10 to avoid overloading the API
+  // Separate function to fetch metadata
+  const fetchMetadataForTokens = async (tokens: ERC1155Item[]) => {
     const BATCH_SIZE = 10;
     const batches = Math.ceil(tokens.length / BATCH_SIZE);
 
@@ -508,98 +497,49 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
       const end = Math.min(start + BATCH_SIZE, tokens.length);
       const batchTokens = tokens.slice(start, end);
 
-      console.log(
-        `Processing metadata batch ${i + 1}/${batches} (tokens ${start} to ${
-          end - 1
-        })`
-      );
-
-      // Collect all tokenURIs for this batch
-      const validTokens = batchTokens.filter((token) => token.uri);
-      const tokenURIs = validTokens.map((token) => token.uri);
-
-      // Skip if no valid tokens in this batch
-      if (tokenURIs.length === 0) {
-        continue;
-      }
       try {
-        // Fetch metadata for all tokens in this batch at once
-        const metadataMap = await fetchBatchMetadataFromIPFS(
-          tokenURIs as string[]
-        );
-        // Create metadata results array from the batch response
-        const metadataResults = validTokens
-          .map((token) => {
-            if (!token.uri) return null;
-            const metadata = metadataMap[token.uri];
-            return metadata ? { tokenId: token.tokenId, metadata } : null;
-          })
-          .filter(Boolean);
+        const tokenURIs = batchTokens
+          .map((token) => token.uri)
+          .filter((uri): uri is string => uri !== undefined);
 
-        // Update the tokens with the new metadata
+        if (tokenURIs.length === 0) continue;
+
+        const metadataMap = await fetchBatchMetadataFromIPFS(tokenURIs);
+
         setTokens((prevTokens) => {
           const newTokens = [...prevTokens];
-
-          // Update metadata
-          metadataResults.forEach((result) => {
-            if (!result) return;
-            const index = newTokens.findIndex(
-              (n) => n.tokenId === result.tokenId
-            );
-            if (index !== -1) {
-              newTokens[index] = {
-                ...newTokens[index],
-                metadata: result.metadata,
-              };
+          batchTokens.forEach((token) => {
+            if (token.uri && metadataMap[token.uri]) {
+              const tokenIndex = newTokens.findIndex(
+                (t) => t.tokenId === token.tokenId
+              );
+              if (tokenIndex !== -1) {
+                newTokens[tokenIndex] = {
+                  ...newTokens[tokenIndex],
+                  metadata: metadataMap[token.uri] || undefined,
+                };
+              }
             }
           });
-
-          // Sort tokens by character ID and rarity for consistent display
-          return newTokens.sort((a, b) => {
-            const aCharId =
-              typeof a.characterId === "bigint"
-                ? Number(a.characterId)
-                : a.characterId || 0;
-            const bCharId =
-              typeof b.characterId === "bigint"
-                ? Number(b.characterId)
-                : b.characterId || 0;
-
-            if (aCharId !== bCharId) {
-              return aCharId - bCharId;
-            }
-            return (a.rarity || 0) - (b.rarity || 0);
-          });
+          return newTokens;
         });
-      } catch (error) {
-        console.error(`Error processing batch ${i + 1}:`, error);
+      } catch (err) {
+        console.error(`Error fetching metadata batch ${i}:`, err);
       }
 
-      // Add a small delay to avoid rate limiting
+      // Small delay between batches
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
-
-    setMetadataLoading(false);
-    console.log("Completed fetching all metadata");
   };
 
-  // Fetch tokens when the collection address changes
   useEffect(() => {
-    if (collectionAddress) {
-      fetchAllTokens();
-    } else {
-      setTokens([]);
-      setLoading(false);
-      setError(null);
-    }
-  }, [collectionAddress, fetchAllTokens]);
+    fetchAllTokens();
+  }, [fetchAllTokens]);
 
   return {
     tokens,
     loading,
-    metadataLoading,
     error,
-    characterStats,
     refresh: fetchAllTokens,
   };
 }
@@ -853,8 +793,9 @@ export function useERC1155Collection(collectionAddress: string) {
             break; // No more characters
           }
         } catch (err) {
-          console.log(`No more characters found after index ${characterId}`);
-          break;
+          // If character doesn't exist, just continue to next one
+          characterId++;
+          continue;
         }
       }
 
