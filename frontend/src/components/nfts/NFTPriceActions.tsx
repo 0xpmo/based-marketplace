@@ -8,6 +8,8 @@ import { formatNumberWithCommas } from "@/utils/formatting";
 import { useAccount } from "wagmi";
 import { useTokenListings } from "@/hooks/useListings";
 import { ethers } from "ethers";
+import { useEffect } from "react";
+import { useDeepCompareEffect } from "@/utils/deepComparison";
 
 const formatPrice = (priceInWei: string) => {
   return formatNumberWithCommas(ethers.formatEther(priceInWei));
@@ -50,10 +52,37 @@ const NFTPriceActions = ({
   const isERC1155 = isERC1155Item(nftItem);
 
   // Get all active listings for this token
-  const { listings, isLoading: loadingListings } = useTokenListings(
-    nftItem.collection,
-    nftItem.tokenId
-  );
+  const {
+    listings,
+    isLoading: loadingListings,
+    refetch: refetchListings,
+  } = useTokenListings(nftItem.collection, nftItem.tokenId);
+
+  // Effect to refetch listings when relevant state changes
+  useDeepCompareEffect(() => {
+    if (isBuying || isCancelling || isListing) {
+      // Don't refetch while operations are in progress
+      return;
+    }
+
+    if (buyingTxHash || cancelTxHash || txHash) {
+      // Refetch when transactions complete
+      refetchListings();
+    }
+  }, [
+    buyingTxHash,
+    cancelTxHash,
+    txHash,
+    isBuying,
+    isCancelling,
+    isListing,
+    refetchListings,
+  ]);
+
+  // Effect to refetch when nftItem changes
+  useEffect(() => {
+    refetchListings();
+  }, [nftItem, refetchListings]);
 
   // Sort listings by price (lowest first)
   const sortedListings = [...(listings || [])].sort((a, b) => {

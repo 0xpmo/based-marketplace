@@ -35,8 +35,7 @@ function ERC1155CollectionTokens({
       <Link href={`/collections/${collection.address}`}>
         <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent hover:from-blue-100 hover:to-cyan-100 transition-colors">
           {collection?.name ||
-            `Collection ${collection.address.slice(0, 6)}...`}{" "}
-          (ERC1155)
+            `Collection ${collection.address.slice(0, 6)}...`}
         </h2>
       </Link>
 
