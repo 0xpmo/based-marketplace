@@ -1195,7 +1195,7 @@ contract BasedSeaMarketplace is
         uint256 amount = marketplaceStorage.accumulatedFees();
         require(amount > 0, "No fees accumulated");
 
-        // Reset accumulated fees to 0 before transfer to prevent reentrancy
+        // Reset accumulated fees to 0
         marketplaceStorage.resetAccumulatedFees();
 
         // Direct transfer to fee recipient

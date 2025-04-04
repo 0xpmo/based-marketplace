@@ -31,7 +31,7 @@ export async function runWithBlockchainLoading<T>(
   message: string,
   fn: () => Promise<T>,
   onSuccess?: (result: T) => void,
-  onError?: (error: any) => void
+  onError?: (error: unknown) => void
 ): Promise<T | undefined> {
   try {
     showBlockchainLoading(message);

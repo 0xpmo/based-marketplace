@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { NFTItem } from "@/types/contracts";
 import { getActiveChain } from "@/config/chains";
-import { createPublicClient, http } from "viem";
-import { fetchFromIPFS } from "@/services/ipfs";
-import useSWR from "swr";
-import { useAccount } from "wagmi";
-import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 import { MARKETPLACE_ADDRESS } from "@/constants/addresses";
+import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
+import { fetchFromIPFS } from "@/services/ipfs";
+import { NFTItem } from "@/types/contracts";
+import useSWR from "swr";
+import { createPublicClient, http, PublicClient } from "viem";
 
 // Page size for NFT data pagination
 const PAGE_SIZE = 20;
@@ -144,10 +142,20 @@ async function fetchCollectionNFTs(
   }
 }
 
+// Define an interface for the listing data
+interface ListingData {
+  price: string;
+  seller: string;
+  active: boolean;
+  tokenId?: number;
+  status?: number;
+  quantity?: number;
+}
+
 // Background fetcher for additional NFT data
 async function fetchMetadataAndOwnersInBackground(
   nfts: NFTItem[],
-  publicClient: any,
+  publicClient: PublicClient,
   collectionAddress: string
 ) {
   try {
@@ -172,11 +180,11 @@ async function fetchMetadataAndOwnersInBackground(
     );
 
     // Get marketplace listings in one call if possible
-    const listingsMap: Record<string, any> = {};
+    const listingsMap: Record<string, ListingData> = {};
     try {
       // Check if the correct function exists in the ABI
       const hasGetCollectionListings = MarketplaceABI.abi.some(
-        (item: any) =>
+        (item: { name?: string; type?: string }) =>
           item.name === "getCollectionListings" && item.type === "function"
       );
 
@@ -191,16 +199,23 @@ async function fetchMetadataAndOwnersInBackground(
 
         // Process listings into a map by tokenId
         if (Array.isArray(result)) {
-          result.forEach((listing: any) => {
-            if (listing.status === 1) {
-              // Active listing
-              listingsMap[Number(listing.tokenId)] = {
-                price: listing.price,
-                seller: listing.seller,
-                active: true,
-              };
+          result.forEach(
+            (listing: {
+              tokenId: bigint | number;
+              status: number;
+              price: bigint | string;
+              seller: string;
+            }) => {
+              if (listing.status === 1) {
+                // Active listing
+                listingsMap[Number(listing.tokenId)] = {
+                  price: listing.price.toString(),
+                  seller: listing.seller,
+                  active: true,
+                };
+              }
             }
-          });
+          );
         }
       } else {
         console.warn(
@@ -300,6 +315,14 @@ export function useCollectionNFTsPaginated(
   };
 }
 
+// Define an interface for marketplace listings
+interface MarketplaceListing {
+  price: string;
+  seller: string;
+  status: string;
+  quantity: number;
+}
+
 // Helper hook for fetching listing data for a collection
 export function useCollectionListings(collectionAddress: string) {
   const { data, error, isValidating, mutate } = useSWR(
@@ -313,7 +336,7 @@ export function useCollectionListings(collectionAddress: string) {
 
         // Check if the function exists in the ABI
         const hasGetCollectionListings = MarketplaceABI.abi.some(
-          (item: any) =>
+          (item: { name?: string; type?: string }) =>
             item.name === "getCollectionListings" && item.type === "function"
         );
 
@@ -331,21 +354,28 @@ export function useCollectionListings(collectionAddress: string) {
           args: [collectionAddress],
         });
 
-        const listings: Record<string, any> = {};
+        const listings: Record<string, MarketplaceListing> = {};
 
         // Process listings into a map by tokenId
         if (Array.isArray(result)) {
-          result.forEach((listing: any) => {
-            if (listing.status === 1) {
-              // Active listing
-              listings[Number(listing.tokenId)] = {
-                price: listing.price,
-                seller: listing.seller,
-                status: "Active",
-                quantity: 1, // Default for ERC721
-              };
+          result.forEach(
+            (listing: {
+              tokenId: bigint | number;
+              status: number;
+              price: bigint | string;
+              seller: string;
+            }) => {
+              if (listing.status === 1) {
+                // Active listing
+                listings[Number(listing.tokenId)] = {
+                  price: listing.price.toString(),
+                  seller: listing.seller,
+                  status: "Active",
+                  quantity: 1, // Default for ERC721
+                };
+              }
             }
-          });
+          );
         }
 
         return listings;

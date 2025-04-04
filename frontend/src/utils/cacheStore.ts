@@ -10,7 +10,7 @@ export interface CacheEntry<T> {
 
 // Main cache store with class-based interface
 class CacheStore {
-  private store: Record<string, CacheEntry<any>> = {};
+  private store: Record<string, CacheEntry<unknown>> = {};
   private defaultTTL = 5 * 60 * 1000; // 5 minutes
 
   // Set a value in the cache
