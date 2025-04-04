@@ -504,7 +504,7 @@ contract BasedSeaMarketplace is
      * @param newPrice New price per token
      * @param newQuantity New quantity
      */
-    function updateERC1155ListingPrice(
+    function updateERC1155ListingPriceAndQuantity(
         address nftContract,
         uint256 tokenId,
         uint256 newPrice,

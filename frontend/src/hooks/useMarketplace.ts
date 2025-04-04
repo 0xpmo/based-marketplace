@@ -15,7 +15,6 @@ import {
   getNFTContractWithSigner,
   getERC1155ContractWithSigner,
 } from "@/lib/contracts";
-import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 // Import database functions
 import {
   createListing,
@@ -25,6 +24,18 @@ import {
   updateListingQuantityAndPrice,
   Listing,
 } from "@/lib/db";
+
+// Add type for on-chain listing structure
+type OnChainListing = [
+  seller: string,
+  nftContract: string,
+  tokenId: bigint,
+  price: bigint,
+  isPrivate: boolean,
+  allowedBuyer: string,
+  status: bigint,
+  quantity: bigint
+];
 
 // Hook for listing an NFT
 export function useListNFT() {
@@ -36,7 +47,7 @@ export function useListNFT() {
   const [approvalStep, setApprovalStep] = useState(false);
   const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null);
   const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient(); // Add this to get the signer
+  const { data: walletClient } = useWalletClient();
 
   const listNFT = async (
     collectionAddress: string,
@@ -52,12 +63,69 @@ export function useListNFT() {
     setApprovalStep(false);
     setApprovalTxHash(null);
 
-    console.log("listing item with price", price);
-    console.log("quantitty", quantity);
-
     try {
       if (!userAddress || !walletClient || !publicClient) {
         throw new Error("Wallet not connected");
+      }
+
+      // Verify ownership first
+      try {
+        if (isERC1155) {
+          const nft = await getERC1155ContractWithSigner(collectionAddress);
+          const balance = await nft.balanceOf(userAddress, tokenId);
+          if (balance < quantity) {
+            throw new Error("Insufficient token balance");
+          }
+        } else {
+          const nft = await getNFTContractWithSigner(collectionAddress);
+          const owner = await nft.ownerOf(tokenId);
+          if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+            throw new Error("You don't own this NFT");
+          }
+        }
+      } catch (err) {
+        throw new Error("Failed to verify NFT ownership");
+      }
+
+      // Check if there's an existing listing in the database
+      const existingListing = await getListing(
+        collectionAddress,
+        tokenId.toString(),
+        userAddress
+      );
+      if (existingListing && existingListing.status === "Active") {
+        // Check if it exists on-chain
+        const listingId = isERC1155
+          ? generateERC1155ListingId(tokenId.toString(), userAddress)
+          : tokenId;
+
+        try {
+          const marketplaceContract = await getMarketplaceContract();
+          const onChainListing = (await marketplaceContract.getListing(
+            collectionAddress,
+            listingId
+          )) as OnChainListing;
+          if (onChainListing && onChainListing[6] === BigInt(1)) {
+            // 1 = Active
+            throw new Error("NFT is already listed");
+          } else {
+            // If listing exists in DB but not on chain, clean it up
+            await updateListingStatus(
+              collectionAddress,
+              tokenId.toString(),
+              userAddress,
+              "Canceled"
+            );
+          }
+        } catch (err) {
+          // If we can't get the on-chain listing, clean up the database
+          await updateListingStatus(
+            collectionAddress,
+            tokenId.toString(),
+            userAddress,
+            "Canceled"
+          );
+        }
       }
 
       console.log(
@@ -72,57 +140,48 @@ export function useListNFT() {
         setApprovalStep(true);
 
         if (isERC1155) {
-          // For ERC1155, we need to use setApprovalForAll
           const erc1155Contract = await getERC1155ContractWithSigner(
             collectionAddress
           );
-
-          // Check if already approved
           const isApproved = await erc1155Contract.isApprovedForAll(
             userAddress,
             MARKETPLACE_ADDRESS
           );
 
           if (!isApproved) {
-            // Request approval for marketplace to manage all tokens (required for ERC1155)
             const approvalTx = await erc1155Contract.setApprovalForAll(
               MARKETPLACE_ADDRESS,
               true
             );
             setApprovalTxHash(approvalTx.hash);
-
             console.log(
               `ERC1155 Approval transaction submitted: ${approvalTx.hash}`
             );
-            console.log("Waiting for ERC1155 approval confirmation...");
-
-            // Wait for approval transaction to complete
             const approvalReceipt = await approvalTx.wait();
             console.log(
               `ERC1155 Approval confirmed in block ${approvalReceipt.blockNumber}`
             );
-          } else {
-            console.log("Marketplace already approved for ERC1155 collection");
           }
         } else {
-          // For ERC721, we approve a specific token
+          // For ERC721 tokens
           const nftContract = await getNFTContractWithSigner(collectionAddress);
-
-          // Request approval for marketplace to manage ONLY this specific NFT token
-          const approvalTx = await nftContract.approve(
-            MARKETPLACE_ADDRESS,
-            tokenId
+          const isApproved = await nftContract.isApprovedForAll(
+            userAddress,
+            MARKETPLACE_ADDRESS
           );
-          setApprovalTxHash(approvalTx.hash);
 
-          console.log(`Approval transaction submitted: ${approvalTx.hash}`);
-          console.log("Waiting for approval confirmation...");
-
-          // Wait for approval transaction to complete
-          const approvalReceipt = await approvalTx.wait();
-          console.log(
-            `Approval confirmed in block ${approvalReceipt.blockNumber}`
-          );
+          if (!isApproved) {
+            const approvalTx = await nftContract.setApprovalForAll(
+              MARKETPLACE_ADDRESS,
+              true
+            );
+            setApprovalTxHash(approvalTx.hash);
+            console.log(`Approval transaction submitted: ${approvalTx.hash}`);
+            const approvalReceipt = await approvalTx.wait();
+            console.log(
+              `Approval confirmed in block ${approvalReceipt.blockNumber}`
+            );
+          }
         }
       } catch (approvalError) {
         console.error("Approval failed:", approvalError);
@@ -133,33 +192,22 @@ export function useListNFT() {
       console.log("Proceeding to list on marketplace...");
       setApprovalStep(false);
 
-      // Convert price to wei (or your token's smallest unit)
       const priceInWei = parseEther(price);
-
-      // Get marketplace contract
       const marketplaceContract = await getMarketplaceContract();
-
       console.log("Marketplace contract obtained, executing transaction...");
 
-      // Get the next nonce
       const nonce = await publicClient.getTransactionCount({
         address: userAddress,
         blockTag: "pending",
       });
 
-      let tx;
       const txSettings =
         process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
-          ? {
-              gasPrice: 9,
-              gasLimit: 3000000,
-              nonce: nonce,
-            }
+          ? { gasPrice: 9, gasLimit: 3000000, nonce }
           : {};
 
+      let tx;
       if (isERC1155) {
-        // For ERC1155, use the new listERC1155Item function
-        console.log(`Listing ERC1155 token with quantity ${quantity}`);
         tx = await marketplaceContract.listERC1155Item(
           collectionAddress,
           tokenId,
@@ -168,7 +216,6 @@ export function useListNFT() {
           txSettings
         );
       } else {
-        // For ERC721, use the standard listItem function
         tx = await marketplaceContract.listItem(
           collectionAddress,
           tokenId,
@@ -180,31 +227,37 @@ export function useListNFT() {
       setTxHash(tx.hash);
       console.log(`Transaction submitted: ${tx.hash}`);
 
-      // Wait for transaction to complete
-      console.log("Waiting for transaction confirmation...");
       const receipt = await tx.wait();
       console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
 
       // Get the listing from the smart contract to ensure we have the latest data
-      const onChainListing = await marketplaceContract.getListing(
+      const onChainListing = (await marketplaceContract.getListing(
         collectionAddress,
         isERC1155
           ? generateERC1155ListingId(tokenId.toString(), userAddress)
           : tokenId
-      );
+      )) as OnChainListing;
 
-      console.log("on chain price whale", onChainListing.price.toString());
+      console.log("onChainListing", onChainListing);
+      console.log("seller", onChainListing[0]);
+      console.log("nftContract", onChainListing[1]);
+      console.log("tokenId", onChainListing[2]);
+      console.log("price", onChainListing[3]);
+      console.log("isPrivate", onChainListing[4]);
+      console.log("allowedBuyer", onChainListing[5]);
+      console.log("status", onChainListing[6]);
+      console.log("quantity", onChainListing[7]);
 
       // Create a listing record in our database with the on-chain data
       const listingData: Listing = {
         id: `${collectionAddress}_${tokenId}_${userAddress}`,
         nftContract: collectionAddress,
         tokenId: tokenId.toString(),
-        seller: onChainListing.seller,
-        price: onChainListing.price.toString(),
-        quantity: onChainListing.quantity.toString(),
-        isPrivate: onChainListing.isPrivate,
-        allowedBuyer: onChainListing.allowedBuyer,
+        seller: onChainListing[0],
+        price: onChainListing[3].toString(),
+        quantity: Number(onChainListing[7]), // Convert bigint to number
+        isPrivate: onChainListing[4],
+        allowedBuyer: onChainListing[5],
         status: "Active",
         listingId: isERC1155
           ? generateERC1155ListingId(tokenId.toString(), userAddress)
@@ -213,16 +266,11 @@ export function useListNFT() {
         timestamp: Date.now(),
       };
 
-      console.log("listing data", listingData);
-
       const dbSuccess = await createListing(listingData);
-
       if (!dbSuccess) {
         console.warn(
           "Blockchain listing succeeded but database update failed. UI might be out of sync."
         );
-      } else {
-        console.log("Database updated successfully with listing information");
       }
 
       setIsSuccess(true);
@@ -256,13 +304,14 @@ export function useBuyNFT() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const publicClient = usePublicClient();
 
   const buyNFT = useCallback(
     async (
       collectionAddress: string,
       tokenId: string,
       seller: string,
-      price: string,
+      price: string, // price is in wei
       quantity: number = 1,
       isERC1155: boolean = false
     ) => {
@@ -275,52 +324,123 @@ export function useBuyNFT() {
       setTxHash(null);
 
       try {
+        if (!userAddress || !publicClient) {
+          throw new Error("Wallet not connected");
+        }
         const marketplaceContract = await getMarketplaceContract();
 
-        let listing;
-        if (isERC1155) {
-          // For ERC1155, first try to get from database since we need the combined listing ID
-          listing = await getListing(collectionAddress, tokenId, seller);
-          console.log("db listing", listing);
-          if (!listing) {
-            throw new Error("ERC1155 listing not found");
-          }
-        } else {
-          // For ERC721, get directly from smart contract
-          listing = await marketplaceContract.getListing(
-            collectionAddress,
-            tokenId
-          );
-          console.log("contract listing", listing);
-          if (!listing || listing.status !== 1) {
-            // 1 = Active in the ListingStatus enum
-            throw new Error("ERC721 listing not found or not active");
-          }
-          // Verify the seller matches
-          if (listing.seller.toLowerCase() !== seller.toLowerCase()) {
-            throw new Error("Seller mismatch");
-          }
+        // Get the listing from both database and smart contract
+        const dbListing = await getListing(collectionAddress, tokenId, seller);
+        if (!dbListing) {
+          throw new Error("Listing not found in database");
         }
+
+        // For ERC1155, we need to use the special listing ID
+        const listingId = isERC1155
+          ? generateERC1155ListingId(tokenId, seller)
+          : tokenId;
+
+        // Get on-chain listing
+        let onChainListing;
+        try {
+          onChainListing = (await marketplaceContract.getListing(
+            collectionAddress,
+            listingId
+          )) as OnChainListing;
+          console.log("onChainListing", onChainListing);
+        } catch (err) {
+          console.error("Error fetching on-chain listing:", err);
+          // If we can't get the on-chain listing, clean up the database
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            seller,
+            "Canceled"
+          );
+          throw new Error("Listing not found on blockchain");
+        }
+
+        // Verify listing is still active and valid
+        if (!onChainListing || onChainListing[6] !== BigInt(1)) {
+          // 1 = Active
+          // Clean up database if blockchain shows listing is inactive
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            seller,
+            "Canceled"
+          );
+          throw new Error("Listing is no longer active on blockchain");
+        }
+
+        // Verify ownership
+        try {
+          if (isERC1155) {
+            const nft = await getERC1155ContractWithSigner(collectionAddress);
+            const balance = await nft.balanceOf(seller, tokenId);
+            if (balance < quantity) {
+              // Clean up database if seller doesn't have enough tokens
+              await updateListingStatus(
+                collectionAddress,
+                tokenId,
+                seller,
+                "Canceled"
+              );
+              throw new Error("Seller no longer owns enough tokens");
+            }
+          } else {
+            const nft = await getNFTContractWithSigner(collectionAddress);
+            const owner = await nft.ownerOf(tokenId);
+            if (owner.toLowerCase() !== seller.toLowerCase()) {
+              // Clean up database if ownership has changed
+              await updateListingStatus(
+                collectionAddress,
+                tokenId,
+                seller,
+                "Canceled"
+              );
+              throw new Error("Seller no longer owns this NFT");
+            }
+          }
+        } catch (err) {
+          // Clean up database if ownership check fails
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            seller,
+            "Canceled"
+          );
+          throw new Error("Failed to verify NFT ownership");
+        }
+
+        const nonce = await publicClient.getTransactionCount({
+          address: userAddress,
+          blockTag: "pending",
+        });
+
+        const txSettings =
+          process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
+            ? { gasPrice: 9, gasLimit: 3000000, nonce }
+            : {};
 
         let tx;
         if (isERC1155) {
           // Listing price is PER token and is in wei already
-          const buyPrice = BigInt(listing.price) * BigInt(quantity);
 
+          // const buyPrice = onChainListing[3] * BigInt(quantity);
+          const buyPrice = BigInt(price) * BigInt(quantity);
           tx = await marketplaceContract.buyERC1155Item(
             collectionAddress,
             tokenId,
             seller,
             quantity,
-            { value: buyPrice }
+            { value: buyPrice, ...txSettings }
           );
         } else {
-          tx = await marketplaceContract.buyItem(
-            collectionAddress,
-            tokenId,
-            seller,
-            { value: BigInt(listing.price) }
-          );
+          tx = await marketplaceContract.buyItem(collectionAddress, tokenId, {
+            value: BigInt(price),
+            ...txSettings,
+          });
         }
 
         setTxHash(tx.hash);
@@ -330,37 +450,41 @@ export function useBuyNFT() {
         const receipt = await tx.wait();
         console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
 
-        // Update our database to stay in sync
-        // For ERC1155, check if it was a partial purchase
-        if (isERC1155) {
-          const remainingQuantity = listing.quantity - quantity;
-          if (remainingQuantity > 0) {
-            // Partial purchase - update the listing with remaining quantity
-            await updateListingQuantityAndPrice(
-              collectionAddress,
-              tokenId,
-              seller,
-              remainingQuantity,
-              listing.price // Keep the same price per token
-            );
-          } else {
-            // Complete purchase - mark listing as sold
-            await updateListingStatus(
-              collectionAddress,
-              tokenId,
-              seller,
-              "Sold"
-            );
-          }
+        // Update database based on purchase type
+        if (isERC1155 && quantity < dbListing.quantity) {
+          // Partial purchase - update remaining quantity
+          const remainingQuantity = dbListing.quantity - quantity;
+          await updateListingQuantityAndPrice(
+            collectionAddress,
+            tokenId,
+            seller,
+            remainingQuantity,
+            dbListing.price
+          );
         } else {
-          // For ERC721, always mark as sold
+          // Complete purchase - mark as sold
           await updateListingStatus(collectionAddress, tokenId, seller, "Sold");
         }
 
         setIsSuccess(true);
       } catch (err) {
         console.error("Error buying NFT:", err);
-        setError(err as Error);
+        // If the error indicates the NFT is no longer available, clean up the database
+        if (
+          err instanceof Error &&
+          (err.message.includes("no longer owns") ||
+            err.message.includes("not found") ||
+            err.message.includes("not active"))
+        ) {
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            seller,
+            "Canceled"
+          );
+        }
+        setError(err instanceof Error ? err : new Error("Failed to buy NFT"));
+        throw err;
       } finally {
         setIsLoading(false);
       }
@@ -580,24 +704,24 @@ export function usePrivateListing() {
 
           // Get the listing from the smart contract to ensure we have the latest data
           const marketplaceContract = await getMarketplaceContract();
-          const onChainListing = await marketplaceContract.getListing(
+          const onChainListing = (await marketplaceContract.getListing(
             nftContract,
             tokenId
-          );
+          )) as OnChainListing;
 
           // Update the database with the confirmed on-chain data
           const listingData: Listing = {
             id: pendingListingId,
             nftContract: nftContract,
             tokenId: tokenId,
-            seller: onChainListing.seller,
-            price: onChainListing.price.toString(),
-            quantity: onChainListing.quantity,
-            isPrivate: onChainListing.isPrivate,
-            allowedBuyer: onChainListing.allowedBuyer,
+            seller: onChainListing[0],
+            price: onChainListing[3].toString(),
+            quantity: Number(onChainListing[7]), // Convert bigint to number
+            isPrivate: onChainListing[4],
+            allowedBuyer: onChainListing[5],
             status: "Active",
             listingId: tokenId,
-            isERC1155: onChainListing.quantity > 1,
+            isERC1155: Number(onChainListing[7]) > 1,
             timestamp: Date.now(),
           };
 
@@ -654,5 +778,234 @@ export function usePrivateListing() {
     error,
     txHash: data,
     pendingListingId,
+  };
+}
+
+export function useCancelListing() {
+  const { address: userAddress } = useAccount();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const publicClient = usePublicClient();
+
+  const cancelListing = useCallback(
+    async (
+      collectionAddress: string,
+      tokenId: string,
+      isERC1155: boolean = false
+    ) => {
+      if (!userAddress) {
+        throw new Error("No wallet connected");
+      }
+
+      console.log("doin shit");
+
+      setIsLoading(true);
+      setError(null);
+      setTxHash(null);
+
+      try {
+        if (!userAddress || !publicClient) {
+          throw new Error("Wallet not connected");
+        }
+
+        const marketplaceContract = await getMarketplaceContract();
+
+        // Get the listing from database
+        const dbListing = await getListing(
+          collectionAddress,
+          tokenId,
+          userAddress
+        );
+        console.log("got listing", dbListing);
+        if (!dbListing) {
+          throw new Error("Listing not found in database");
+        }
+
+        // For ERC1155, we need to use the special listing ID
+        const listingId = isERC1155
+          ? generateERC1155ListingId(tokenId, userAddress)
+          : tokenId;
+
+        console.log("listing id", listingId);
+
+        // Get on-chain listing
+        let onChainListing;
+        try {
+          onChainListing = (await marketplaceContract.getListing(
+            collectionAddress,
+            listingId
+          )) as OnChainListing;
+          console.log("on chain listing", onChainListing);
+        } catch (err) {
+          console.error("Error fetching on-chain listing:", err);
+          // If we can't get the on-chain listing, clean up the database
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            userAddress,
+            "Canceled"
+          );
+          throw new Error("Listing not found on blockchain");
+        }
+
+        // Verify listing is still active
+        if (!onChainListing || onChainListing[6] !== BigInt(1)) {
+          // 1 = Active
+          // Clean up database if blockchain shows listing is inactive
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            userAddress,
+            "Canceled"
+          );
+          throw new Error("Listing is no longer active on blockchain");
+        }
+
+        // Verify ownership
+        try {
+          if (isERC1155) {
+            const nft = await getERC1155ContractWithSigner(collectionAddress);
+            const balance = await nft.balanceOf(userAddress, tokenId);
+            if (balance < dbListing.quantity) {
+              // Clean up database if seller doesn't have enough tokens
+              await updateListingStatus(
+                collectionAddress,
+                tokenId,
+                userAddress,
+                "Canceled"
+              );
+              throw new Error("You no longer own enough tokens");
+            }
+          } else {
+            const nft = await getNFTContractWithSigner(collectionAddress);
+            const owner = await nft.ownerOf(tokenId);
+            if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+              // Clean up database if ownership has changed
+              await updateListingStatus(
+                collectionAddress,
+                tokenId,
+                userAddress,
+                "Canceled"
+              );
+              throw new Error("You no longer own this NFT");
+            }
+          }
+        } catch (err) {
+          // Clean up database if ownership check fails
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            userAddress,
+            "Canceled"
+          );
+          throw new Error("Failed to verify NFT ownership");
+        }
+
+        const nonce = await publicClient.getTransactionCount({
+          address: userAddress,
+          blockTag: "pending",
+        });
+
+        const txSettings =
+          process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
+            ? { gasPrice: 9, gasLimit: 3000000, nonce }
+            : {};
+
+        try {
+          // Execute the cancellation
+          let tx;
+          if (isERC1155) {
+            tx = await marketplaceContract.cancelERC1155Listing(
+              collectionAddress,
+              tokenId,
+              txSettings
+            );
+          } else {
+            console.log("we made it here wzoo");
+
+            tx = await marketplaceContract.cancelListing(
+              collectionAddress,
+              tokenId,
+              txSettings
+            );
+          }
+
+          setTxHash(tx.hash);
+          console.log(`Cancel transaction submitted: ${tx.hash}`);
+
+          // Wait for transaction to complete
+          const receipt = await tx.wait();
+          console.log(`Cancellation confirmed in block ${receipt.blockNumber}`);
+
+          // Update database after successful blockchain transaction
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            userAddress,
+            "Canceled"
+          );
+        } catch (error) {
+          console.error("Error during cancellation:", error);
+
+          const ethersError = error as { message: string };
+
+          // Check if the error indicates the listing doesn't exist
+          if (
+            ethersError.message.includes("listing not found") ||
+            ethersError.message.includes("listing not active") ||
+            ethersError.message.includes("invalid listing") ||
+            ethersError.message.includes("execution reverted")
+          ) {
+            // If listing doesn't exist on-chain, still update the database
+            console.log(
+              "Listing not found on-chain, updating database status..."
+            );
+            await updateListingStatus(
+              collectionAddress,
+              tokenId,
+              userAddress,
+              "Canceled"
+            );
+          } else {
+            // Re-throw other errors
+            throw error;
+          }
+        }
+        setIsSuccess(true);
+      } catch (err) {
+        console.error("Error canceling listing:", err);
+        // If the error indicates the listing is no longer valid, clean up the database
+        if (
+          err instanceof Error &&
+          (err.message.includes("no longer own") ||
+            err.message.includes("not found") ||
+            err.message.includes("not active"))
+        ) {
+          await updateListingStatus(
+            collectionAddress,
+            tokenId,
+            userAddress,
+            "Canceled"
+          );
+        }
+        setError(
+          err instanceof Error ? err : new Error("Failed to cancel listing")
+        );
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userAddress]
+  );
+
+  return {
+    cancelListing,
+    isLoading,
+    isSuccess,
+    error,
+    txHash,
   };
 }

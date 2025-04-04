@@ -1096,7 +1096,7 @@
           "type": "uint256"
         }
       ],
-      "name": "updateERC1155ListingPrice",
+      "name": "updateERC1155ListingPriceAndQuantity",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

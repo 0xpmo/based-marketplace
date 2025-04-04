@@ -28,7 +28,6 @@ const NFTInfoHeader = ({
     )}`;
   };
 
-  console.log("fish  nft item", nftItem);
   // Determine if the item is an ERC1155 token
   const isERC1155 = isERC1155Item(nftItem);
 

@@ -11,7 +11,7 @@ async function main() {
   console.log("Deploying KekTrumps NFT contract...");
 
   const FOLDER_HASH =
-    "bafybeicblhkcuwnat2hvpufqgr2y5qcrdup47aig3pi2mlitarwgv4jpna";
+    "bafybeia5hgzy7p5jxvquppygdsiuzk5p6kcc7qjdcckzkfolb5psel66ui";
 
   const baseURI = `ipfs://${FOLDER_HASH}/`;
   const contractURI = `ipfs://${FOLDER_HASH}/collection`;
@@ -88,101 +88,101 @@ async function main() {
   await kekTrumps.addCharacter(
     1, // characterId
     "Nakapepo Card", // name
-    15, // bronzeSupply
-    10, // silverSupply
-    7, // goldSupply
-    2 // greenSupply
+    5, // bronzeSupply
+    3, // silverSupply
+    2, // goldSupply
+    1 // greenSupply
   );
 
   // Character 2: Pepe Burgundy
   await kekTrumps.addCharacter(
     2, // characterId
     "Pepe Burgundy", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
+    5, // bronzeSupply
+    3, // silverSupply
+    2, // goldSupply
+    1 // greenSupply
   );
 
   // Character 3: Magic Internet Pepe
   await kekTrumps.addCharacter(
     3, // characterId
     "Magic Internet Pepe", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
+    5, // bronzeSupply
+    3, // silverSupply
+    2, // goldSupply
+    1 // greenSupply
   );
 
   // Character 4: Shadilay Slinger
   await kekTrumps.addCharacter(
     4, // characterId
     "Shadilay Slinger", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
+    5, // bronzeSupply
+    3, // silverSupply
+    2, // goldSupply
+    1 // greenSupply
   );
 
-  // Character 5: Pepe Mcfly
-  await kekTrumps.addCharacter(
-    5, // characterId
-    "Pepe Mcfly", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 5: Pepe Mcfly
+  // await kekTrumps.addCharacter(
+  //   5, // characterId
+  //   "Pepe Mcfly", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 
-  // Character 6: Smokin' Kek
-  await kekTrumps.addCharacter(
-    6, // characterId
-    "Smokin' Kek", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 6: Smokin' Kek
+  // await kekTrumps.addCharacter(
+  //   6, // characterId
+  //   "Smokin' Kek", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 
-  // Character 7: Pagan of Kekistan
-  await kekTrumps.addCharacter(
-    7, // characterId
-    "Pagan of Kekistan", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 7: Pagan of Kekistan
+  // await kekTrumps.addCharacter(
+  //   7, // characterId
+  //   "Pagan of Kekistan", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 
-  // Character 8: Kekurai kek
-  await kekTrumps.addCharacter(
-    8, // characterId
-    "Kekurai kek", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 8: Kekurai kek
+  // await kekTrumps.addCharacter(
+  //   8, // characterId
+  //   "Kekurai kek", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 
-  // Character 9: Sick Pepe
-  await kekTrumps.addCharacter(
-    9, // characterId
-    "Sick Pepe", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 9: Sick Pepe
+  // await kekTrumps.addCharacter(
+  //   9, // characterId
+  //   "Sick Pepe", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 
-  // Character 10: Keksplorer
-  await kekTrumps.addCharacter(
-    10, // characterId
-    "Keksplorer", // name
-    30, // bronzeSupply
-    20, // silverSupply
-    15, // goldSupply
-    4 // greenSupply
-  );
+  // // Character 10: Keksplorer
+  // await kekTrumps.addCharacter(
+  //   10, // characterId
+  //   "Keksplorer", // name
+  //   5, // bronzeSupply
+  //   3, // silverSupply
+  //   2, // goldSupply
+  //   1 // greenSupply
+  // );
 }
 
 main().catch((error) => {

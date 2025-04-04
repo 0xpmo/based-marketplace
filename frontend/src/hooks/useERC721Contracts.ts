@@ -270,8 +270,11 @@ async function readCollectionProperty(
 // Hook for minting an NFT
 export function useMintNFT(collectionAddress: string) {
   const { address, chainId } = useAccount();
-  const { writeContract, data, isError, error } = useWriteContract();
-  const { isLoading, isSuccess } = useTransaction({ hash: data });
+  const { writeContract, data: txHash, isError, error } = useWriteContract();
+  const { isLoading: txLoading, isSuccess } = useTransaction(
+    txHash ? { hash: txHash } : {}
+  );
+  const isLoading = !!txHash && txLoading;
   const publicClient = usePublicClient();
   const config = useConfig();
   const targetChainId = getActiveChain().id;
@@ -338,7 +341,7 @@ export function useMintNFT(collectionAddress: string) {
     isSuccess,
     isError,
     error,
-    txHash: data,
+    txHash,
   };
 }
 

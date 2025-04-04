@@ -29,7 +29,7 @@ export default function MintNftModal({
   const [hasMinted, setHasMinted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [localMintedCount, setLocalMintedCount] = useState(
-    collection.totalMinted
+    collection.totalSupply
   );
   const [isRevealing, setIsRevealing] = useState(false);
   const [showLootbox, setShowLootbox] = useState(false);
@@ -60,7 +60,7 @@ export default function MintNftModal({
   // Update local minted count when collection data is refreshed
   useEffect(() => {
     if (updatedCollection && !loadingCollection) {
-      setLocalMintedCount(updatedCollection.totalMinted);
+      setLocalMintedCount(updatedCollection.totalSupply);
     }
   }, [updatedCollection, loadingCollection]);
 
@@ -232,7 +232,7 @@ export default function MintNftModal({
     }
 
     // For ERC721 collections, check if sold out
-    if (Number(collection.totalMinted) >= Number(collection.maxSupply)) {
+    if (Number(collection.totalSupply) >= Number(collection.maxSupply)) {
       toast.error("This collection is sold out");
       return;
     }
@@ -467,8 +467,9 @@ export default function MintNftModal({
 
   // Check if the mint button should be disabled
   const isMintButtonDisabled =
-    isLoading || hasMinted || localMintedCount >= collection.maxSupply;
-
+    isLoading ||
+    hasMinted ||
+    !!(collection.maxSupply && localMintedCount >= collection.maxSupply);
   // Get NFT image URL
   const getNFTImageUrl = () => {
     if (mintedNFT?.metadata?.image) {
@@ -496,7 +497,10 @@ export default function MintNftModal({
       );
     } else if (hasMinted) {
       return "Minted Successfully!";
-    } else if (localMintedCount >= collection.maxSupply) {
+    } else if (
+      collection.maxSupply &&
+      localMintedCount >= collection.maxSupply
+    ) {
       return "Sold Out";
     } else {
       return (
@@ -615,7 +619,8 @@ export default function MintNftModal({
                 <p className="text-blue-100 flex justify-between">
                   <span className="text-blue-300">Remaining:</span>
                   <span className="font-semibold text-indigo-200">
-                    {collection.maxSupply - localMintedCount}
+                    {collection.maxSupply &&
+                      collection.maxSupply - localMintedCount}
                   </span>
                 </p>
               </div>

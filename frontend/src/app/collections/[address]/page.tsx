@@ -27,16 +27,6 @@ import CollectionStatusBadge from "@/components/collections/CollectionStatusBadg
 import { useCollectionListings } from "@/hooks/useListings";
 import { ethers } from "ethers";
 import { useDeepCompareEffect } from "@/utils/deepComparison";
-// Add a TypeScript interface for the listing data
-interface CollectionListing {
-  price: string;
-  seller: string;
-  active: boolean;
-  quantity: number;
-  isERC1155: boolean;
-  allowedBuyer: string | null;
-  isPrivate: boolean;
-}
 
 export default function CollectionDetailsPage() {
   const params = useParams();
@@ -198,18 +188,6 @@ export default function CollectionDetailsPage() {
   }, [collections, params.address]);
 
   useDeepCompareEffect(() => {
-    // Only set loading to false when all data loading is complete
-    if (
-      !loadingNFTs &&
-      !metadataLoading &&
-      !isLoadingListings &&
-      collections.length > 0
-    ) {
-      setLoading(false);
-    }
-  }, [loadingNFTs, metadataLoading, isLoadingListings, collections.length]);
-
-  useDeepCompareEffect(() => {
     if (collection?.metadata?.image && !collectionImageError) {
       try {
         const url = getIPFSGatewayURL(collection.metadata.image);
@@ -267,8 +245,6 @@ export default function CollectionDetailsPage() {
     collection?.metadata?.image,
     bannerError,
   ]);
-
-  console.log("dislpay nfts", displayNfts);
 
   // Create a stable reference for sort function to prevent jumpiness during loading
   const sortedAndFilteredNFTs = useMemo(() => {
@@ -334,6 +310,19 @@ export default function CollectionDetailsPage() {
 
     return result;
   }, [displayNfts, sortOption, filterForSale, metadataLoading]);
+
+  useDeepCompareEffect(() => {
+    // Only set loading to false when all data loading is complete
+    if (
+      !loadingNFTs &&
+      !metadataLoading &&
+      !isLoadingListings &&
+      collections.length > 0 &&
+      collection !== null
+    ) {
+      setLoading(false);
+    }
+  }, [loadingNFTs, metadataLoading, isLoadingListings, collections.length]);
 
   // Handle toggle for sale only
   const handleToggleForSale = () => {
@@ -433,11 +422,6 @@ export default function CollectionDetailsPage() {
     );
   }
 
-  // const mintedPercent =
-  //   collection.totalSupply && collection.maxSupply
-  //     ? (Number(collection.totalSupply) / Number(collection.maxSupply)) * 100
-  //     : 0;
-
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Banner Image */}
@@ -470,7 +454,7 @@ export default function CollectionDetailsPage() {
             <div className="flex flex-col md:flex-row gap-6">
               {/* Collection Image */}
               <div className="flex-shrink-0">
-                <div className="relative w-32 h-32 sm:w-48 sm:h-48 rounded-xl overflow-hidden border-4 border-slate-800 shadow-lg">
+                <div className="relative rounded-xl overflow-hidden border-4 border-slate-800 shadow-lg w-32 h-32 sm:w-48 sm:h-48">
                   {isCollectionImageLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-blue-900">
                       <div className="w-8 h-8 border-4 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
@@ -480,7 +464,7 @@ export default function CollectionDetailsPage() {
                     src={collectionImageUrl}
                     alt={collection?.metadata?.name || "Collection"}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     onLoad={() => setIsCollectionImageLoading(false)}
                     onError={() => {
                       setCollectionImageError(true);

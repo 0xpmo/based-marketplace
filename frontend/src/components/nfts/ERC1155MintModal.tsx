@@ -1,20 +1,18 @@
 // components/nfts/UpdatedERC1155MintModal.tsx
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
-import { useMintERC1155 } from "@/hooks/useERC1155Contracts";
 import PepeButton from "@/components/ui/PepeButton";
-import { getIPFSGatewayURL } from "@/services/ipfs";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
-import toast from "react-hot-toast";
+import { useMintERC1155 } from "@/hooks/useERC1155Contracts";
+import {
+  RARITY_NAMES,
+  useERC1155RarityInfo,
+} from "@/hooks/useERC1155RarityInfo";
+import { getIPFSGatewayURL } from "@/services/ipfs";
 import { ERC1155Collection, KekTrumpsRarity } from "@/types/contracts";
 import { formatNumberWithCommas } from "@/utils/formatting";
-import ERC1155RarityAvailability from "./ERC1155RarityAvailability";
-import {
-  useERC1155RarityInfo,
-  RARITY_NAMES,
-  RARITY_COLORS,
-} from "@/hooks/useERC1155RarityInfo";
+import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import React, { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface UpdatedERC1155MintModalProps {
   collection: ERC1155Collection;
@@ -48,6 +46,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
   const { mintERC1155, isLoading, isSuccess, isError, error, txHash } =
     useMintERC1155(collection.address);
 
+  console.log("blobber loading mint", isLoading);
   // Use our rarity info hook
   const {
     raritiesInfo,
@@ -137,17 +136,6 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
       setTotalPrice("0");
     }
   }, [mintPrice, quantity]);
-
-  // Handle rarity selection
-  const handleRarityChange = (rarity: KekTrumpsRarity) => {
-    const rarityInfo = raritiesInfo.find((r) => r.id === rarity);
-    if (rarityInfo && rarityInfo.isAvailable) {
-      setSelectedRarity(rarity);
-      setActiveTab(rarity);
-    } else {
-      toast.error(`${RARITY_NAMES[rarity]} rarity is not available`);
-    }
-  };
 
   // Handle quantity change
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -284,8 +272,8 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
               {/* Left column - Collection Image */}
               <div>
                 <div
-                  className="relative rounded-xl overflow-hidden aspect-square mb-4 border-2 border-blue-800/50"
-                  style={{ height: "400px", width: "100%" }}
+                  className="relative rounded-xl overflow-hidden mb-4 border-2 border-blue-800/50"
+                  style={{ paddingBottom: "100%", height: "0", width: "100%" }}
                 >
                   {imageLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-blue-950">
@@ -296,8 +284,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                     src={imageUrl}
                     alt={collection.name}
                     fill
-                    className="object-cover"
-                    style={{ height: "400px", width: "100%" }}
+                    className="object-contain"
                     onLoad={() => setImageLoading(false)}
                     onError={() => {
                       setImageUrl("/images/placeholder-nft.svg");
@@ -328,10 +315,10 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                         {charactersInfo.length}
                       </div>
 
-                      <div className="text-blue-400">Royalty</div>
+                      {/* <div className="text-blue-400">Royalty</div>
                       <div className="text-blue-200">
                         {collection.royaltyFee.toFixed(2)}%
-                      </div>
+                      </div> */}
                     </div>
                   </div>
 
@@ -401,15 +388,6 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
 
               {/* Right column - Mint Options */}
               <div>
-                {/* Rarity Availability Section */}
-                {/* <div className="mb-6">
-                  <ERC1155RarityAvailability
-                    collectionAddress={collection.address}
-                    onSelectRarity={handleRarityChange}
-                    selectedRarity={selectedRarity}
-                  />
-                </div> */}
-
                 {/* Rarity Selector Tabs */}
                 <h3 className="text-lg font-semibold text-blue-100 mb-4">
                   Selected Rarity
@@ -434,7 +412,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                           setActiveTab(rarity.id as KekTrumpsRarity);
                         }
                       }}
-                      disabled={!rarity.isAvailable || isLoading}
+                      disabled={!rarity.isAvailable}
                     >
                       {rarity.name}
                     </button>
@@ -450,11 +428,7 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                     <button
                       type="button"
                       onClick={decrementQuantity}
-                      disabled={
-                        quantity <= 1 ||
-                        isLoading ||
-                        !isCurrentRarityAvailable()
-                      }
+                      disabled={quantity <= 1 || !isCurrentRarityAvailable()}
                       className="bg-blue-800 hover:bg-blue-700 text-white rounded-l-lg p-2 transition-colors disabled:opacity-50"
                     >
                       <svg
@@ -476,16 +450,14 @@ const UpdatedERC1155MintModal: React.FC<UpdatedERC1155MintModalProps> = ({
                       max={maxQuantity}
                       value={quantity}
                       onChange={handleQuantityChange}
-                      disabled={isLoading || !isCurrentRarityAvailable()}
-                      className="bg-blue-950 text-center border-t border-b border-blue-800/40 text-blue-100 py-2 w-16 focus:outline-none"
+                      disabled={!isCurrentRarityAvailable()}
+                      className="bg-blue-950 text-center border-t border-b border-blue-800/40 text-blue-100 py-2 w-16 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
                       onClick={incrementQuantity}
                       disabled={
-                        quantity >= maxQuantity ||
-                        isLoading ||
-                        !isCurrentRarityAvailable()
+                        quantity >= maxQuantity || !isCurrentRarityAvailable()
                       }
                       className="bg-blue-800 hover:bg-blue-700 text-white rounded-r-lg p-2 transition-colors disabled:opacity-50"
                     >

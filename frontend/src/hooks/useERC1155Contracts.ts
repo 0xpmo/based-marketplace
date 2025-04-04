@@ -250,8 +250,11 @@ export function useERC1155Collections() {
 // Hook for minting ERC1155 tokens
 export function useMintERC1155(collectionAddress: string) {
   const { address, chainId } = useAccount();
-  const { writeContract, data, isError, error } = useWriteContract();
-  const { isLoading, isSuccess } = useTransaction({ hash: data });
+  const { writeContract, data: txHash, isError, error } = useWriteContract();
+  const { isLoading: txLoading, isSuccess } = useTransaction(
+    txHash ? { hash: txHash } : {}
+  );
+  const isLoading = !!txHash && txLoading;
   const publicClient = usePublicClient();
   const config = useConfig();
   const targetChainId = getActiveChain().id;
@@ -327,7 +330,7 @@ export function useMintERC1155(collectionAddress: string) {
     isSuccess,
     isError,
     error,
-    txHash: data,
+    txHash,
   };
 }
 
@@ -375,8 +378,11 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
             args: [rarity],
           })) as number[];
 
+          console.log("available characteres", availableCharacters);
+
           // For each available character, get its details
           for (const characterId of availableCharacters) {
+            console.log("getting character", characterId);
             // Get character info (includes all data we need)
             const characterInfo = (await publicClient.readContract({
               address: collectionAddress as `0x${string}`,
@@ -384,6 +390,8 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
               functionName: "getCharacter",
               args: [characterId],
             })) as CharacterInfo;
+
+            console.log("characterInfo", characterInfo);
 
             // Only process if the character is enabled and has either minted tokens or available supply
             if (
@@ -393,6 +401,8 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
             ) {
               const tokenId = characterInfo.tokenId[rarity];
 
+              console.log("getting tokenUri for tokenid", tokenId);
+
               // Get token URI
               const uri = (await publicClient.readContract({
                 address: collectionAddress as `0x${string}`,
@@ -400,17 +410,20 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
                 functionName: "uri",
                 args: [tokenId],
               })) as string;
+              console.log("uri", uri);
 
               // Get user balance if address is provided
               let balance = 0;
               if (address) {
                 try {
+                  console.log("balance of", address, tokenId);
                   const userBalance = await publicClient.readContract({
                     address: collectionAddress as `0x${string}`,
                     abi: KekTrumpsABI.abi,
                     functionName: "balanceOf",
                     args: [address, tokenId],
                   });
+                  console.log("userBalance", userBalance);
                   balance = Number(userBalance);
                 } catch (err) {
                   console.error(
@@ -420,12 +433,19 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
                 }
               }
 
+              console.log("minted", characterInfo.minted[rarity]);
+              // console.log("maxSupply", characterInfo.maxSupply[rarity]);
+              if (characterInfo.minted[rarity]) {
+                console.log("passing first check");
+              }
+
               if (
                 Number(
                   characterInfo.minted[rarity] &&
                     Number(characterInfo.minted[rarity] > 0)
                 )
               ) {
+                console.log("pushing token", tokenId);
                 tokens.push({
                   tokenId: Number(tokenId),
                   characterId: characterId,
@@ -447,6 +467,9 @@ export function useERC1155CollectionTokens(collectionAddress: string) {
           );
         }
       }
+
+      console.log("setting tokens", tokens);
+
       // Update state with basic token data
       setTokens(tokens);
       setLoading(false);

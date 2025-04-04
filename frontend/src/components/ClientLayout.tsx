@@ -1,8 +1,9 @@
 // frontend/src/components/ClientLayout.tsx
 "use client";
 
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Toaster } from "react-hot-toast"; // Change this import
+// import { ToastContainer } from "react-toastify";
+// import "react-toastify/dist/ReactToastify.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import dynamic from "next/dynamic";
@@ -147,7 +148,31 @@ export default function ClientLayout({
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
-          <ToastContainer position="bottom-right" theme="dark" />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              duration: 5000,
+              style: {
+                background: "#1e1e1e",
+                color: "#fff",
+              },
+              success: {
+                duration: 3000,
+                // theme: {
+                //   primary: '#48BB78',
+                //   secondary: '#38A169',
+                // },
+              },
+              error: {
+                duration: 4000,
+                // theme: {
+                //   primary: '#F56565',
+                //   secondary: '#E53E3E',
+                // },
+              },
+            }}
+          />
+          {/* <ToastContainer position="bottom-right" theme="dark" /> */}
         </div>
       </TokenPriceProvider>
     </ClientOnly>

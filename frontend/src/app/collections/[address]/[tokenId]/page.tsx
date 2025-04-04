@@ -11,6 +11,7 @@ import { useTokenListings } from "@/hooks/useListings";
 import {
   useBuyNFT,
   useCancelERC1155Listing,
+  useCancelListing,
   useListNFT,
 } from "@/hooks/useMarketplace";
 import { getMarketplaceContract } from "@/lib/contracts";
@@ -115,13 +116,21 @@ export default function NFTDetailsPage() {
   } = useBuyNFT();
 
   // Add the new hook for canceling ERC1155 listings
+  // const {
+  //   cancelERC1155Listing,
+  //   isLoading: isCancellingERC1155,
+  //   isSuccess: isCancelERC1155Success,
+  //   error: cancelERC1155Error,
+  //   txHash: cancelERC1155TxHash,
+  // } = useCancelERC1155Listing();
+
   const {
-    cancelERC1155Listing,
-    isLoading: isCancellingERC1155,
-    isSuccess: isCancelERC1155Success,
-    error: cancelERC1155Error,
-    txHash: cancelERC1155TxHash,
-  } = useCancelERC1155Listing();
+    cancelListing,
+    isLoading: isCancellingFromHook,
+    isSuccess: isCancelSuccess,
+    error: cancelError,
+    txHash: cancelTxHashFromHook,
+  } = useCancelListing();
 
   // Add the hook to fetch token listings from our database
   const {
@@ -356,7 +365,7 @@ export default function NFTDetailsPage() {
     if (
       isListingSuccess ||
       isBuyingSuccess ||
-      isCancelERC1155Success ||
+      // isCancelERC1155Success ||
       (!isCancelling && cancelTxHash) // Successful cancellation
     ) {
       // Refresh both NFT data and listings
@@ -366,8 +375,7 @@ export default function NFTDetailsPage() {
 
       // Reset transaction hashes
       if (isListingSuccess) setTxHash(null);
-      if (isCancelERC1155Success || (!isCancelling && cancelTxHash))
-        setCancelTxHash(null);
+      if (!isCancelling && cancelTxHash) setCancelTxHash(null);
 
       // Reset states
       if (isBuyingSuccess) {
@@ -381,7 +389,7 @@ export default function NFTDetailsPage() {
   }, [
     isListingSuccess,
     isBuyingSuccess,
-    isCancelERC1155Success,
+    // isCancelERC1155Success,
     isCancelling,
     cancelTxHash,
   ]);
@@ -653,9 +661,8 @@ export default function NFTDetailsPage() {
     }
   }, [buyingError]);
 
-  // Update handleCancelListing to use the appropriate cancel function based on token type
   const handleCancelListing = async () => {
-    if (!isConnected || !publicClient) {
+    if (!isConnected) {
       toast.error("Please connect your wallet first");
       return;
     }
@@ -674,56 +681,42 @@ export default function NFTDetailsPage() {
       setIsCancelling(true);
       setCancelTxHash(null);
 
-      if (isERC1155) {
-        // Use the special cancelERC1155Listing function for ERC1155 tokens
-        toast.promise(cancelERC1155Listing(collectionAddress, tokenId), {
-          loading: "Canceling ERC1155 listing...",
+      await toast.promise(
+        cancelListing(collectionAddress, tokenId.toString(), isERC1155),
+        {
+          loading: "Canceling listing...",
           success: "Cancellation submitted! Waiting for confirmation...",
-          error: "Failed to cancel listing",
-        });
+          error: (err) => {
+            // Check for specific error messages
+            const errorMessage = err.message || "Unknown error";
 
-        setCancelTxHash(cancelERC1155TxHash);
-      } else {
-        // For ERC721, use the standard cancelListing function
-        // Get marketplace contract
-        const marketplaceContract = await getMarketplaceContract();
+            if (
+              errorMessage.includes("Listing not active") ||
+              errorMessage.includes("listing not found") ||
+              errorMessage.includes("no longer active")
+            ) {
+              // This is actually an "expected" error - the listing is already inactive
+              fetchNFTData(); // Refresh the UI
+              return "Listing is already inactive - updating display";
+            }
 
-        // Get the next nonce
-        const nonce = await publicClient.getTransactionCount({
-          address: userAddress as `0x${string}`,
-          blockTag: "pending",
-        });
+            // For other errors, return the error message
+            return `Failed to cancel listing: ${errorMessage}`;
+          },
+        }
+      );
 
-        const tx = await marketplaceContract.cancelListing(
-          collectionAddress,
-          tokenId,
-          process.env.NEXT_PUBLIC_USE_LOCAL_CHAIN !== "true"
-            ? {
-                gasPrice: 9,
-                gasLimit: 3000000,
-                nonce: nonce,
-              }
-            : {}
-        );
+      // Update the cancel transaction hash
+      setCancelTxHash(cancelTxHashFromHook);
 
-        setCancelTxHash(tx.hash);
-
-        toast.success("Cancellation submitted! Waiting for confirmation...");
-
-        // Wait for transaction to complete
-        const receipt = await tx.wait();
+      // Only show success toast if we actually cancelled something
+      if (isCancelSuccess) {
+        toast.success("Listing cancelled successfully!");
+        fetchNFTData();
       }
-
-      // Refresh the NFT data to show updated listing status
-      toast.success("Listing cancelled successfully!");
-      fetchNFTData();
     } catch (err) {
       console.error("Error cancelling listing:", err);
-      toast.error(
-        err instanceof Error
-          ? `Error: ${err.message}`
-          : "Failed to cancel listing. Please try again."
-      );
+      // Don't show another error toast here since toast.promise already handled it
     } finally {
       setIsCancelling(false);
     }

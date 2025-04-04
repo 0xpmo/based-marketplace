@@ -27,7 +27,7 @@ async function main() {
     "listERC1155Item",
     "buyERC1155Item",
     "cancelERC1155Listing",
-    "updateERC1155ListingPrice",
+    "updateERC1155ListingPriceAndQuantity",
   ];
 
   // Check each function
