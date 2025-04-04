@@ -3,14 +3,55 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
-import { NFTItem } from "@/types/contracts";
+import { NFTItem, ERC1155Item, ERC1155Collection } from "@/types/contracts";
 import { useAllCollections } from "@/hooks/useAllContracts";
-import NFTCard from "@/components/nfts/NftCard";
+import { useERC1155CollectionTokens } from "@/hooks/useERC1155Contracts";
+import UnifiedNFTCard from "@/components/nfts/UnifiedNFTCard";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import WavesBackground from "@/components/effects/WavesBackground";
 import { CollectionCardSkeleton } from "@/components/ui/LoadingSkeleton";
 import Link from "next/link";
 import PepeButton from "@/components/ui/PepeButton";
+import { isERC1155Collection } from "@/utils/collectionTypeDetector";
+import { useDeepCompareEffect } from "@/utils/deepComparison";
+
+// Component to handle ERC1155 collection tokens
+function ERC1155CollectionTokens({
+  collection,
+  userAddress,
+}: {
+  collection: ERC1155Collection;
+  userAddress: string;
+}) {
+  const { tokens } = useERC1155CollectionTokens(collection.address);
+  // const { collections } = useAllCollections();
+  // const collection = collections.find((c) => c.address === collectionAddress);
+  const userTokens = tokens.filter((token) => token.balance > 0);
+
+  if (userTokens.length === 0) return null;
+
+  return (
+    <div className="mb-12">
+      <Link href={`/collections/${collection.address}`}>
+        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-200 to-cyan-200 bg-clip-text text-transparent hover:from-blue-100 hover:to-cyan-100 transition-colors">
+          {collection?.name ||
+            `Collection ${collection.address.slice(0, 6)}...`}{" "}
+          (ERC1155)
+        </h2>
+      </Link>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {userTokens.map((token) => (
+          <UnifiedNFTCard
+            key={`${token.collection}-${token.tokenId}`}
+            item={token}
+            collectionAddress={token.collection}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function MyNFTsPage() {
   const { address } = useAccount();
@@ -19,9 +60,13 @@ export default function MyNFTsPage() {
   const [loading, setLoading] = useState(true);
   const [filterForSale, setFilterForSale] = useState(false);
 
-  useEffect(() => {
+  // Separate ERC721 and ERC1155 collections
+  const erc721Collections = collections.filter((c) => !isERC1155Collection(c));
+  const erc1155Collections = collections.filter(isERC1155Collection);
+
+  useDeepCompareEffect(() => {
     const fetchUserNFTs = async () => {
-      if (!address || collections.length === 0) {
+      if (!address || erc721Collections.length === 0) {
         setMyNFTs([]);
         setLoading(false);
         return;
@@ -31,8 +76,8 @@ export default function MyNFTsPage() {
       try {
         const allNfts: NFTItem[] = [];
 
-        // Fetch NFTs from each collection
-        for (const collection of collections) {
+        // Fetch NFTs from each ERC721 collection
+        for (const collection of erc721Collections) {
           try {
             // Get token IDs for this collection
             const tokenIdsResponse = await fetch(
@@ -112,7 +157,7 @@ export default function MyNFTsPage() {
     };
 
     fetchUserNFTs();
-  }, [address, collections]);
+  }, [address, erc721Collections]);
 
   // Group NFTs by collection
   const nftsByCollection = myNFTs.reduce((acc, nft) => {
@@ -198,7 +243,8 @@ export default function MyNFTsPage() {
               ))}
             </div>
           </div>
-        ) : myNFTs.length === 0 ? (
+        ) : Object.keys(filteredNftsByCollection).length === 0 &&
+          erc1155Collections.length === 0 ? (
           <div className="bg-blue-900/30 rounded-xl p-8 text-center border border-blue-800/50 backdrop-blur-sm">
             <img
               src="/images/empty-collections.svg"
@@ -241,6 +287,7 @@ export default function MyNFTsPage() {
               </div>
             </div>
 
+            {/* ERC721 Collections */}
             {Object.entries(filteredNftsByCollection).map(
               ([collectionAddress, nfts]) => {
                 const collection = collections.find(
@@ -258,9 +305,9 @@ export default function MyNFTsPage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                       {nfts.map((nft) => (
-                        <NFTCard
+                        <UnifiedNFTCard
                           key={`${nft.collection}-${nft.tokenId}`}
-                          nft={nft}
+                          item={nft}
                           collectionAddress={nft.collection}
                         />
                       ))}
@@ -269,6 +316,16 @@ export default function MyNFTsPage() {
                 );
               }
             )}
+
+            {/* ERC1155 Collections */}
+            {address &&
+              erc1155Collections.map((collection) => (
+                <ERC1155CollectionTokens
+                  key={collection.address}
+                  collection={collection}
+                  userAddress={address}
+                />
+              ))}
 
             {/* Show message when no NFTs match the filter */}
             {Object.keys(filteredNftsByCollection).length === 0 &&
