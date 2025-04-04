@@ -14,7 +14,7 @@ import PepeButton from "@/components/ui/PepeButton";
 import NFTCard from "@/components/nfts/NftCard";
 import UnifiedNftCard from "@/components/nfts/UnifiedNFTCard";
 import { getIPFSGatewayURL } from "@/services/ipfs";
-import { useCollectionNFTs } from "@/hooks/useERC721Contracts";
+import { useCollectionNFTsPaginated } from "@/hooks/useCollectionNFTs";
 import { useERC1155CollectionTokens } from "@/hooks/useERC1155Contracts";
 import { useAllCollections } from "@/hooks/useAllContracts";
 import MintNftModal from "@/components/nfts/MintNftModal";
@@ -55,6 +55,8 @@ export default function CollectionDetailsPage() {
   const [loadingMessage, setLoadingMessage] = useState(
     () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]
   );
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20; // Match the value in the hook
 
   // Collection address normalization
   const collectionAddr = Array.isArray(params.address)
@@ -67,14 +69,19 @@ export default function CollectionDetailsPage() {
     [collection]
   );
 
-  // Use appropriate hooks based on collection type
+  // Use our new paginated hook
   const {
     nfts: erc721Nfts,
-    loading: loadingERC721NFTs,
-    metadataLoading: metadataLoadingERC721,
-    // error: fetchErrorERC721,
+    totalCount,
+    totalPages,
+    isLoading: loadingERC721NFTs,
     refresh: refreshERC721NFTs,
-  } = useCollectionNFTs(isERC1155 || !collection ? "" : collectionAddr);
+    currentPage,
+  } = useCollectionNFTsPaginated(
+    isERC1155 || !collection ? "" : collectionAddr,
+    page,
+    PAGE_SIZE
+  );
 
   const {
     tokens: erc1155Tokens,
@@ -91,9 +98,7 @@ export default function CollectionDetailsPage() {
 
   // Unified loading states
   const loadingNFTs = isERC1155 ? loadingERC1155Tokens : loadingERC721NFTs;
-  const metadataLoading = isERC1155
-    ? loadingERC1155Tokens
-    : metadataLoadingERC721;
+  const metadataLoading = isERC1155 ? loadingERC1155Tokens : loadingERC721NFTs;
   // const fetchError = isERC1155 ? fetchErrorERC1155 : fetchErrorERC721;
 
   // Use  hook instead of direct API calls
@@ -800,9 +805,37 @@ export default function CollectionDetailsPage() {
 
                 {/* End of collection message */}
                 {nfts.length > 0 && (
-                  <div className="text-center mt-8 mb-6 text-blue-300 bg-blue-900/20 py-4 rounded-lg border border-blue-800/30">
-                    Showing all {sortedAndFilteredNFTs.length} NFTs in this
-                    collection
+                  <div className="py-8 flex flex-col items-center justify-center">
+                    {currentPage < totalPages ? (
+                      <div className="text-center">
+                        <div className="mb-4">
+                          <span className="text-blue-300">
+                            Showing {nfts.length} of {totalCount} NFTs
+                          </span>
+                        </div>
+                        <PepeButton
+                          variant="outline"
+                          className="border-blue-500 text-blue-300"
+                          onClick={() =>
+                            !loadingNFTs && setPage((prev) => prev + 1)
+                          }
+                          disabled={loadingNFTs}
+                        >
+                          {loadingNFTs ? (
+                            <div className="flex items-center">
+                              <div className="w-5 h-5 border-2 border-blue-300 border-t-transparent rounded-full animate-spin mr-2"></div>
+                              Loading...
+                            </div>
+                          ) : (
+                            "Load More"
+                          )}
+                        </PepeButton>
+                      </div>
+                    ) : (
+                      <div className="text-center mt-8 mb-6 text-blue-300 bg-blue-900/20 py-4 px-4 rounded-lg border border-blue-800/30">
+                        Showing all {nfts.length} NFTs in this collection
+                      </div>
+                    )}
                   </div>
                 )}
               </>

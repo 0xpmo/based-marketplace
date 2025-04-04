@@ -8,24 +8,58 @@ import { useAllCollections } from "@/hooks/useAllContracts";
 import CollectionCard from "@/components/collections/CollectionCard";
 import PepeButton from "@/components/ui/PepeButton";
 import PepeConfetti from "@/components/effects/PepeConfetti";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { Collection } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
+
+// Lazy load components that are below the fold
+const LazyTopCollections = lazy(
+  () => import("@/components/home/TopCollections")
+);
+const LazyCTASection = lazy(() => import("@/components/home/CTASection"));
+
+// Loading component for top collections
+function TopCollectionsSkeleton() {
+  return (
+    <section className="w-full bg-gradient-to-b from-blue-950 to-blue-900 py-16 px-4">
+      <div className="container mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div className="h-8 w-48 bg-blue-800 animate-pulse rounded"></div>
+          <div className="h-6 w-20 bg-blue-800 animate-pulse rounded"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-blue-900/50 rounded-xl border border-blue-800/50 overflow-hidden"
+            >
+              <div className="h-48 bg-blue-800 animate-pulse"></div>
+              <div className="p-4">
+                <div className="h-6 w-3/4 bg-blue-800 animate-pulse rounded mb-2"></div>
+                <div className="h-4 w-1/4 bg-blue-800 animate-pulse rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const { collections, loading } = useAllCollections();
   const [featuredCollection, setFeaturedCollection] =
     useState<Collection | null>(null);
+  const [featuredImageLoaded, setFeaturedImageLoaded] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set isClient to true once component mounts to enable client-side rendering
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
-    // if (collections.length > 0) {
-    //   const featured = collections.reduce(
-    //     (prev, current) =>
-    //       current.totalMinted > prev.totalMinted ? current : prev,
-    //     collections[0]
-    //   );
-    //   setFeaturedCollection(featured);
-    // }
     if (collections.length > 0) {
       const kekTrumpsCollection = collections.find(
         (collection) =>
@@ -40,6 +74,15 @@ export default function Home() {
   }, [collections]);
 
   const topCollections = collections.slice(0, 3);
+
+  // Optimize image loading by prefetching featured collection image
+  useEffect(() => {
+    if (featuredCollection?.metadata?.image) {
+      const img = new window.Image();
+      img.src = getIPFSGatewayURL(featuredCollection.metadata.image);
+      img.onload = () => setFeaturedImageLoaded(true);
+    }
+  }, [featuredCollection?.metadata?.image]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between">
@@ -64,36 +107,37 @@ export default function Home() {
             ></path>
           </svg>
 
-          {/* Animated bubbles */}
-          {[...Array(8)].map((_, i) => {
-            const size = Math.floor(Math.random() * 40) + 10;
-            const duration = Math.floor(Math.random() * 8) + 6;
-            const delay = Math.random() * 2;
-            const leftPos = Math.random() * 90;
+          {/* Only render animated bubbles on client-side to avoid hydration issues */}
+          {isClient &&
+            [...Array(8)].map((_, i) => {
+              const size = Math.floor(Math.random() * 40) + 10;
+              const duration = Math.floor(Math.random() * 8) + 6;
+              const delay = Math.random() * 2;
+              const leftPos = Math.random() * 90;
 
-            return (
-              <motion.div
-                key={i}
-                className="absolute bottom-0 rounded-full bg-white/20 z-0"
-                style={{
-                  width: size,
-                  height: size,
-                  left: `${leftPos}%`,
-                }}
-                initial={{ y: 100, opacity: 0 }}
-                animate={{
-                  y: -500,
-                  opacity: [0, 0.7, 0],
-                }}
-                transition={{
-                  duration: duration,
-                  repeat: Infinity,
-                  delay: delay,
-                  ease: "linear",
-                }}
-              />
-            );
-          })}
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute bottom-0 rounded-full bg-white/20 z-0"
+                  style={{
+                    width: size,
+                    height: size,
+                    left: `${leftPos}%`,
+                  }}
+                  initial={{ y: 100, opacity: 0 }}
+                  animate={{
+                    y: -500,
+                    opacity: [0, 0.7, 0],
+                  }}
+                  transition={{
+                    duration: duration,
+                    repeat: Infinity,
+                    delay: delay,
+                    ease: "linear",
+                  }}
+                />
+              );
+            })}
         </div>
 
         <div className="container mx-auto py-16 px-4 sm:py-24 relative z-10">
@@ -129,14 +173,6 @@ export default function Home() {
                     Explore Collections
                   </PepeButton>
                 </Link>
-                {/* <Link href="/collections/create">
-                  <PepeButton
-                    variant="outline"
-                    className="border-cyan-500 text-cyan-300 hover:bg-cyan-900/30"
-                  >
-                    Create Collection
-                  </PepeButton>
-                </Link> */}
               </motion.div>
             </div>
             <div className="md:w-1/2 relative">
@@ -155,22 +191,27 @@ export default function Home() {
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-cyan-400/20 rounded-2xl backdrop-blur-sm -rotate-6 scale-105"></div>
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 to-cyan-600/20 rounded-2xl backdrop-blur-sm rotate-3 scale-105"></div>
-                  {featuredCollection?.metadata?.image ? (
+
+                  {/* Show loading skeleton first, then image when loaded */}
+                  {(!featuredCollection?.metadata?.image ||
+                    !featuredImageLoaded) && (
+                    <div className="absolute inset-0 rounded-2xl shadow-2xl shadow-blue-900/50 z-10 bg-blue-900 animate-pulse">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {featuredCollection?.metadata?.image && (
                     <Image
                       src={getIPFSGatewayURL(featuredCollection.metadata.image)}
                       alt={featuredCollection?.name || "Featured Collection"}
                       fill
-                      className="rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10"
+                      className={`rounded-2xl object-cover shadow-2xl shadow-blue-900/50 z-10 ${
+                        !featuredImageLoaded ? "opacity-0" : "opacity-100"
+                      } transition-opacity duration-300`}
                       priority
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-0 rounded-2xl shadow-2xl shadow-blue-900/50 z-10 bg-blue-900"
-                      style={{
-                        backgroundImage: "url('/images/hero-nft.png')",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
+                      onLoad={() => setFeaturedImageLoaded(true)}
                     />
                   )}
 
@@ -205,187 +246,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Top Collections Section */}
-      <section className="w-full bg-gradient-to-b from-blue-950 to-blue-900 py-16 px-4">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-white">Top Collections</h2>
-            <Link
-              href="/collections"
-              className="flex items-center text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              View All <span className="ml-2">→</span>
-            </Link>
-          </div>
+      {/* Top Collections Section - Load with Suspense */}
+      <Suspense fallback={<TopCollectionsSkeleton />}>
+        {isClient && (
+          <LazyTopCollections collections={topCollections} loading={loading} />
+        )}
+      </Suspense>
 
-          {topCollections.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {topCollections.map((collection) => (
-                <CollectionCard
-                  key={collection.address}
-                  collection={collection}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-10 bg-blue-900/30 border border-blue-800/50 rounded-xl shadow-inner shadow-blue-900/30">
-              <p className="text-cyan-200 mb-4">No collections available yet</p>
-              {/* <Link href="/collections/create">
-                <PepeButton
-                  variant="primary"
-                  className="bg-gradient-to-r from-blue-600 to-cyan-500 border-cyan-700"
-                >
-                  Create First Collection
-                </PepeButton>
-              </Link> */}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Features Section */}
-      {/* <section className="w-full py-16 px-4 relative overflow-hidden bg-gradient-to-b from-blue-900 to-blue-950">
-        <div className="container mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4 text-white">
-              Upcoming Features
-            </h2>
-            <p className="text-cyan-200 max-w-2xl mx-auto">
-              Prepare for the next wave...
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                icon: <div className="text-3xl text-cyan-400">🖼️</div>,
-                title: "Studio",
-                description: "Create your own NFTs with our built-in studio",
-              },
-              {
-                icon: <div className="text-3xl text-cyan-400">👛</div>,
-                title: "Secure Wallet",
-                description:
-                  "Connect with multiple wallets for secure transactions on the BasedAI network",
-              },
-              {
-                icon: <div className="text-3xl text-cyan-400">💰</div>,
-                title: "Low Fees",
-                description: "Enjoy minimal gas fees on the BasedAI network",
-              },
-              {
-                icon: <div className="text-3xl text-cyan-400">💡</div>,
-                title: "Easy to Use",
-                description:
-                  "Intuitive interface designed for both NFT beginners and experienced collectors",
-              },
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                className="bg-gradient-to-br from-blue-800/40 to-blue-900/40 p-6 rounded-xl border border-blue-700/30 backdrop-blur-sm hover:shadow-lg hover:shadow-blue-900/30 transition-all duration-300 group"
-                initial={{ y: 20, opacity: 0 }}
-                whileInView={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <div className="mb-4 p-3 inline-block rounded-lg bg-blue-800/50 group-hover:bg-gradient-to-br group-hover:from-blue-600 group-hover:to-cyan-600 transition-colors duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-2 text-white">
-                  {feature.title}
-                </h3>
-                <p className="text-cyan-200">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section> */}
-
-      {/* CTA Section */}
-      <section className="w-full py-16 px-4 bg-gradient-to-b from-blue-950 to-blue-900">
-        <div className="container mx-auto">
-          <div className="relative overflow-hidden bg-gradient-to-r from-blue-800 to-cyan-900 rounded-2xl p-8 md:p-12 shadow-xl shadow-blue-900/50 border border-blue-700/50">
-            <div className="absolute right-0 bottom-0 w-64 h-64 opacity-20">
-              <PepeConfetti trigger={true} />
-            </div>
-
-            <div className="relative z-10 md:w-2/3">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
-                Ready to dive in?
-              </h2>
-              <p className="text-cyan-200 mb-8 text-lg">
-                Start creating and collecting unique NFTs on BasedSea today
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/collections">
-                  <PepeButton
-                    variant="primary"
-                    className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700 shadow-lg shadow-blue-900/30"
-                  >
-                    Explore Collections
-                  </PepeButton>
-                </Link>
-                <Link href="/my-nfts">
-                  <PepeButton
-                    variant="outline"
-                    className="border-cyan-300 text-cyan-300 hover:bg-cyan-900/30"
-                  >
-                    View My NFTs
-                  </PepeButton>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-        className="flex gap-4 justify-center"
-      >
-        <a
-          href="https://x.com/basedsea_xyz"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block"
-        >
-          <PepeButton
-            variant="primary"
-            className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700 shadow-lg shadow-blue-900/30 p-3"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-            </svg>
-          </PepeButton>
-        </a>
-        <a
-          href="https://t.me/+61XecOgCg540MzQx"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block"
-        >
-          <PepeButton
-            variant="primary"
-            className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-cyan-700 shadow-lg shadow-blue-900/30 p-3"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-            </svg>
-          </PepeButton>
-        </a>
-      </motion.div> */}
+      {/* CTA Section - Load with Suspense */}
+      <Suspense fallback={<div className="h-64 w-full bg-blue-950"></div>}>
+        {isClient && <LazyCTASection />}
+      </Suspense>
     </main>
   );
 }

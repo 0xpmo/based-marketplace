@@ -19,6 +19,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { switchChain } from "wagmi/actions";
+import useSWR from "swr";
 
 // Import ABIs
 import KekTrumpsABI from "@/contracts/KekTrumps.json";
@@ -34,229 +35,296 @@ interface Character {
   enabled: boolean;
 }
 
+// Cache for collection data with timeout of 5 minutes
+const ERC1155_CACHE = new Map<
+  string,
+  { data: ERC1155Collection; timestamp: number }
+>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Fetch a single ERC1155 collection with caching
+async function fetchSingleERC1155Collection(
+  contractAddress: string
+): Promise<ERC1155Collection | null> {
+  // Check cache first
+  const cached = ERC1155_CACHE.get(contractAddress);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+
+  try {
+    // Create client for reading contract data
+    const publicClient = createPublicClient({
+      chain: getActiveChain(),
+      transport: http(),
+    });
+
+    // Read basic contract info
+    const [name, symbol, contractURI, owner] = await Promise.all([
+      publicClient.readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "name",
+      }),
+      publicClient.readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "symbol",
+      }),
+      publicClient.readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "contractURI",
+      }),
+      publicClient.readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "owner",
+      }),
+    ]);
+
+    // Get contract metadata from IPFS (do this in parallel with other requests)
+    const metadataPromise = fetchFromIPFS(contractURI as string).catch(
+      (err) => {
+        console.error(
+          `Failed to fetch metadata for collection ${contractAddress}`,
+          err
+        );
+        return null;
+      }
+    );
+
+    // Get rarity prices in parallel
+    const rarityPricesPromises = [];
+    for (let i = 0; i < 4; i++) {
+      rarityPricesPromises.push(
+        publicClient
+          .readContract({
+            address: contractAddress as `0x${string}`,
+            abi: KekTrumpsABI.abi,
+            functionName: "rarityPrices",
+            args: [i],
+          })
+          .catch((err) => {
+            console.error(`Failed to get price for rarity ${i}:`, err);
+            return "0";
+          })
+      );
+    }
+
+    // Get max mint limits in parallel
+    const maxMintPromises = [];
+    for (let i = 0; i < 4; i++) {
+      maxMintPromises.push(
+        publicClient
+          .readContract({
+            address: contractAddress as `0x${string}`,
+            abi: KekTrumpsABI.abi,
+            functionName: "maxMintPerTx",
+            args: [i],
+          })
+          .catch((err) => {
+            console.error(`Failed to get max mint limit for rarity ${i}:`, err);
+            return 10; // Default value
+          })
+      );
+    }
+
+    // Check if contract is paused
+    const pausedPromise = publicClient
+      .readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "paused",
+      })
+      .catch((err) => {
+        console.error(`Failed to check if contract is paused:`, err);
+        return false;
+      });
+
+    // Get royalty information
+    const royaltyPromise = publicClient
+      .readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "royaltyInfo",
+        args: [0, 10000], // Sample values
+      })
+      .catch((err) => {
+        console.error(`Failed to get royalty info:`, err);
+        return [null, 0];
+      });
+
+    // Get total supply
+    const totalSupplyPromise = publicClient
+      .readContract({
+        address: contractAddress as `0x${string}`,
+        abi: KekTrumpsABI.abi,
+        functionName: "totalSupply",
+      })
+      .catch((err) => {
+        console.error(`Failed to get total supply:`, err);
+        return BigInt(0);
+      });
+
+    // Wait for all parallel requests to complete
+    const [
+      rarityPricesResults,
+      maxMintResults,
+      paused,
+      royaltyInfo,
+      totalSupply,
+      metadata,
+    ] = await Promise.all([
+      Promise.all(rarityPricesPromises),
+      Promise.all(maxMintPromises),
+      pausedPromise,
+      royaltyPromise,
+      totalSupplyPromise,
+      metadataPromise,
+    ]);
+
+    // Process rarity prices
+    const rarityPrices: { [key: number]: string } = {};
+    rarityPricesResults.forEach((price, i) => {
+      rarityPrices[i] = formatEther(BigInt(price as string));
+    });
+
+    // Process max mint per tx
+    const maxMintPerTx: { [key: number]: number } = {};
+    maxMintResults.forEach((limit, i) => {
+      maxMintPerTx[i] = Number(limit);
+    });
+
+    // Get available characters (this is harder to parallelize)
+    const characters = [];
+    let characterId = 1;
+
+    // Get first 3 characters in parallel to speed up initial load
+    const characterPromises = [];
+    for (let i = 1; i <= 3; i++) {
+      characterPromises.push(
+        publicClient
+          .readContract({
+            address: contractAddress as `0x${string}`,
+            abi: KekTrumpsABI.abi,
+            functionName: "getCharacter",
+            args: [i],
+          })
+          .catch(() => null) // Catch failure silently
+      );
+    }
+
+    const initialCharacters = await Promise.all(characterPromises);
+    for (const character of initialCharacters) {
+      if (
+        character &&
+        typeof character === "object" &&
+        "characterId" in character
+      ) {
+        const typedCharacter = character as CharacterInfo;
+        characters.push({
+          characterId: Number(typedCharacter.characterId),
+          name: typedCharacter.name,
+          enabled: typedCharacter.enabled,
+        });
+        characterId = Math.max(
+          characterId,
+          Number(typedCharacter.characterId) + 1
+        );
+      }
+    }
+
+    // Calculate royalty fee
+    let royaltyFee = 0;
+    if (royaltyInfo && Array.isArray(royaltyInfo) && royaltyInfo.length > 1) {
+      royaltyFee = Number(royaltyInfo[1]) / 100; // Convert basis points to percentage
+    }
+
+    // Create collection object
+    const collection: ERC1155Collection = {
+      address: contractAddress as string,
+      name: (name as string) || "Unnamed ERC1155 Collection",
+      symbol: (symbol as string) || "ERC1155",
+      contractURI: (contractURI as string) || "",
+      mintPrice: Object.values(rarityPrices)[0] || "0",
+      totalSupply: Number(totalSupply),
+      royaltyFee,
+      owner: owner as string,
+      metadata: metadata as unknown as CollectionMetadata,
+      mintingEnabled: !(paused as boolean),
+      source: "external",
+      isERC1155: true,
+      characters,
+      rarityPrices,
+      maxMintPerTx,
+    };
+
+    // Store in cache
+    ERC1155_CACHE.set(contractAddress, {
+      data: collection,
+      timestamp: Date.now(),
+    });
+
+    return collection;
+  } catch (err) {
+    console.error(
+      `Error fetching details for ERC1155 collection ${contractAddress}:`,
+      err
+    );
+    return null;
+  }
+}
+
+// SWR fetcher for all ERC1155 collections
+async function fetchAllERC1155Collections(): Promise<ERC1155Collection[]> {
+  if (ERC1155_CONTRACT_ADDRESSES.length === 0) {
+    console.log("No ERC1155 collections configured");
+    return [];
+  }
+
+  try {
+    // Fetch all collections in parallel
+    const collectionsPromises = ERC1155_CONTRACT_ADDRESSES.map((address) =>
+      fetchSingleERC1155Collection(address)
+    );
+
+    const results = await Promise.all(collectionsPromises);
+    return results.filter(
+      (collection): collection is ERC1155Collection => collection !== null
+    );
+  } catch (err) {
+    console.error("Error fetching ERC1155 collections:", err);
+    return [];
+  }
+}
+
 // Hook for fetching ERC1155 collections
 export function useERC1155Collections() {
-  const [collections, setCollections] = useState<ERC1155Collection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchERC1155Collections = useCallback(async () => {
-    if (ERC1155_CONTRACT_ADDRESSES.length === 0) {
-      console.log("No ERC1155 collections configured");
-      setCollections([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const collectionsData: ERC1155Collection[] = [];
-
-      for (const contractAddress of ERC1155_CONTRACT_ADDRESSES) {
-        try {
-          // Create client for reading contract data
-          const publicClient = createPublicClient({
-            chain: getActiveChain(),
-            transport: http(),
-          });
-
-          // Read basic contract info
-          const name = await publicClient.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: KekTrumpsABI.abi,
-            functionName: "name",
-          });
-
-          const symbol = await publicClient.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: KekTrumpsABI.abi,
-            functionName: "symbol",
-          });
-
-          const contractURI = await publicClient.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: KekTrumpsABI.abi,
-            functionName: "contractURI",
-          });
-
-          const owner = await publicClient.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: KekTrumpsABI.abi,
-            functionName: "owner",
-          });
-
-          // Get contract metadata from IPFS
-          let metadata;
-          try {
-            metadata = await fetchFromIPFS(contractURI as string);
-          } catch (err) {
-            console.error(
-              `Failed to fetch metadata for collection ${contractAddress}`,
-              err
-            );
-            metadata = null;
-          }
-
-          // Get rarity prices
-          const rarityPrices: { [key: number]: string } = {};
-          for (let i = 0; i < 4; i++) {
-            // Bronze, Silver, Gold, Green
-            try {
-              const price = await publicClient.readContract({
-                address: contractAddress as `0x${string}`,
-                abi: KekTrumpsABI.abi,
-                functionName: "rarityPrices",
-                args: [i],
-              });
-
-              rarityPrices[i] = formatEther(BigInt(price as string));
-            } catch (err) {
-              console.error(`Failed to get price for rarity ${i}:`, err);
-              rarityPrices[i] = "0";
-            }
-          }
-
-          // Get max mint per transaction limits
-          const maxMintPerTx: { [key: number]: number } = {};
-          for (let i = 0; i < 4; i++) {
-            try {
-              const limit = await publicClient.readContract({
-                address: contractAddress as `0x${string}`,
-                abi: KekTrumpsABI.abi,
-                functionName: "maxMintPerTx",
-                args: [i],
-              });
-
-              maxMintPerTx[i] = Number(limit);
-            } catch (err) {
-              console.error(
-                `Failed to get max mint limit for rarity ${i}:`,
-                err
-              );
-              maxMintPerTx[i] = 10; // Default value
-            }
-          }
-
-          // Get available characters
-          const characters = [];
-          let characterId = 1;
-          let totalSupply = BigInt(0);
-
-          try {
-            totalSupply = (await publicClient.readContract({
-              address: contractAddress as `0x${string}`,
-              abi: KekTrumpsABI.abi,
-              functionName: "totalSupply",
-            })) as bigint;
-          } catch (err) {
-            console.error(`Failed to get total supply:`, err);
-          }
-
-          while (characterId <= 10) {
-            try {
-              const character = (await publicClient.readContract({
-                address: contractAddress as `0x${string}`,
-                abi: KekTrumpsABI.abi,
-                functionName: "getCharacter",
-                args: [characterId],
-              })) as CharacterInfo;
-
-              if (character && character.characterId !== undefined) {
-                characters.push({
-                  characterId: Number(character.characterId),
-                  name: character.name,
-                  enabled: character.enabled,
-                });
-                characterId++;
-              } else {
-                break; // No more characters
-              }
-            } catch (err) {
-              // If character doesn't exist, just continue to next one
-              characterId++;
-              continue;
-            }
-          }
-
-          // Check if contract is paused
-          let mintingEnabled = true;
-          try {
-            const paused = await publicClient.readContract({
-              address: contractAddress as `0x${string}`,
-              abi: KekTrumpsABI.abi,
-              functionName: "paused",
-            });
-            mintingEnabled = !(paused as boolean);
-          } catch (err) {
-            console.error(`Failed to check if contract is paused:`, err);
-          }
-
-          // Get royalty information
-          let royaltyFee = 0;
-          try {
-            const royaltyInfo = await publicClient.readContract({
-              address: contractAddress as `0x${string}`,
-              abi: KekTrumpsABI.abi,
-              functionName: "royaltyInfo",
-              args: [0, 10000], // Sample values
-            });
-
-            if (
-              royaltyInfo &&
-              Array.isArray(royaltyInfo) &&
-              royaltyInfo.length > 1
-            ) {
-              royaltyFee = Number(royaltyInfo[1]) / 100; // Convert basis points to percentage
-            }
-          } catch (err) {
-            console.error(`Failed to get royalty info:`, err);
-          }
-
-          collectionsData.push({
-            address: contractAddress as string,
-            name: (name as string) || "Unnamed ERC1155 Collection",
-            symbol: (symbol as string) || "ERC1155",
-            contractURI: (contractURI as string) || "",
-            mintPrice: Object.values(rarityPrices)[0] || "0",
-            totalSupply: Number(totalSupply),
-            royaltyFee,
-            owner: owner as string,
-            metadata: metadata as unknown as CollectionMetadata,
-            mintingEnabled,
-            source: "external",
-            isERC1155: true,
-            characters,
-            rarityPrices,
-            maxMintPerTx,
-          });
-        } catch (err) {
-          console.error(
-            `Error fetching details for ERC1155 collection ${contractAddress}:`,
-            err
-          );
-          // Continue with next collection instead of failing completely
-        }
-      }
-
-      setCollections(collectionsData);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching ERC1155 collections:", err);
-      setError("Failed to fetch ERC1155 collections");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchERC1155Collections();
-  }, [fetchERC1155Collections]);
+  const {
+    data: collections = [],
+    error,
+    isValidating,
+  } = useSWR("erc1155-collections", fetchAllERC1155Collections, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 30000, // 30 seconds
+    refreshInterval: 60000, // 1 minute
+    fallbackData: [],
+    suspense: false,
+  });
 
   const refreshCollections = useCallback(() => {
-    fetchERC1155Collections();
-  }, [fetchERC1155Collections]);
+    // Force revalidation
+    return error ? [] : collections;
+  }, [collections, error]);
 
-  return { collections, loading, error, refreshCollections };
+  return {
+    collections,
+    loading: isValidating && collections.length === 0,
+    error: error ? String(error) : null,
+    refreshCollections,
+  };
 }
 
 // Hook for minting ERC1155 tokens

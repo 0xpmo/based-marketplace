@@ -3,6 +3,7 @@ import ClientLayout from "@/components/ClientLayout";
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import SWRProvider from "@/components/SWRProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <body>
-        <ClientLayout>{children}</ClientLayout>
+        <SWRProvider>
+          <ClientLayout>{children}</ClientLayout>
+        </SWRProvider>
       </body>
     </html>
   );
