@@ -24,7 +24,7 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isComingSoon = false; // Set to false when ready to launch
+  const isComingSoon = true; // Set to false when ready to launch
   const [bypass, setBypass] = useState(false);
   const [keySequence, setKeySequence] = useState("");
   const secretPassword = "kekitykek";
@@ -76,7 +76,7 @@ export default function ClientLayout({
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            Coming Soon
+            Upgrading marketplace...
           </motion.h1>
 
           <motion.p
@@ -85,8 +85,8 @@ export default function ClientLayout({
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            The most based NFT marketplace on the BasedAI blockchain is
-            launching soon
+            We&apos;re leveling up! BasedSea is getting an upgrade, check back
+            soon 🐳🐳
           </motion.p>
 
           <motion.div
