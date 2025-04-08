@@ -912,16 +912,22 @@ export default function NFTDetailsPage() {
                     )}
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() ? (
                       <div className="mt-4">
-                        <PepeButton
-                          variant="primary"
-                          className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                          onClick={handleCancelListing}
-                          disabled={isCancelling}
+                        {/* Wrap Cancel button for tooltip */}
+                        <div
+                          className="relative group"
+                          title="Trading temporarily disabled, check back soon"
                         >
-                          {isCancelling ? "Cancelling..." : "Cancel Listing"}
-                        </PepeButton>
+                          <PepeButton
+                            variant="primary"
+                            className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 border-blue-500 opacity-70 cursor-not-allowed" // Disabled styles
+                            onClick={() => {}} // No-op
+                            disabled={true} // Always disabled
+                          >
+                            Cancel Listing
+                          </PepeButton>
+                        </div>
 
-                        {/* Transaction Hash Link */}
+                        {/* Transaction Hash Link (kept for context, might be removed if cancelling is fully disabled) */}
                         {cancelTxHash && (
                           <motion.div
                             initial={{ opacity: 0, y: 10 }}
@@ -941,16 +947,22 @@ export default function NFTDetailsPage() {
                       </div>
                     ) : (
                       <div className="mt-4 relative">
-                        <PepeButton
-                          variant="primary"
-                          className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
-                          onClick={handleBuyNFT}
-                          disabled={isBuying}
+                        {/* Wrap Buy button for tooltip */}
+                        <div
+                          className="relative group"
+                          title="Trading temporarily disabled, check back soon"
                         >
-                          {isBuying ? "Processing..." : "Buy Now"}
-                        </PepeButton>
+                          <PepeButton
+                            variant="primary"
+                            className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 border-blue-500 opacity-70 cursor-not-allowed" // Disabled styles
+                            onClick={() => {}} // No-op
+                            disabled={true} // Always disabled
+                          >
+                            Buy Now
+                          </PepeButton>
+                        </div>
 
-                        {/* Purchase success animation overlay */}
+                        {/* Purchase success animation overlay (kept for context) */}
                         <AnimatePresence>
                           {showPurchaseSuccess && (
                             <motion.div
@@ -1044,21 +1056,18 @@ export default function NFTDetailsPage() {
                       Not for sale
                     </div>
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() && (
-                      <div className="mt-4">
+                      <div
+                        className="mt-4 relative group"
+                        title="Listing temporarily disabled, check back soon"
+                      >
                         <PepeButton
                           variant="primary"
-                          className={`w-full relative overflow-hidden group ${
-                            isListing || txHash
-                              ? "opacity-70 cursor-not-allowed"
-                              : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
-                          } border-blue-500`}
-                          onClick={() => setShowListModal(true)}
-                          disabled={isListing || txHash !== null}
+                          className="w-full relative overflow-hidden group opacity-70 cursor-not-allowed border-blue-500"
+                          onClick={() => {}}
+                          disabled={true}
                         >
                           <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
-                          {isListing
-                            ? "Listing in Progress..."
-                            : "List for Sale"}
+                          List for Sale
                         </PepeButton>
                       </div>
                     )}
