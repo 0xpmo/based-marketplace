@@ -1,9 +1,8 @@
 // frontend/src/components/ClientLayout.tsx
 "use client";
 
-import { Toaster } from "react-hot-toast"; // Change this import
-// import { ToastContainer } from "react-toastify";
-// import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import dynamic from "next/dynamic";
@@ -12,7 +11,6 @@ import Image from "next/image";
 import PepeButton from "./ui/PepeButton";
 import { useState, useEffect } from "react";
 import { TokenPriceProvider } from "@/contexts/TokenPriceContext";
-// Database initialization is now handled server-side
 
 // Import ClientOnly with SSR disabled
 const ClientOnly = dynamic(() => import("@/components/ClientOnly"), {
@@ -24,7 +22,7 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isComingSoon = true; // Set to false when ready to launch
+  const isComingSoon = false; // Set to false when ready to launch
   const [bypass, setBypass] = useState(false);
   const [keySequence, setKeySequence] = useState("");
   const secretPassword = "kekitykek";
@@ -76,7 +74,7 @@ export default function ClientLayout({
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            Upgrading marketplace...
+            Coming Soon
           </motion.h1>
 
           <motion.p
@@ -85,8 +83,8 @@ export default function ClientLayout({
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            We&apos;re leveling up! BasedSea is getting an upgrade, check back
-            soon 🐳🐳
+            The most based NFT marketplace on the BasedAI blockchain is
+            launching soon
           </motion.p>
 
           <motion.div
@@ -148,31 +146,7 @@ export default function ClientLayout({
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              duration: 5000,
-              style: {
-                background: "#1e1e1e",
-                color: "#fff",
-              },
-              success: {
-                duration: 3000,
-                // theme: {
-                //   primary: '#48BB78',
-                //   secondary: '#38A169',
-                // },
-              },
-              error: {
-                duration: 4000,
-                // theme: {
-                //   primary: '#F56565',
-                //   secondary: '#E53E3E',
-                // },
-              },
-            }}
-          />
-          {/* <ToastContainer position="bottom-right" theme="dark" /> */}
+          <ToastContainer position="bottom-right" theme="dark" />
         </div>
       </TokenPriceProvider>
     </ClientOnly>

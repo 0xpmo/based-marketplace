@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import Image from "next/image";
 import PepeButton from "@/components/ui/PepeButton";
-import { useCreateCollection } from "@/hooks/useCollectionFactory";
+import { useCreateCollection } from "@/hooks/useContracts";
 
 export default function CreateCollectionPage() {
   // For now, redirect to the home page

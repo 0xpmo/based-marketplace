@@ -25,11 +25,10 @@ interface IBasedSeaMarketplaceStorage {
         address seller; // Address of the seller
         address nftContract; // Address of the NFT contract
         uint256 tokenId; // ID of the token being sold
-        uint256 price; // Price in wei per token
+        uint256 price; // Price in wei
         bool isPrivate; // Whether the listing is private
         address allowedBuyer; // Address of the allowed buyer (for private listings)
         ListingStatus status; // Current status of the listing
-        uint256 quantity; // Quantity for ERC1155 tokens (default 1 for ERC721)
     }
 
     // ===== CONFIGURATION VIEW FUNCTIONS =====
@@ -65,21 +64,19 @@ interface IBasedSeaMarketplaceStorage {
         address seller,
         uint256 price,
         bool isPrivate,
-        address allowedBuyer,
-        uint256 quantity
-    ) external;
-
-    function updateListingQuantityAndPrice(
-        address nftContract,
-        uint256 tokenId,
-        uint256 quantity,
-        uint256 price
+        address allowedBuyer
     ) external;
 
     function updateListingStatus(
         address nftContract,
         uint256 tokenId,
         ListingStatus status
+    ) external;
+
+    function updateListingPrice(
+        address nftContract,
+        uint256 tokenId,
+        uint256 price
     ) external;
 
     function isListed(

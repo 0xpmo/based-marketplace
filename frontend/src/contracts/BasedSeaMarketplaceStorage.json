@@ -207,12 +207,6 @@
           "internalType": "uint256",
           "name": "price",
           "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "quantity",
-          "type": "uint256"
         }
       ],
       "name": "ListingCreated",
@@ -262,12 +256,6 @@
           "indexed": false,
           "internalType": "uint256",
           "name": "newPrice",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newQuantity",
           "type": "uint256"
         }
       ],
@@ -498,11 +486,6 @@
               "internalType": "enum IBasedSeaMarketplaceStorage.ListingStatus",
               "name": "status",
               "type": "uint8"
-            },
-            {
-              "internalType": "uint256",
-              "name": "quantity",
-              "type": "uint256"
             }
           ],
           "internalType": "struct IBasedSeaMarketplaceStorage.Listing",
@@ -705,11 +688,6 @@
           "internalType": "address",
           "name": "allowedBuyer",
           "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "quantity",
-          "type": "uint256"
         }
       ],
       "name": "setListing",
@@ -783,16 +761,11 @@
         },
         {
           "internalType": "uint256",
-          "name": "quantity",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
           "name": "price",
           "type": "uint256"
         }
       ],
-      "name": "updateListingQuantityAndPrice",
+      "name": "updateListingPrice",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

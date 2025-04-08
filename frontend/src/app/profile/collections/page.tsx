@@ -5,7 +5,7 @@ import { useAccount } from "wagmi";
 import Link from "next/link";
 import Image from "next/image";
 import PepeButton from "@/components/ui/PepeButton";
-import { useAllCollections } from "@/hooks/useAllContracts";
+import { useCollections } from "@/hooks/useContracts";
 import { Collection } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 
@@ -14,7 +14,7 @@ export default function ProfileCollectionsPage() {
   const [activeTab, setActiveTab] = useState<"collections" | "hidden">(
     "collections"
   );
-  const { collections, loading: isLoading } = useAllCollections();
+  const { collections, loading: isLoading } = useCollections();
   const [userCollections, setUserCollections] = useState<Collection[]>([]);
 
   // Fetch user collections
@@ -164,7 +164,7 @@ function CollectionCard({ collection }: CollectionCardProps) {
           </h3>
           <div className="flex justify-between items-center">
             <div className="text-sm text-cyan-200/80">
-              {collection.totalSupply} / {collection.maxSupply} minted
+              {collection.totalMinted} / {collection.maxSupply} minted
             </div>
             <div
               className={`text-xs px-2 py-1 rounded ${

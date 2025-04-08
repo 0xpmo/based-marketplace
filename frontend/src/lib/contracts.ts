@@ -5,7 +5,6 @@ import { getDefaultProvider } from "./web3";
 // import { CollectionABI } from "@/contracts/abis/CollectionABI";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
-import KekTrumpsABI from "@/contracts/KekTrumps.json";
 
 // Get provider
 export const getProvider = async () => {
@@ -23,31 +22,6 @@ export const getNFTContractWithSigner = async (address: string) => {
   const provider = await getProvider();
   const signer = await provider.getSigner();
   return new ethers.Contract(address, CollectionABI.abi, signer);
-};
-
-export const setCollectionApproval = async (
-  collectionAddress: string,
-  approved: boolean = true
-) => {
-  try {
-    const nftContract = await getNFTContractWithSigner(collectionAddress);
-    const tx = await nftContract.setApprovalForAll(
-      MARKETPLACE_ADDRESS,
-      approved
-    );
-    await tx.wait();
-    return tx;
-  } catch (error) {
-    console.error("Error setting collection approval:", error);
-    throw error;
-  }
-};
-
-// Get ERC1155 contract with signer
-export const getERC1155ContractWithSigner = async (address: string) => {
-  const provider = await getProvider();
-  const signer = await provider.getSigner();
-  return new ethers.Contract(address, KekTrumpsABI.abi, signer);
 };
 
 // Get marketplace contract

@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useAllCollections } from "@/hooks/useAllContracts";
+import { useCollections } from "@/hooks/useContracts";
 import CollectionCard from "@/components/collections/CollectionCard";
 import PepeButton from "@/components/ui/PepeButton";
 import { CollectionCardSkeleton } from "@/components/ui/LoadingSkeleton";
 import WavesBackground from "@/components/effects/WavesBackground";
 
 export default function CollectionsPage() {
-  const { collections, loading, error, refreshCollections } =
-    useAllCollections();
+  const { collections, loading, error, refreshCollections } = useCollections();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("newest");
 
@@ -32,7 +31,7 @@ export default function CollectionsPage() {
         // In a real app, you'd sort by creation date
         return 0;
       case "minted":
-        return b.totalSupply - a.totalSupply;
+        return b.totalMinted - a.totalMinted;
       case "az":
         return a.name.localeCompare(b.name);
       case "za":
@@ -229,7 +228,7 @@ export default function CollectionsPage() {
       </section>
 
       {/* Create Collection CTA */}
-      {/* {!loading && !error && sortedCollections.length > 0 && (
+      {!loading && !error && sortedCollections.length > 0 && (
         <section className="w-full py-16 bg-gradient-to-b from-blue-950 to-blue-900 mt-12">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl font-bold mb-4 text-white">
@@ -265,7 +264,7 @@ export default function CollectionsPage() {
             </div>
           </div>
         </section>
-      )} */}
+      )}
     </main>
   );
 }

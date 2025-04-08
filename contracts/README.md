@@ -12,40 +12,28 @@ Run the contract tests to ensure everything works correctly:
 npx hardhat test
 ```
 
-# DEPLOY LOCALLY FLOW:
+## Deployment Options
+
+### Option 1: DOESTN WOR NOT UPDATED: Deploy using Ignition (for local development)
+
+Deploy the contracts locally using Ignition:
 
 ```shell
-npx hardhat run scripts/local-deploy-marketplace.ts --network localhost
+npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
 ```
 
-### After Deployment
+If need to reset:
 
 ```shell
-npx ts-node scripts/verify-deployment.ts --network localhost
+npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost --reset
 ```
 
-Update factory proxy address in deploy-whale-collection.ts script
+### Option 2: Deploy using Upgradeable Script (recommended for production)
+
+Deploy all contracts as upgradeable (except BasedNFTCollection):
 
 ```shell
-npx hardhat run scripts/local-deploy-whale-collection.ts --network localhost
-npx hardhat run scripts/local-deploy-kektrumps.ts --network localhost
-```
-
-IMPORTANT: manually copy kek trumps address to .env file (in contracts/) before running following commands
-
-```shell
-npx ts-node scripts/copy-abis.ts
-npx ts-node scripts/update-frontend-contracts.ts
-```
-
-# PRODUCTION DEPLOYMENT:
-
-### Deploy using Upgradeable Script (recommended for production)
-
-Deploy all contracts as upgradeable:
-
-```shell
-npx hardhat run scripts/deploy-marketplace.ts --network basedai
+npx hardhat run scripts/deploy-marketplace.ts --network localhost
 ```
 
 This deploys:
@@ -97,19 +85,3 @@ Make sure to set the required environment variables before running upgrade scrip
 - FACTORY_PROXY_ADDRESS
 - MARKETPLACE_ADDRESS
 - MARKETPLACE_STORAGE_ADDRESS
-
-## THIS DOESNT WORK ANYMROE:
-
-### Option 1: DOESTN WOR NOT UPDATED: Deploy using Ignition (for local development)
-
-Deploy the contracts locally using Ignition:
-
-```shell
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
-```
-
-If need to reset:
-
-```shell
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost --reset
-```

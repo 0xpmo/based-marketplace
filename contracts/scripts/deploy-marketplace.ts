@@ -50,7 +50,6 @@ async function main() {
     [DEFAULT_FEE, deployer.address],
     {
       initializer: "initialize",
-      kind: "uups", // this was not in the deployed factory -- RUH ROH
       txOverrides: {
         gasPrice: 9,
         gasLimit: 3000000,

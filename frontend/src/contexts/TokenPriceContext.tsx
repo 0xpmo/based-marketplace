@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 interface TokenPriceContextType {
   tokenUSDRate: number | null;
   calculateUSDPrice: (tokenPrice: string) => string | null;
+  formatNumberWithCommas: (value: number | string) => string;
   lastUpdated: Date | null;
   isLoading: boolean;
 }
@@ -29,6 +30,24 @@ export function TokenPriceProvider({
   const [tokenUSDRate, setTokenUSDRate] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Format numbers with commas for better readability
+  const formatNumberWithCommas = (value: number | string) => {
+    // Handle null, undefined or empty string
+    if (!value && value !== 0) return "0";
+
+    // Convert to string if it's not already
+    const stringValue = String(value);
+
+    // Split by decimal point if present
+    const parts = stringValue.split(".");
+
+    // Add commas to the integer part
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    // Join back with decimal part if it exists
+    return parts.join(".");
+  };
 
   // Function to fetch token price in USD - centralized for the entire app
   const fetchTokenPriceInUSD = async (tokenSymbol = "BASEDAI") => {
@@ -110,6 +129,7 @@ export function TokenPriceProvider({
   const value = {
     tokenUSDRate,
     calculateUSDPrice,
+    formatNumberWithCommas,
     lastUpdated,
     isLoading,
   };

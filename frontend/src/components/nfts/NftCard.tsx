@@ -8,7 +8,6 @@ import { NFTItem } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import { useAccount } from "wagmi";
 import { useTokenPrice } from "@/contexts/TokenPriceContext";
-import { formatNumberWithCommas } from "@/utils/formatting";
 
 interface NFTCardProps {
   nft: NFTItem;
@@ -28,7 +27,8 @@ const NFTCard = memo(function NFTCard({
   const [isImageLoading, setIsImageLoading] = useState(true);
 
   // Use the shared token price context instead of individual state
-  const { tokenUSDRate, calculateUSDPrice } = useTokenPrice();
+  const { tokenUSDRate, calculateUSDPrice, formatNumberWithCommas } =
+    useTokenPrice();
 
   // Use collection address from props or from NFT object
   const collection = collectionAddress || nft.collection;

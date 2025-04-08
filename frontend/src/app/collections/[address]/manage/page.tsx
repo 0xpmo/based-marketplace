@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import Image from "next/image";
 import Link from "next/link";
 import { getIPFSGatewayURL } from "@/services/ipfs";
-import { useCollection, useUpdateCollection } from "@/hooks/useERC721Contracts";
+import { useCollection, useUpdateCollection } from "@/hooks/useContracts";
 import PepeButton from "@/components/ui/PepeButton";
 
 // Simple loading state component
@@ -131,10 +131,6 @@ export default function ManageCollectionPage() {
   // Publish the collection - make it live
   const handlePublishCollection = async () => {
     if (!collection) return;
-    if (!collection.maxSupply) {
-      alert("Collection has no max supply");
-      return;
-    }
 
     // Check if we have enough NFTs
     if (nfts.length < collection.maxSupply) {
@@ -256,9 +252,7 @@ export default function ManageCollectionPage() {
             variant="primary"
             onClick={handlePublishCollection}
             disabled={
-              isLoading ||
-              nfts.length < (collection.maxSupply ?? 0) ||
-              isUploading
+              isLoading || nfts.length < collection.maxSupply || isUploading
             }
           >
             {isLoading ? "Publishing..." : "Publish Collection"}
@@ -300,11 +294,10 @@ export default function ManageCollectionPage() {
                 <p className="mt-1">
                   {nfts.length} / {collection.maxSupply} NFTs
                 </p>
-                {nfts.length < (collection.maxSupply ?? 0) && (
+                {nfts.length < collection.maxSupply && (
                   <p className="text-sm text-amber-400 mt-1">
-                    You need to upload{" "}
-                    {(collection.maxSupply ?? 0) - nfts.length} more NFTs before
-                    you can publish
+                    You need to upload {collection.maxSupply - nfts.length} more
+                    NFTs before you can publish
                   </p>
                 )}
               </div>

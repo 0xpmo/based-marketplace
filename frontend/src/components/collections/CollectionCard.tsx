@@ -5,15 +5,15 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Collection } from "@/types/contracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
-import { isERC1155Collection } from "@/utils/collectionTypeDetector";
 
 interface CollectionCardProps {
   collection: Collection;
 }
 
 export default function CollectionCard({ collection }: CollectionCardProps) {
-  const { address, name, metadata, totalSupply, maxSupply, source } =
+  const { address, name, metadata, totalMinted, maxSupply, source } =
     collection;
+  console.log("collection", collection);
   const [imageUrl, setImageUrl] = useState(
     "/images/placeholder-collection.svg"
   );
@@ -21,31 +21,7 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
   const [imageError, setImageError] = useState(false);
 
   // Progress percentage
-  // const progress = maxSupply > 0 ? (totalMinted / maxSupply) * 100 : 0;
-
-  // For ERC1155, calculate total supply and minted differently
-  const displayMintInfo = () => {
-    if (collection && isERC1155Collection(collection)) {
-      // For ERC1155, just show total minted since maxSupply is per token
-      return `${totalSupply.toLocaleString()} minted`;
-    } else {
-      // For ERC721, show progress out of max supply
-      return `${totalSupply} / ${maxSupply} minted`;
-    }
-  };
-
-  // For progress bar, if ERC1155 we'll show percentage of active tokens that have mints
-  const getProgress = () => {
-    if (!collection) return 0;
-    if (isERC1155Collection(collection)) {
-      // If there are no mints yet, show 0
-      if (totalSupply === 0) return 0;
-      // Otherwise show some progress to indicate active minting
-      return Math.min((totalSupply / 100) * 100, 100); // Cap at 100%
-    }
-    // For ERC721, show normal progress
-    return maxSupply ?? 0 > 0 ? (totalSupply / (maxSupply ?? 1)) * 100 : 0;
-  };
+  const progress = maxSupply > 0 ? (totalMinted / maxSupply) * 100 : 0;
 
   useEffect(() => {
     if (metadata?.image && !imageError) {
@@ -72,7 +48,18 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
       className="bg-blue-900/20 rounded-xl overflow-hidden shadow-lg border border-blue-800/30 hover:border-blue-500 transition-colors backdrop-blur-sm"
     >
       <Link href={`/collections/${address}`} className="block">
-        <div className="relative h-112 w-full overflow-hidden group">
+        <div className="relative h-48 w-full overflow-hidden group">
+          {/* {source && (
+            <div
+              className={`absolute top-2 right-2 z-20 px-2 py-1 rounded-md text-xs font-medium ${
+                source === "based"
+                  ? "bg-cyan-700/80 text-cyan-100"
+                  : "bg-purple-700/80 text-purple-100"
+              }`}
+            >
+              {source === "based" ? "Based" : "External"}
+            </div>
+          )} */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-950/60 z-10"></div>
           {isImageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-blue-900/50 z-20">
@@ -83,7 +70,7 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
             src={imageUrl}
             alt={name}
             fill
-            className="object-cover shadow-2xl shadow-blue-900/50 z-10"
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             onError={() => {
               setImageError(true);
@@ -108,15 +95,15 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
 
           <div className="flex justify-between items-center">
             <div className="flex-1">
-              {collection && !isERC1155Collection(collection) && (
-                <div className="h-2 w-full bg-blue-800/50 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-400 to-cyan-400"
-                    style={{ width: `${getProgress()}%` }}
-                  />
-                </div>
-              )}
-              <p className="text-sm text-blue-300 mt-1">{displayMintInfo()}</p>
+              <div className="h-2 w-full bg-blue-800/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-400 to-cyan-400"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-sm text-blue-300 mt-1">
+                {totalMinted} / {maxSupply} minted
+              </p>
             </div>
           </div>
         </div>

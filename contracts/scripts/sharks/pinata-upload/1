@@ -1,0 +1,16 @@
+{
+  "name": "#1",
+  "image": "ipfs://Qme9Mihghrc9Ai4SALA2doGWXSAvJ5SeqPHB9ybMubXo4V",
+  "attributes": [
+    {
+      "trait_type": "Eyes",
+      "value": "Green"
+    },
+    {
+      "trait_type": "Tier",
+      "value": "Common"
+    }
+  ],
+  "description": "Based shark #1",
+  "external_url": "https://basedsea.xyz"
+}

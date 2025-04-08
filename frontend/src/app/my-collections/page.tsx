@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import Link from "next/link";
 import Image from "next/image";
-import { useAllCollections } from "@/hooks/useAllContracts";
+import { useCollections } from "@/hooks/useContracts";
 import PepeButton from "@/components/ui/PepeButton";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import { Collection } from "@/types/contracts";
@@ -19,7 +19,7 @@ const LoadingState = ({ message }: { message: string }) => (
 
 export default function MyCollectionsPage() {
   const { address, isConnected } = useAccount();
-  const { collections, loading, error } = useAllCollections();
+  const { collections, loading, error } = useCollections();
   const [myCollections, setMyCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export default function MyCollectionsPage() {
               <div className="p-4">
                 <h3 className="text-lg font-bold mb-1">{collection.name}</h3>
                 <p className="text-sm text-gray-400 mb-2">
-                  {collection.symbol} • {collection.totalSupply}/
+                  {collection.symbol} • {collection.totalMinted}/
                   {collection.maxSupply} minted
                 </p>
                 <p className="text-sm text-gray-400 mb-4">

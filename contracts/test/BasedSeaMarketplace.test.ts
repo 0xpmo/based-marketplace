@@ -173,8 +173,7 @@ describe("BasedSeaMarketplace", function () {
             await nftCollection.getAddress(),
             1,
             listingPrice,
-            buyerAddress,
-            1
+            buyerAddress
           )
       )
         .to.emit(marketplace, "ItemListed")
@@ -232,8 +231,7 @@ describe("BasedSeaMarketplace", function () {
             await nftCollection.getAddress(),
             1,
             listingPrice,
-            sellerAddress,
-            1
+            sellerAddress
           )
       ).to.be.revertedWith("Cannot create private listing for yourself");
     });
@@ -381,8 +379,7 @@ describe("BasedSeaMarketplace", function () {
           await nftCollection.getAddress(),
           1,
           listingPrice,
-          otherBuyerAddress,
-          1
+          otherBuyerAddress
         );
 
       // Try to buy with unauthorized buyer
