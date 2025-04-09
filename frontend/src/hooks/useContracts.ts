@@ -24,6 +24,13 @@ import {
   getNFTContractWithSigner,
 } from "@/lib/contracts";
 import { switchChain } from "wagmi/actions";
+// Import database functions
+import {
+  createListing,
+  updateListingStatus,
+  getCollectionListings,
+  getListing,
+} from "@/lib/db";
 
 // Import ABIs (you'll need to generate these from your compiled contracts)
 import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
@@ -427,32 +434,34 @@ export function useExternalCollections() {
 
 // Combined hook that fetches both based and external collections
 export function useCollections() {
-  const {
-    collections: basedCollections,
-    loading: basedLoading,
-    error: basedError,
-    refreshCollections: refreshBasedCollections,
-  } = useBasedCollections();
+  const { collections, loading, error, refreshCollections } =
+    useBasedCollections();
+  // const {
+  //   collections: basedCollections,
+  //   loading: basedLoading,
+  //   error: basedError,
+  //   refreshCollections: refreshBasedCollections,
+  // } = useBasedCollections();
 
-  const {
-    collections: externalCollections,
-    loading: externalLoading,
-    error: externalError,
-    refreshCollections: refreshExternalCollections,
-  } = useExternalCollections();
+  // const {
+  //   collections: externalCollections,
+  //   loading: externalLoading,
+  //   error: externalError,
+  //   refreshCollections: refreshExternalCollections,
+  // } = useExternalCollections();
 
   // Combine the collections with based collections coming first
-  const collections = useMemo(() => {
-    return [...basedCollections, ...externalCollections];
-  }, [basedCollections, externalCollections]);
+  // const collections = useMemo(() => {
+  //   return [...basedCollections, ...externalCollections];
+  // }, [basedCollections, externalCollections]);
 
-  const loading = basedLoading || externalLoading;
-  const error = basedError || externalError;
+  // const loading = basedLoading || externalLoading;
+  // const error = basedError || externalError;
 
-  const refreshCollections = useCallback(() => {
-    refreshBasedCollections();
-    refreshExternalCollections();
-  }, [refreshBasedCollections, refreshExternalCollections]);
+  // const refreshCollections = useCallback(() => {
+  //   refreshBasedCollections();
+  //   refreshExternalCollections();
+  // }, [refreshBasedCollections, refreshExternalCollections]);
 
   return { collections, loading, error, refreshCollections };
 }
@@ -902,17 +911,6 @@ export function useListNFT() {
         }
       );
 
-      // Call the contract's listItem function
-      // const tx = await marketplaceContract.listItem(
-      //   collectionAddress,
-      //   tokenId,
-      //   priceInWei, {
-      //     gasPrice: 9,
-      //     gasLimit: 3000000,
-      //     nonce: await provider.getTransactionCount(userAddress, "pending")  // Critical for proper nonce management
-      //   };
-      //   }
-      // );
       setTxHash(tx.hash);
 
       console.log(`Transaction submitted: ${tx.hash}`);
@@ -922,6 +920,26 @@ export function useListNFT() {
       const receipt = await tx.wait();
 
       console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
+
+      // 3. Store the listing in database
+      try {
+        await createListing(
+          userAddress,
+          collectionAddress,
+          tokenId,
+          price,
+          false, // isPrivate
+          null, // allowedBuyer
+          tx.hash,
+          BigInt(receipt.blockNumber)
+        );
+        console.log("Listing stored in database successfully");
+      } catch (dbError) {
+        console.error("Error storing listing in database:", dbError);
+        // Continue with success even if database storage fails
+        // We might want to implement a retry mechanism or queue here
+      }
+
       setIsSuccess(true);
       return true;
     } catch (err) {
@@ -948,9 +966,6 @@ export function useListNFT() {
 
 // Hook for buying an NFT
 export function useBuyNFT() {
-  // const { writeContract, data, isError, error } = useWriteContract();
-  // const { isLoading, isSuccess } = useTransaction({ hash: data });
-
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
@@ -994,6 +1009,21 @@ export function useBuyNFT() {
 
       // Wait for transaction to complete
       const receipt = await tx.wait();
+
+      // Update listing status in database (status 2 = Sold)
+      try {
+        await updateListingStatus(
+          nftContract,
+          tokenId,
+          2, // 2 = Sold status
+          tx.hash,
+          BigInt(receipt.blockNumber)
+        );
+        console.log("Listing status updated to 'Sold' in database");
+      } catch (dbError) {
+        console.error("Error updating listing status in database:", dbError);
+        // Continue with success even if database update fails
+      }
 
       setIsSuccess(true);
       return true;
@@ -1092,8 +1122,12 @@ export function useOffers() {
 // Hook for creating private listings
 export function usePrivateListing() {
   const { address } = useAccount();
-  const { writeContract, data, isError, error } = useWriteContract();
-  const { isLoading, isSuccess } = useTransaction({ hash: data });
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
 
   const createPrivateListing = async (
     nftContract: string,
@@ -1101,30 +1135,83 @@ export function usePrivateListing() {
     price: string,
     allowedBuyer: string
   ) => {
-    if (!address) throw new Error("Wallet not connected");
+    if (!address || !walletClient || !publicClient)
+      throw new Error("Wallet not connected");
 
-    const priceInWei = parseEther(price);
+    setIsLoading(true);
+    setIsSuccess(false);
+    setError(null);
+    setTxHash(null);
 
-    writeContract({
-      address: MARKETPLACE_ADDRESS as `0x${string}`,
-      abi: MarketplaceABI.abi,
-      functionName: "createPrivateListing",
-      args: [
-        nftContract as `0x${string}`,
-        BigInt(tokenId),
+    try {
+      const priceInWei = parseEther(price);
+
+      // Get the next nonce
+      const nonce = await publicClient.getTransactionCount({
+        address,
+        blockTag: "pending",
+      });
+
+      // Get marketplace contract
+      const marketplaceContract = await getMarketplaceContract();
+
+      // Call the contract's createPrivateListing function
+      const tx = await marketplaceContract.createPrivateListing(
+        nftContract,
+        tokenId,
         priceInWei,
-        allowedBuyer as `0x${string}`,
-      ],
-    });
+        allowedBuyer,
+        {
+          gasPrice: 9,
+          gasLimit: 3000000,
+          nonce: nonce,
+        }
+      );
+
+      setTxHash(tx.hash);
+
+      // Wait for transaction to complete
+      const receipt = await tx.wait();
+
+      // Store the private listing in database
+      try {
+        await createListing(
+          address,
+          nftContract,
+          tokenId,
+          price,
+          true, // isPrivate
+          allowedBuyer,
+          tx.hash,
+          BigInt(receipt.blockNumber)
+        );
+        console.log("Private listing stored in database successfully");
+      } catch (dbError) {
+        console.error("Error storing private listing in database:", dbError);
+        // Continue with success even if database storage fails
+      }
+
+      setIsSuccess(true);
+      return true;
+    } catch (err) {
+      console.error("Error creating private listing:", err);
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Failed to create private listing")
+      );
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
     createPrivateListing,
     isLoading,
     isSuccess,
-    isError,
     error,
-    txHash: data,
+    txHash,
   };
 }
 
@@ -1455,11 +1542,51 @@ export function useCollectionNFTs(collectionAddress: string) {
           `Fetched basic data for ${tokensWithBasicData.length} valid tokens`
         );
 
+        // First fetch database listings for this collection
+        try {
+          const { listings: dbListings } = await getCollectionListings(
+            collectionAddress,
+            1, // Active listings only
+            page,
+            pageSize
+          );
+
+          console.log(`Fetched ${dbListings.length} listings from database`);
+
+          // Map database listings to NFT objects
+          if (dbListings.length > 0) {
+            // Create a map of token ID to listing data
+            const listingsMap = new Map(
+              dbListings.map((listing) => [
+                Number(listing.token_id),
+                {
+                  active: true,
+                  price: listing.price,
+                  seller: listing.seller,
+                },
+              ])
+            );
+
+            // Add the listings to the tokens data
+            tokensWithBasicData.forEach((token) => {
+              const dbListing = listingsMap.get(token.tokenId);
+              if (dbListing) {
+                token.listing = dbListing;
+              }
+            });
+
+            console.log("Applied database listings to tokens");
+          }
+        } catch (dbError) {
+          console.error("Error fetching listings from database:", dbError);
+          // Continue without database listings if there's an error
+        }
+
         // Update state with basic token data
         setNfts(tokensWithBasicData);
         setLoading(false);
 
-        // Now fetch metadata and listings for the current page tokens
+        // Now fetch metadata and any remaining listing info from blockchain
         if (tokensWithBasicData.length > 0) {
           fetchMetadataAndListingsInBatches(tokensWithBasicData, publicClient);
         } else {
@@ -1569,7 +1696,7 @@ export function useCollectionNFTs(collectionAddress: string) {
     }
   };
 
-  // Function to fetch metadata and listings in batches
+  // Function to fetch metadata and listings in batches - modify to check for existing listings
   const fetchMetadataAndListingsInBatches = async (
     tokens: NFTItem[],
     publicClient: PublicClient
@@ -1618,10 +1745,38 @@ export function useCollectionNFTs(collectionAddress: string) {
           })
           .filter(Boolean);
 
-        // Fetch listing info for this batch
-        const listingPromises = batchTokens.map(async (token) => {
+        // Fetch listing info only for tokens that don't already have a listing from DB
+        const tokensWithoutListings = batchTokens.filter(
+          (token) => !token.listing
+        );
+
+        const listingPromises = tokensWithoutListings.map(async (token) => {
           if (!token) return null; // Skip if token is null
           try {
+            // Try to get the listing from database first (optional extra check)
+            try {
+              const dbListing = await getListing(
+                token.collection,
+                token.tokenId
+              );
+              if (dbListing) {
+                return {
+                  tokenId: token.tokenId,
+                  listing: {
+                    active: true,
+                    price: dbListing.price,
+                    seller: dbListing.seller,
+                  },
+                };
+              }
+            } catch (dbError) {
+              // If database query fails (404 or other error), continue to blockchain check
+              // This is expected with a fresh database with no listings
+              console.log(
+                `No database listing found for token ${token.tokenId}, checking blockchain...`
+              );
+            }
+
             // The listing will have a structure matching the Listing struct in the contract
             interface MarketplaceListing {
               seller: string;
@@ -1644,6 +1799,26 @@ export function useCollectionNFTs(collectionAddress: string) {
             const isActive = listingData.status === 1;
 
             if (isActive) {
+              // Store blockchain listing in database too for future queries
+              try {
+                await createListing(
+                  listingData.seller,
+                  token.collection,
+                  token.tokenId,
+                  formatEther(listingData.price),
+                  true, // isPrivate - depends on listing data structure, adjust if needed
+                  listingData.isPrivate ? listingData.allowedBuyer : null,
+                  null, // No transaction hash for historical records
+                  null // No block number for historical records
+                );
+                console.log(
+                  `Synced on-chain listing for token ${token.tokenId} to database`
+                );
+              } catch (syncError) {
+                console.error(`Error syncing listing to database:`, syncError);
+                // Continue even if database sync fails
+              }
+
               return {
                 tokenId: token.tokenId,
                 listing: {
@@ -1788,5 +1963,83 @@ export function useUpdateCollection(collectionAddress: string) {
     isError,
     error,
     txHash: data,
+  };
+}
+
+// Hook for canceling an NFT listing
+export function useCancelListing() {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+
+  const cancelListing = async (nftContract: string, tokenId: number) => {
+    if (!address || !walletClient || !publicClient)
+      throw new Error("Wallet not connected");
+
+    setIsLoading(true);
+    setIsSuccess(false);
+    setError(null);
+    setTxHash(null);
+
+    try {
+      // Get the next nonce
+      const nonce = await publicClient.getTransactionCount({
+        address,
+        blockTag: "pending",
+      });
+
+      // Get marketplace contract
+      const marketplaceContract = await getMarketplaceContract();
+
+      // Call the contract's cancelListing function with proper gas settings and nonce
+      const tx = await marketplaceContract.cancelListing(nftContract, tokenId, {
+        gasPrice: 9,
+        gasLimit: 3000000,
+        nonce: nonce,
+      });
+
+      setTxHash(tx.hash);
+
+      // Wait for transaction to complete
+      const receipt = await tx.wait();
+
+      // Update listing status in database (status 3 = Canceled)
+      try {
+        await updateListingStatus(
+          nftContract,
+          tokenId,
+          3, // 3 = Canceled status
+          tx.hash,
+          BigInt(receipt.blockNumber)
+        );
+        console.log("Listing status updated to 'Canceled' in database");
+      } catch (dbError) {
+        console.error("Error updating listing status in database:", dbError);
+        // Continue with success even if database update fails
+      }
+
+      setIsSuccess(true);
+      return true;
+    } catch (err) {
+      console.error("Error canceling listing:", err);
+      setError(
+        err instanceof Error ? err : new Error("Failed to cancel listing")
+      );
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return {
+    cancelListing,
+    isLoading,
+    isSuccess,
+    error,
+    txHash,
   };
 }
