@@ -38,6 +38,21 @@ import FactoryABI from "@/contracts/BasedSeaCollectionFactory.json";
 import CollectionABI from "@/contracts/BasedSeaSequentialNFTCollection.json";
 import MarketplaceABI from "@/contracts/BasedSeaMarketplace.json";
 
+// Near the top of the file, after imports, add this interface
+interface DBListingResult {
+  token_id: string | number;
+  price: string;
+  seller: string;
+  status: number;
+}
+
+// Define a type for the listing object structure that's expected
+interface NFTListing {
+  active: boolean;
+  price: string;
+  seller: string;
+}
+
 // Hook for fetching based collections from factory
 export function useBasedCollections() {
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -1542,8 +1557,8 @@ export function useCollectionNFTs(
 
               if (dbListings.length > 0) {
                 // Process these listings
-                const listingTokenIds = dbListings.map((listing: any) =>
-                  Number(listing.token_id)
+                const listingTokenIds = dbListings.map(
+                  (listing: DBListingResult) => Number(listing.token_id)
                 );
 
                 // Fetch basic token data for all listings
@@ -1564,7 +1579,7 @@ export function useCollectionNFTs(
                 // Map database listings to NFT objects
                 if (activeListingTokens.length > 0) {
                   const listingsMap = new Map(
-                    dbListings.map((listing: any) => [
+                    dbListings.map((listing: DBListingResult) => [
                       Number(listing.token_id),
                       {
                         active: true,
@@ -1582,7 +1597,7 @@ export function useCollectionNFTs(
                   activeListingTokens.forEach((token) => {
                     const dbListing = listingsMap.get(token.tokenId);
                     if (dbListing) {
-                      token.listing = dbListing;
+                      token.listing = dbListing as NFTListing;
                       activeListingsMap.set(token.tokenId, token);
                     }
                   });
@@ -1649,7 +1664,7 @@ export function useCollectionNFTs(
             if (dbListings.length > 0) {
               // Create a map of token ID to listing data
               const listingsMap = new Map(
-                dbListings.map((listing) => [
+                dbListings.map((listing: DBListingResult) => [
                   Number(listing.token_id),
                   {
                     active: true,
@@ -1670,7 +1685,7 @@ export function useCollectionNFTs(
 
                 const dbListing = listingsMap.get(token.tokenId);
                 if (dbListing) {
-                  token.listing = dbListing;
+                  token.listing = dbListing as NFTListing;
                 }
               });
             }
@@ -1902,7 +1917,7 @@ export function useCollectionNFTs(
                     active: true,
                     price: dbListing.price,
                     seller: dbListing.seller,
-                  },
+                  } as NFTListing,
                 };
               }
             } catch (dbError) {
@@ -1961,7 +1976,7 @@ export function useCollectionNFTs(
                   active: true,
                   price: formatEther(listingData.price),
                   seller: listingData.seller,
-                },
+                } as NFTListing,
               };
             }
             return null; // Not listed or not active
