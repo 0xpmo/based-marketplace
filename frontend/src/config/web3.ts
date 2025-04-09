@@ -5,10 +5,6 @@ import { getActiveChain } from "./chains";
 // Get the active chain based on environment
 const activeChain = getActiveChain();
 
-// Contract addresses from environment variables
-export const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS;
-export const MARKETPLACE_ADDRESS = process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS;
-
 console.log("active chain", activeChain);
 
 // Create wagmi config

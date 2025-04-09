@@ -872,6 +872,23 @@ contract BasedSeaMarketplace is
     }
 
     /**
+     * @dev Transfer ownership of the storage contract to a new owner
+     * @param newOwner Address of the new owner
+     */
+    function transferStorageOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner is the zero address");
+
+        // Get the address of the storage contract
+        address storageAddr = address(marketplaceStorage);
+
+        // Cast it to OwnableUpgradeable
+        OwnableUpgradeable ownableStorage = OwnableUpgradeable(storageAddr);
+
+        // Now we can call transferOwnership
+        ownableStorage.transferOwnership(newOwner);
+    }
+
+    /**
      * @dev Receive function to accept payments
      */
     receive() external payable {}

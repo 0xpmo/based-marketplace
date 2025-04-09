@@ -38,7 +38,7 @@ export default function CollectionDetailsPage() {
     useState(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
-  // Use our custom hook to fetch ALL NFTs at once
+  // Use our custom hook with pagination support
   const collectionAddr = Array.isArray(address)
     ? address[0]
     : (address as string);
@@ -47,6 +47,14 @@ export default function CollectionDetailsPage() {
     loading: loadingNFTs,
     metadataLoading,
     error: fetchError,
+    currentPage,
+    totalPages,
+    totalTokens,
+    pageSize,
+    nextPage,
+    prevPage,
+    goToPage,
+    setPageSize,
     refresh: refreshNFTs,
   } = useCollectionNFTs(collectionAddr);
 
@@ -575,24 +583,103 @@ export default function CollectionDetailsPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                    {sortedAndFilteredNFTs.map((nft, index) => (
-                      <div key={`${collection.address}-${nft.tokenId}`}>
-                        <Link
-                          href={`/collections/${collection.address}/${nft.tokenId}`}
-                        >
-                          <NFTCard nft={nft} />
-                        </Link>
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                      {sortedAndFilteredNFTs.map((nft, index) => (
+                        <div key={`${collection.address}-${nft.tokenId}`}>
+                          <Link
+                            href={`/collections/${collection.address}/${nft.tokenId}`}
+                          >
+                            <NFTCard nft={nft} />
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex flex-col sm:flex-row justify-between items-center mt-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-4">
+                        <div className="flex items-center mb-4 sm:mb-0">
+                          <span className="text-slate-400 mr-3">
+                            Items per page:
+                          </span>
+                          <select
+                            value={pageSize}
+                            onChange={(e) =>
+                              setPageSize(Number(e.target.value))
+                            }
+                            className="bg-slate-700 text-white rounded px-2 py-1 border border-slate-600"
+                          >
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center">
+                          <button
+                            onClick={prevPage}
+                            disabled={currentPage === 0}
+                            className={`px-3 py-1 rounded-l-md border border-slate-600 ${
+                              currentPage === 0
+                                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                                : "bg-slate-700 text-white hover:bg-slate-600"
+                            }`}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+
+                          <div className="px-4 py-1 bg-slate-800 border-t border-b border-slate-600 text-white text-sm">
+                            Page {currentPage + 1} of {totalPages}
+                          </div>
+
+                          <button
+                            onClick={nextPage}
+                            disabled={currentPage >= totalPages - 1}
+                            className={`px-3 py-1 rounded-r-md border border-slate-600 ${
+                              currentPage >= totalPages - 1
+                                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                                : "bg-slate-700 text-white hover:bg-slate-600"
+                            }`}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
 
-                {/* End of collection message */}
+                {/* End of collection message - update to show current page info */}
                 {nfts.length > 0 && (
                   <div className="text-center mt-8 mb-6 text-blue-300 bg-blue-900/20 py-4 rounded-lg border border-blue-800/30">
-                    Showing all {sortedAndFilteredNFTs.length} NFTs in this
-                    collection
+                    {totalPages > 1
+                      ? `Showing page ${currentPage + 1} (${
+                          sortedAndFilteredNFTs.length
+                        } NFTs) of ${totalTokens} total NFTs`
+                      : `Showing all ${sortedAndFilteredNFTs.length} NFTs in this collection`}
                   </div>
                 )}
               </>
