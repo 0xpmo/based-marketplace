@@ -42,6 +42,13 @@ export default function CollectionDetailsPage() {
   const collectionAddr = Array.isArray(address)
     ? address[0]
     : (address as string);
+  const shouldPrioritizeSales = useMemo(() => {
+    return (
+      filterForSale ||
+      sortOption === "price-low-high" ||
+      sortOption === "price-high-low"
+    );
+  }, [filterForSale, sortOption]);
   const {
     nfts,
     loading: loadingNFTs,
@@ -56,7 +63,8 @@ export default function CollectionDetailsPage() {
     goToPage,
     setPageSize,
     refresh: refreshNFTs,
-  } = useCollectionNFTs(collectionAddr);
+    salesCount,
+  } = useCollectionNFTs(collectionAddr, shouldPrioritizeSales);
 
   // Calculate floor price from NFTs with active listings
   const floorPrice = useMemo(() => {
@@ -207,7 +215,9 @@ export default function CollectionDetailsPage() {
       }
     }
 
-    // Then apply the filter if needed
+    // Only filter for sale if the user explicitly requested it via checkbox
+    // When prioritizeSales is true but filterForSale is false, we still show all NFTs
+    // but with for-sale items at the top (handled by the hook)
     if (filterForSale) {
       result = result.filter((nft) => nft.listing && nft.listing.active);
     }
@@ -218,11 +228,32 @@ export default function CollectionDetailsPage() {
   // Handle toggle for sale only
   const handleToggleForSale = () => {
     setFilterForSale(!filterForSale);
+    // Force a refresh when toggling to ensure we get the right data
+    if (currentPage !== 0) {
+      // Reset to page 0 when toggling filter
+      goToPage(0);
+    } else {
+      refreshNFTs();
+    }
   };
 
   // Handle Sort Change
   const handleSortChange = (option: string) => {
+    const wasPriceBased =
+      sortOption === "price-low-high" || sortOption === "price-high-low";
+    const isPriceBased =
+      option === "price-low-high" || option === "price-high-low";
+
     setSortOption(option);
+
+    // If switching between price-based and non-price-based sorting, refresh the data
+    if (wasPriceBased !== isPriceBased) {
+      if (currentPage !== 0) {
+        goToPage(0);
+      } else {
+        refreshNFTs();
+      }
+    }
   };
 
   // Determine loading state

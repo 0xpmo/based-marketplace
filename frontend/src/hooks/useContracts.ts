@@ -1445,7 +1445,10 @@ export function useCollection(collectionAddress: string) {
 }
 
 // Hook for fetching NFTs in a collection - with pagination support
-export function useCollectionNFTs(collectionAddress: string) {
+export function useCollectionNFTs(
+  collectionAddress: string,
+  prioritizeSales: boolean = false
+) {
   const [nfts, setNfts] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1456,6 +1459,8 @@ export function useCollectionNFTs(collectionAddress: string) {
   const [pageSize, setPageSize] = useState(10);
   const [totalTokens, setTotalTokens] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [salesCount, setSalesCount] = useState(0);
+  const [allActiveListings, setAllActiveListings] = useState<NFTItem[]>([]);
 
   // Fetch NFTs for the current page
   const fetchPagedNFTs = useCallback(
@@ -1518,15 +1523,107 @@ export function useCollectionNFTs(collectionAddress: string) {
           return;
         }
 
+        // If prioritizing sales, first fetch all active listings for this collection
+        const activeListingsMap = new Map<number, NFTItem>();
+        let fetchedListings: NFTItem[] = [];
+
+        if (prioritizeSales) {
+          try {
+            // Fetch all active listings from database without pagination
+            const allListingsResponse = await fetch(
+              `/api/listings/collection?nftContract=${collectionAddress}&status=1&pageSize=100`
+            );
+
+            if (allListingsResponse.ok) {
+              const { listings: dbListings } = await allListingsResponse.json();
+
+              console.log(`Fetched ${dbListings.length} total active listings`);
+              setSalesCount(dbListings.length);
+
+              if (dbListings.length > 0) {
+                // Process these listings
+                const listingTokenIds = dbListings.map((listing: any) =>
+                  Number(listing.token_id)
+                );
+
+                // Fetch basic token data for all listings
+                const activeListingPromises = listingTokenIds.map(
+                  (tokenId: number) =>
+                    fetchBasicTokenData(
+                      collectionAddress,
+                      tokenId,
+                      publicClient,
+                      isExternal
+                    )
+                );
+
+                const activeListingTokens = (
+                  await Promise.all(activeListingPromises)
+                ).filter(Boolean) as NFTItem[];
+
+                // Map database listings to NFT objects
+                if (activeListingTokens.length > 0) {
+                  const listingsMap = new Map(
+                    dbListings.map((listing: any) => [
+                      Number(listing.token_id),
+                      {
+                        active: true,
+                        price: listing.price,
+                        seller: listing.seller,
+                      } as {
+                        active: boolean;
+                        price: string;
+                        seller: string;
+                      },
+                    ])
+                  );
+
+                  // Add the listings to the tokens data
+                  activeListingTokens.forEach((token) => {
+                    const dbListing = listingsMap.get(token.tokenId);
+                    if (dbListing) {
+                      token.listing = dbListing;
+                      activeListingsMap.set(token.tokenId, token);
+                    }
+                  });
+
+                  fetchedListings = activeListingTokens.filter(
+                    (token) => token.listing && token.listing.active
+                  );
+                  setAllActiveListings(fetchedListings);
+                }
+              }
+            }
+          } catch (listingsError) {
+            console.error(
+              "Error pre-fetching collection listings:",
+              listingsError
+            );
+          }
+        }
+
+        // Generate the page token IDs, making sure we don't double-include NFTs that are for sale
         const pageTokenIds = Array.from(
           { length: endIndex - startIndex },
           (_, i) => startIndex + i
+        ).filter((id) => !activeListingsMap.has(id));
+
+        // Adjust the array length to ensure we have pageSize tokens in total
+        const remainingCount = Math.max(
+          0,
+          pageSize -
+            (prioritizeSales ? Math.min(pageSize, fetchedListings.length) : 0)
+        );
+        const regularTokenIds = pageTokenIds.slice(0, remainingCount);
+
+        console.log(
+          `Fetching regular tokens ${startIndex} to ${
+            startIndex + regularTokenIds.length - 1
+          }`
         );
 
-        console.log(`Fetching tokens ${startIndex} to ${endIndex - 1}`);
-
-        // Fetch basic token data for the current page
-        const tokenDataPromises = pageTokenIds.map((tokenId) =>
+        // Fetch basic token data for the regular tokens
+        const regularTokenPromises = regularTokenIds.map((tokenId) =>
           fetchBasicTokenData(
             collectionAddress,
             tokenId,
@@ -1535,61 +1632,86 @@ export function useCollectionNFTs(collectionAddress: string) {
           )
         );
 
-        const tokensWithBasicData = (
-          await Promise.all(tokenDataPromises)
-        ).filter(Boolean) as NFTItem[]; // Filter out null results (e.g., non-existent tokens)
+        const regularTokensWithBasicData = (
+          await Promise.all(regularTokenPromises)
+        ).filter(Boolean) as NFTItem[]; // Filter out null results
 
-        console.log(
-          `Fetched basic data for ${tokensWithBasicData.length} valid tokens`
-        );
-
-        // First fetch database listings for this collection
+        // Add listings info to regular tokens
         try {
-          const { listings: dbListings } = await getCollectionListings(
-            collectionAddress,
-            1, // Active listings only
-            page,
-            pageSize
+          // For regular tokens, fetch listings from database for the current page
+          const pageListingsResponse = await fetch(
+            `/api/listings/collection?nftContract=${collectionAddress}&status=1&page=${page}&pageSize=${pageSize}`
           );
 
-          console.log(`Fetched ${dbListings.length} listings from database`);
+          if (pageListingsResponse.ok) {
+            const { listings: dbListings } = await pageListingsResponse.json();
 
-          // Map database listings to NFT objects
-          if (dbListings.length > 0) {
-            // Create a map of token ID to listing data
-            const listingsMap = new Map(
-              dbListings.map((listing) => [
-                Number(listing.token_id),
-                {
-                  active: true,
-                  price: listing.price,
-                  seller: listing.seller,
-                },
-              ])
-            );
+            if (dbListings.length > 0) {
+              // Create a map of token ID to listing data
+              const listingsMap = new Map(
+                dbListings.map((listing) => [
+                  Number(listing.token_id),
+                  {
+                    active: true,
+                    price: listing.price,
+                    seller: listing.seller,
+                  } as {
+                    active: boolean;
+                    price: string;
+                    seller: string;
+                  },
+                ])
+              );
 
-            // Add the listings to the tokens data
-            tokensWithBasicData.forEach((token) => {
-              const dbListing = listingsMap.get(token.tokenId);
-              if (dbListing) {
-                token.listing = dbListing;
-              }
-            });
+              // Add the listings to the regular tokens data
+              regularTokensWithBasicData.forEach((token) => {
+                // Skip if this token already has a listing from the prioritized set
+                if (activeListingsMap.has(token.tokenId)) return;
 
-            console.log("Applied database listings to tokens");
+                const dbListing = listingsMap.get(token.tokenId);
+                if (dbListing) {
+                  token.listing = dbListing;
+                }
+              });
+            }
           }
         } catch (dbError) {
           console.error("Error fetching listings from database:", dbError);
-          // Continue without database listings if there's an error
         }
 
+        // Combine prioritized listings with regular tokens
+        let combinedNFTs: NFTItem[] = [];
+
+        if (prioritizeSales) {
+          // Prioritize NFTs for sale at the top
+          const listedNFTs = fetchedListings.slice(0, pageSize);
+
+          // Calculate remaining slots for regular NFTs
+          const remainingSlots = Math.max(0, pageSize - listedNFTs.length);
+          const regularNFTs = regularTokensWithBasicData.slice(
+            0,
+            remainingSlots
+          );
+
+          combinedNFTs = [...listedNFTs, ...regularNFTs];
+          console.log(
+            `Showing ${listedNFTs.length} listed NFTs and ${regularNFTs.length} regular NFTs`
+          );
+        } else {
+          // Standard paging without prioritization
+          combinedNFTs = regularTokensWithBasicData;
+        }
+
+        // Make sure we're returning exactly pageSize items (or whatever is available)
+        console.log(`Returning ${combinedNFTs.length} total NFTs`);
+
         // Update state with basic token data
-        setNfts(tokensWithBasicData);
+        setNfts(combinedNFTs);
         setLoading(false);
 
         // Now fetch metadata and any remaining listing info from blockchain
-        if (tokensWithBasicData.length > 0) {
-          fetchMetadataAndListingsInBatches(tokensWithBasicData, publicClient);
+        if (combinedNFTs.length > 0) {
+          fetchMetadataAndListingsInBatches(combinedNFTs, publicClient);
         } else {
           setMetadataLoading(false); // No tokens, no metadata to load
         }
@@ -1602,7 +1724,7 @@ export function useCollectionNFTs(collectionAddress: string) {
         setLoading(false);
       }
     },
-    [collectionAddress, pageSize]
+    [collectionAddress, pageSize, prioritizeSales]
   );
 
   // Update when page changes
@@ -1902,7 +2024,7 @@ export function useCollectionNFTs(collectionAddress: string) {
     console.log("Completed fetching metadata and listings for current page");
   };
 
-  // Clean up and return paginated interface
+  // include prioritizeSales in our return object
   return {
     nfts,
     loading,
@@ -1917,6 +2039,7 @@ export function useCollectionNFTs(collectionAddress: string) {
     goToPage,
     setPageSize: setPageSizeAndRefetch,
     refresh,
+    salesCount,
   };
 }
 
