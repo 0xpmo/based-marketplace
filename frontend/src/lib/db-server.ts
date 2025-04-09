@@ -54,16 +54,45 @@ export async function updateListingStatus(
   txHash: string | null = null,
   blockNumber: string | null = null
 ): Promise<DBListing | null> {
+  console.log(
+    `Updating listing status: Contract=${nftContract}, TokenId=${tokenId}, NewStatus=${status}`
+  );
+
+  // First check if the listing exists
+  const checkQuery = `
+    SELECT * FROM listings
+    WHERE nft_contract = $1 AND token_id = $2`;
+
+  const checkResult = await pool.query(checkQuery, [nftContract, tokenId]);
+
+  if (checkResult.rows.length === 0) {
+    console.warn(`No listing found for ${nftContract} token #${tokenId}`);
+    return null;
+  }
+
+  const existingListing = checkResult.rows[0];
+  console.log(
+    `Found existing listing with status ${existingListing.status}, updating to ${status}`
+  );
+
+  // Now update the listing status - don't restrict by current status
   const query = `
     UPDATE listings
     SET status = $1, transaction_hash = $2, block_number = $3, updated_at = CURRENT_TIMESTAMP
-    WHERE nft_contract = $4 AND token_id = $5 AND status = 1
+    WHERE nft_contract = $4 AND token_id = $5
     RETURNING *`;
 
   const values = [status, txHash, blockNumber, nftContract, tokenId];
 
   const result = await pool.query(query, values);
-  return result.rows[0] || null;
+
+  if (result.rows.length > 0) {
+    console.log(`Successfully updated listing status to ${status}`);
+    return result.rows[0];
+  } else {
+    console.error(`Failed to update listing status, no rows affected`);
+    return null;
+  }
 }
 
 // Get listings for a collection

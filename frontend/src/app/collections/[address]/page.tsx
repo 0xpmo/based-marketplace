@@ -415,10 +415,16 @@ export default function CollectionDetailsPage() {
                           {collection?.maxSupply || "?"}
                         </div>
                       </div>
-                      <div className="bg-slate-800 rounded-lg px-4 py-2">
-                        <div className="text-sm text-slate-400">Items</div>
-                        <div className="font-bold">{nfts.length || 0}</div>
-                      </div>
+                      {!!collection?.totalMinted ? (
+                        <div className="bg-slate-800 rounded-lg px-4 py-2">
+                          <div className="text-sm text-slate-400">Items</div>
+                          <div className="font-bold">
+                            {collection?.totalMinted || 0}
+                          </div>
+                        </div>
+                      ) : (
+                        <></>
+                      )}
 
                       {/* Floor price box - show placeholder during loading */}
                       {metadataLoading ? (

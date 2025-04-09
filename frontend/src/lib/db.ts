@@ -64,6 +64,7 @@ export async function updateListingStatus(
   txHash: string | null = null,
   blockNumber: bigint | null = null
 ): Promise<DBListing | null> {
+  console.log("updating listing status in db", nftContract, tokenId, status);
   const response = await fetch("/api/listings/update-status", {
     method: "PATCH",
     headers: {
@@ -148,6 +149,29 @@ export async function getListing(
     }
     const error = await response.text();
     throw new Error(`Failed to fetch listing: ${error}`);
+  }
+
+  return response.json();
+}
+
+// Clear a listing from the database (for fixing inconsistencies)
+export async function clearListing(
+  nftContract: string,
+  tokenId?: number
+): Promise<{ success: boolean; deletedCount: number }> {
+  const params = new URLSearchParams({ nftContract });
+
+  if (tokenId !== undefined) {
+    params.append("tokenId", tokenId.toString());
+  }
+
+  const response = await fetch(`/api/listings/clear?${params.toString()}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to clear listing: ${error}`);
   }
 
   return response.json();

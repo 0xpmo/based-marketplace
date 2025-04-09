@@ -6,6 +6,8 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { nftContract, tokenId, status, txHash, blockNumber } = body;
 
+    console.log(`API: Updating listing status: ${JSON.stringify(body)}`);
+
     // Validate required fields
     if (!nftContract || tokenId === undefined || status === undefined) {
       return NextResponse.json(
@@ -24,17 +26,27 @@ export async function PATCH(request: NextRequest) {
     );
 
     if (!listing) {
+      console.warn(
+        `API: No listing found or update failed for contract ${nftContract}, token ${tokenId}`
+      );
       return NextResponse.json(
-        { error: "Listing not found or not active" },
+        { error: "Listing not found or update failed", success: false },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(listing);
+    console.log(
+      `API: Successfully updated listing status to ${status} for token ${tokenId}`
+    );
+    return NextResponse.json({ ...listing, success: true });
   } catch (error) {
-    console.error("Error updating listing status:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error updating listing status:", errorMessage);
     return NextResponse.json(
-      { error: "Failed to update listing status" },
+      {
+        error: `Failed to update listing status: ${errorMessage}`,
+        success: false,
+      },
       { status: 500 }
     );
   }

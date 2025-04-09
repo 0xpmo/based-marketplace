@@ -6,7 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAccount, usePublicClient } from "wagmi";
 import { NFTItem } from "@/types/contracts";
-import { useCollection, useBuyNFT } from "@/hooks/useContracts";
+import {
+  useCollection,
+  useBuyNFT,
+  useCancelListing,
+} from "@/hooks/useContracts";
 import { getIPFSGatewayURL } from "@/services/ipfs";
 import PepeButton from "@/components/ui/PepeButton";
 import { fetchFromIPFS } from "@/services/ipfs";
@@ -73,6 +77,15 @@ export default function NFTDetailsPage() {
     txHash: buyingTxHash,
   } = useBuyNFT();
 
+  // Use the cancel listing hook we fixed
+  const {
+    cancelListing,
+    isLoading: isCancellingHook,
+    isSuccess: isCancelSuccess,
+    error: cancelError,
+    txHash: hookCancelTxHash,
+  } = useCancelListing();
+
   // Format address for display
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(
@@ -80,7 +93,7 @@ export default function NFTDetailsPage() {
     )}`;
   };
 
-  // Fetch NFT data
+  // Fetch NFT data with blockchain verification
   const fetchNFTData = async () => {
     setLoading(true);
     setError(null);
@@ -114,8 +127,85 @@ export default function NFTDetailsPage() {
       );
 
       if (listingResponse.ok) {
-        const listingData = await listingResponse.json();
-        data.listing = listingData.listing;
+        const blockchainListingData = await listingResponse.json();
+
+        // Also check database listing status
+        try {
+          const dbListingResponse = await fetch(
+            `/api/listings/single?nftContract=${collectionAddress}&tokenId=${tokenId}`
+          );
+
+          // If both blockchain and database have listings
+          if (blockchainListingData.listing && dbListingResponse.ok) {
+            const dbListing = await dbListingResponse.json();
+
+            // Check for inconsistency: DB says active but blockchain says not active
+            if (
+              dbListing &&
+              dbListing.status === 1 &&
+              !blockchainListingData.listing.active
+            ) {
+              console.log(
+                "Inconsistency detected between blockchain and database listing!"
+              );
+
+              // Clear the inconsistent database listing
+              try {
+                const clearResponse = await fetch(
+                  `/api/listings/clear?nftContract=${collectionAddress}&tokenId=${tokenId}`,
+                  { method: "DELETE" }
+                );
+                const clearResult = await clearResponse.json();
+                console.log("Cleared inconsistent listing:", clearResult);
+
+                // If cleared successfully, use the blockchain status (which is not active)
+                data.listing = null;
+              } catch (clearError) {
+                console.error(
+                  "Failed to clear inconsistent listing:",
+                  clearError
+                );
+              }
+            } else {
+              // Use blockchain listing data as the source of truth
+              data.listing = blockchainListingData.listing;
+            }
+          } else if (blockchainListingData.listing) {
+            // Only blockchain has listing
+            data.listing = blockchainListingData.listing;
+          } else if (dbListingResponse.ok) {
+            // Only database has listing - this indicates an inconsistency
+            const dbListing = await dbListingResponse.json();
+            if (dbListing && dbListing.status === 1) {
+              console.log(
+                "Database shows active listing but blockchain doesn't - clearing it"
+              );
+              try {
+                const clearResponse = await fetch(
+                  `/api/listings/clear?nftContract=${collectionAddress}&tokenId=${tokenId}`,
+                  { method: "DELETE" }
+                );
+                await clearResponse.json();
+                data.listing = null;
+              } catch (clearError) {
+                console.error(
+                  "Failed to clear inconsistent listing:",
+                  clearError
+                );
+                data.listing = null;
+              }
+            } else {
+              data.listing = null;
+            }
+          } else {
+            // No listing in either place
+            data.listing = null;
+          }
+        } catch (dbError) {
+          console.error("Error checking database listing:", dbError);
+          // If we can't check database, trust blockchain data
+          data.listing = blockchainListingData.listing;
+        }
       }
 
       setNft(data);
@@ -255,11 +345,11 @@ export default function NFTDetailsPage() {
 
   // Refresh UI when listing is canceled - to ensure all states are updated
   useEffect(() => {
-    if (!isCancelling && cancelTxHash) {
+    if (!isCancelling && hookCancelTxHash) {
       // If we just finished canceling, refresh to ensure all UI states are updated
       fetchNFTData();
     }
-  }, [isCancelling, cancelTxHash]);
+  }, [isCancelling, hookCancelTxHash]);
 
   // Handle refresh
   const handleRefresh = () => {
@@ -487,7 +577,7 @@ export default function NFTDetailsPage() {
 
   // Handle cancel listing
   const handleCancelListing = async () => {
-    if (!isConnected || !publicClient) {
+    if (!isConnected) {
       toast.error("Please connect your wallet first");
       return;
     }
@@ -506,36 +596,11 @@ export default function NFTDetailsPage() {
       setIsCancelling(true);
       setCancelTxHash(null);
 
-      // Get marketplace contract
-      const marketplaceContract = await getMarketplaceContract();
-
-      // Get the next nonce
-      const nonce = await publicClient.getTransactionCount({
-        address: userAddress,
-        blockTag: "pending",
+      toast.promise(cancelListing(collectionAddress, tokenId), {
+        loading: "Cancellation submitted! Waiting for confirmation...",
+        success: "Listing cancelled successfully!",
+        error: "Failed to cancel listing. Please try again.",
       });
-
-      // Call the cancelListing function
-      const tx = await marketplaceContract.cancelListing(
-        collectionAddress,
-        tokenId,
-        {
-          gasPrice: 9,
-          gasLimit: 3000000,
-          nonce: nonce, // Use the nonce from publicClient
-        }
-      );
-
-      setCancelTxHash(tx.hash);
-
-      toast.success("Cancellation submitted! Waiting for confirmation...");
-
-      // Wait for transaction to complete
-      const receipt = await tx.wait();
-
-      // Refresh the NFT data to show updated listing status
-      toast.success("Listing cancelled successfully!");
-      fetchNFTData();
     } catch (err) {
       console.error("Error cancelling listing:", err);
       toast.error(
@@ -547,6 +612,21 @@ export default function NFTDetailsPage() {
       setIsCancelling(false);
     }
   };
+
+  // Add useEffect to handle cancel success and update the UI
+  useEffect(() => {
+    if (isCancelSuccess) {
+      // Refresh the NFT data to show updated listing status
+      fetchNFTData();
+    }
+  }, [isCancelSuccess]);
+
+  // Add useEffect to update txHash when cancelTxHash from hook changes
+  useEffect(() => {
+    if (hookCancelTxHash) {
+      setCancelTxHash(hookCancelTxHash);
+    }
+  }, [hookCancelTxHash]);
 
   // Handle price input with integer-only validation
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -912,22 +992,16 @@ export default function NFTDetailsPage() {
                     )}
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() ? (
                       <div className="mt-4">
-                        {/* Wrap Cancel button for tooltip */}
-                        <div
-                          className="relative group"
-                          title="Trading temporarily disabled, check back soon"
+                        <PepeButton
+                          variant="primary"
+                          className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                          onClick={handleCancelListing}
+                          disabled={isCancelling}
                         >
-                          <PepeButton
-                            variant="primary"
-                            className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 border-blue-500 opacity-70 cursor-not-allowed" // Disabled styles
-                            onClick={() => {}} // No-op
-                            disabled={true} // Always disabled
-                          >
-                            Cancel Listing
-                          </PepeButton>
-                        </div>
+                          {isCancelling ? "Cancelling..." : "Cancel Listing"}
+                        </PepeButton>
 
-                        {/* Transaction Hash Link (kept for context, might be removed if cancelling is fully disabled) */}
+                        {/* Transaction Hash Link */}
                         {cancelTxHash && (
                           <motion.div
                             initial={{ opacity: 0, y: 10 }}
@@ -947,22 +1021,16 @@ export default function NFTDetailsPage() {
                       </div>
                     ) : (
                       <div className="mt-4 relative">
-                        {/* Wrap Buy button for tooltip */}
-                        <div
-                          className="relative group"
-                          title="Trading temporarily disabled, check back soon"
+                        <PepeButton
+                          variant="primary"
+                          className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 border-blue-500"
+                          onClick={handleBuyNFT}
+                          disabled={isBuying}
                         >
-                          <PepeButton
-                            variant="primary"
-                            className="w-full ocean-pulse-animation bg-gradient-to-r from-blue-600 to-cyan-500 border-blue-500 opacity-70 cursor-not-allowed" // Disabled styles
-                            onClick={() => {}} // No-op
-                            disabled={true} // Always disabled
-                          >
-                            Buy Now
-                          </PepeButton>
-                        </div>
+                          {isBuying ? "Processing..." : "Buy Now"}
+                        </PepeButton>
 
-                        {/* Purchase success animation overlay (kept for context) */}
+                        {/* Purchase success animation overlay */}
                         <AnimatePresence>
                           {showPurchaseSuccess && (
                             <motion.div
@@ -1056,18 +1124,21 @@ export default function NFTDetailsPage() {
                       Not for sale
                     </div>
                     {nft.owner.toLowerCase() === userAddress?.toLowerCase() && (
-                      <div
-                        className="mt-4 relative group"
-                        title="Listing temporarily disabled, check back soon"
-                      >
+                      <div className="mt-4">
                         <PepeButton
                           variant="primary"
-                          className="w-full relative overflow-hidden group opacity-70 cursor-not-allowed border-blue-500"
-                          onClick={() => {}}
-                          disabled={true}
+                          className={`w-full relative overflow-hidden group ${
+                            isListing || txHash
+                              ? "opacity-70 cursor-not-allowed"
+                              : "bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+                          } border-blue-500`}
+                          onClick={() => setShowListModal(true)}
+                          disabled={isListing || txHash !== null}
                         >
                           <span className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
-                          List for Sale
+                          {isListing
+                            ? "Listing in Progress..."
+                            : "List for Sale"}
                         </PepeButton>
                       </div>
                     )}
@@ -1285,7 +1356,7 @@ export default function NFTDetailsPage() {
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center">
                           <span className="text-blue-300 text-sm">
-                            Marketplace Fee (4.5%)
+                            Marketplace Fee (2.45%)
                           </span>
                           <div className="relative ml-1 group">
                             <svg
@@ -1311,7 +1382,7 @@ export default function NFTDetailsPage() {
                         <span className="text-blue-200 text-sm">
                           𝔹{" "}
                           {formatNumberWithCommas(
-                            (parseInt(price) * 0.045).toFixed(0)
+                            (parseInt(price) * 0.0245).toFixed(0)
                           )}
                         </span>
                       </div>
@@ -1329,7 +1400,7 @@ export default function NFTDetailsPage() {
                           {formatNumberWithCommas(
                             (
                               parseInt(price) -
-                              parseInt(price) * 0.045 -
+                              parseInt(price) * 0.0245 -
                               (collection?.royaltyFee
                                 ? parseInt(price) *
                                   (Number(collection.royaltyFee) / 10000)
@@ -1347,7 +1418,7 @@ export default function NFTDetailsPage() {
                             {calculateUSDPrice(
                               (
                                 parseInt(price) -
-                                parseInt(price) * 0.045 -
+                                parseInt(price) * 0.0245 -
                                 (collection?.royaltyFee
                                   ? parseInt(price) *
                                     (Number(collection.royaltyFee) / 10000)

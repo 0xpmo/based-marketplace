@@ -30,6 +30,7 @@ import {
   updateListingStatus,
   getCollectionListings,
   getListing,
+  clearListing,
 } from "@/lib/db";
 
 // Import ABIs (you'll need to generate these from your compiled contracts)
@@ -1641,6 +1642,19 @@ export function useCollectionNFTs(collectionAddress: string) {
     setCurrentPage(0); // Reset to first page when changing page size
   }, []);
 
+  // Add a forceful refresh function to useCollectionNFTs hook
+  const refresh = useCallback(() => {
+    console.log("Forcefully refreshing collection NFTs...");
+    // Clear NFTs state before fetching again
+    setNfts([]);
+    // Reset loading states
+    setLoading(true);
+    setMetadataLoading(false);
+    setError(null);
+    // Re-fetch from the current page
+    fetchPagedNFTs(currentPage);
+  }, [fetchPagedNFTs, currentPage]);
+
   // Helper function to fetch basic token data (owner, tokenURI)
   const fetchBasicTokenData = async (
     collection: string,
@@ -1902,7 +1916,7 @@ export function useCollectionNFTs(collectionAddress: string) {
     prevPage,
     goToPage,
     setPageSize: setPageSizeAndRefetch,
-    refresh: () => fetchPagedNFTs(currentPage),
+    refresh,
   };
 }
 
@@ -1986,6 +2000,89 @@ export function useCancelListing() {
     setTxHash(null);
 
     try {
+      console.log(
+        `Canceling listing for contract ${nftContract}, token ${tokenId}...`
+      );
+
+      // First check if the listing exists in our database
+      try {
+        const dbListing = await getListing(nftContract, tokenId);
+        if (dbListing && dbListing.status !== 1) {
+          console.log(
+            `Listing already has status ${dbListing.status} in database, no need to cancel`
+          );
+          setIsSuccess(true);
+          setIsLoading(false);
+          return true;
+        }
+      } catch (dbError) {
+        console.warn("Could not check database listing status:", dbError);
+        // Continue anyway
+      }
+
+      // Next verify if the listing exists on chain
+      try {
+        interface MarketplaceListing {
+          seller: string;
+          nftContract: string;
+          tokenId: bigint;
+          price: bigint;
+          isPrivate: boolean;
+          allowedBuyer: string;
+          status: number; // 0=None, 1=Active, 2=Sold, 3=Canceled
+        }
+
+        const listingData = (await publicClient.readContract({
+          address: MARKETPLACE_ADDRESS as `0x${string}`,
+          abi: MarketplaceABI.abi,
+          functionName: "getListing",
+          args: [nftContract as `0x${string}`, BigInt(tokenId)],
+        })) as MarketplaceListing;
+
+        console.log("listing data from blockchain", listingData);
+        // Check if the listing is active before trying to cancel
+        if (listingData.status !== 1) {
+          console.log(
+            `Listing for token ${tokenId} has status ${listingData.status} on blockchain, no need to cancel`
+          );
+
+          // Sync database with blockchain state
+          try {
+            // First try updating the status
+            const updateResult = await updateListingStatus(
+              nftContract,
+              tokenId,
+              listingData.status, // Use the actual blockchain status
+              null,
+              null
+            );
+
+            if (updateResult) {
+              console.log(
+                `Synced listing status to ${listingData.status} in database`
+              );
+            } else {
+              console.warn(
+                "Failed to update listing status in database, clearing instead"
+              );
+              // If update fails, try clearing and re-creating with correct status
+              await clearListing(nftContract, tokenId);
+              console.log(`Cleared old listing from database`);
+            }
+          } catch (dbError) {
+            console.error("Error syncing listing status:", dbError);
+          }
+
+          // Not an error condition, just already done
+          setIsSuccess(true);
+          setIsLoading(false);
+          return true;
+        }
+      } catch (readError) {
+        console.error("Error checking listing status on chain:", readError);
+        // Continue with cancel attempt anyway
+      }
+
       // Get the next nonce
       const nonce = await publicClient.getTransactionCount({
         address,
@@ -2003,23 +2100,50 @@ export function useCancelListing() {
       });
 
       setTxHash(tx.hash);
+      console.log(`Cancellation transaction submitted: ${tx.hash}`);
 
       // Wait for transaction to complete
+      console.log("Waiting for cancellation confirmation...");
       const receipt = await tx.wait();
+      console.log(`Cancellation confirmed in block ${receipt.blockNumber}`);
 
       // Update listing status in database (status 3 = Canceled)
       try {
-        await updateListingStatus(
+        console.log("now updating listing status in database");
+        const updateResult = await updateListingStatus(
           nftContract,
           tokenId,
           3, // 3 = Canceled status
           tx.hash,
           BigInt(receipt.blockNumber)
         );
-        console.log("Listing status updated to 'Canceled' in database");
+
+        if (updateResult) {
+          console.log(
+            "Listing status updated to 'Canceled' in database successfully"
+          );
+        } else {
+          console.warn(
+            "Database update failed, trying to clear listing instead"
+          );
+
+          // If update fails, try clearing the listing completely
+          const clearResult = await clearListing(nftContract, tokenId);
+          console.log(
+            `Cleared listing from database instead: ${JSON.stringify(
+              clearResult
+            )}`
+          );
+        }
       } catch (dbError) {
         console.error("Error updating listing status in database:", dbError);
-        // Continue with success even if database update fails
+        // Try clearing as a fallback
+        try {
+          await clearListing(nftContract, tokenId);
+          console.log("Cleared listing from database as fallback");
+        } catch (clearError) {
+          console.error("Failed to clear listing:", clearError);
+        }
       }
 
       setIsSuccess(true);
