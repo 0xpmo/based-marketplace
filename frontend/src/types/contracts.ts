@@ -18,7 +18,7 @@ export interface CollectionMetadata {
   name: string;
   description: string;
   image: string;
-  banner_image?: string;
+  banner_image_url?: string;
   external_link?: string;
   seller_fee_basis_points?: number;
   fee_recipient?: string;

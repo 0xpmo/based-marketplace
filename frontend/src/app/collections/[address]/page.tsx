@@ -94,8 +94,6 @@ export default function CollectionDetailsPage() {
     return calculateUSDPrice(floorPrice.toString());
   }, [floorPrice, tokenUSDRate, calculateUSDPrice]);
 
-  console.log("collections", collections);
-
   // Find collection from all collections
   useEffect(() => {
     if (collections.length > 0) {
@@ -131,12 +129,12 @@ export default function CollectionDetailsPage() {
   // Set banner image with error handling
   useEffect(() => {
     if (
-      (collection?.metadata?.banner_image || collection?.metadata?.image) &&
+      (collection?.metadata?.banner_image_url || collection?.metadata?.image) &&
       !bannerError
     ) {
       try {
         const url = getIPFSGatewayURL(
-          collection.metadata?.banner_image || collection.metadata?.image
+          collection.metadata?.banner_image_url || collection.metadata?.image
         );
         setBannerImageUrl(url);
         setIsBannerLoading(true);
@@ -151,7 +149,7 @@ export default function CollectionDetailsPage() {
       setIsBannerLoading(false);
     }
   }, [
-    collection?.metadata?.banner_image,
+    collection?.metadata?.banner_image_url,
     collection?.metadata?.image,
     bannerError,
   ]);
@@ -303,10 +301,10 @@ export default function CollectionDetailsPage() {
     );
   }
 
-  const mintedPercent =
-    collection.totalMinted && collection.maxSupply
-      ? (Number(collection.totalMinted) / Number(collection.maxSupply)) * 100
-      : 0;
+  // const mintedPercent =
+  //   collection.totalMinted && collection.maxSupply
+  //     ? (Number(collection.totalMinted) / Number(collection.maxSupply)) * 100
+  //     : 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
