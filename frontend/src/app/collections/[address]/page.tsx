@@ -309,7 +309,7 @@ export default function CollectionDetailsPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Banner Image */}
-      <div className="w-full h-80 relative overflow-hidden">
+      <div className="w-full h-96 md:h-[400px] relative overflow-hidden">
         {isBannerLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-blue-900">
             <div className="w-12 h-12 border-4 border-blue-300 border-t-transparent rounded-full animate-spin"></div>
@@ -330,7 +330,7 @@ export default function CollectionDetailsPage() {
       </div>
 
       {/* Collection Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 mb-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16 relative z-10">
         <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
           <div className="p-6 sm:p-8">
             <div className="flex flex-col md:flex-row gap-6">

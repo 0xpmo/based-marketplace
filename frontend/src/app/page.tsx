@@ -18,13 +18,12 @@ export default function Home() {
     useState<Collection | null>(null);
 
   useEffect(() => {
-    if (collections.length > 0) {
-      const featured = collections.reduce(
-        (prev, current) =>
-          current.totalMinted > prev.totalMinted ? current : prev,
-        collections[0]
-      );
-      setFeaturedCollection(featured);
+    if (collections.length > 1) {
+      // Use the second collection as featured when available
+      setFeaturedCollection(collections[1]);
+    } else if (collections.length === 1) {
+      // Use the first collection if only one is available
+      setFeaturedCollection(collections[0]);
     }
   }, [collections]);
 
