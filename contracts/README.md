@@ -33,7 +33,7 @@ npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost --r
 Deploy all contracts as upgradeable (except BasedNFTCollection):
 
 ```shell
-npx hardhat run scripts/deploy-marketplace.ts --network localhost
+npx hardhat run scripts/newest-deploy-marketplace.ts --network localhost
 ```
 
 This deploys:

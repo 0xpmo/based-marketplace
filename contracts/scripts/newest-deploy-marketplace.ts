@@ -13,22 +13,6 @@ async function main() {
   );
   console.log("Starting deployment with nonce:", currentNonce);
 
-  // Define a function to get the next nonce
-  // let nextNonce = currentNonce;
-  // const getNextNonce = () => nextNonce++;
-
-  // Add these options to your upgrades.deployProxy calls
-  // const deploymentOptions = {
-  //   gasPrice: 9,
-  //   gasLimit: 3000000,
-  //   nonce: getNextNonce(), // This will increment for each transaction
-  // };
-
-  // const forceOptions = {
-  //   useDeployedImplementation: false,
-  //   redeployImplementation: "always"
-  // };
-
   console.log("Deploying the entire BasedSeaMarketplace ecosystem...");
 
   // Configuration parameters
@@ -41,69 +25,74 @@ async function main() {
 
   // 1. Deploy Upgradeable BasedSeaCollectionFactory
   console.log("\n1. Deploying upgradeable BasedSeaCollectionFactory...");
-  const BasedSeaCollectionFactory = await ethers.getContractFactory(
-    "BasedSeaCollectionFactory"
-  );
+  // const BasedSeaCollectionFactory = await ethers.getContractFactory(
+  //   "BasedSeaCollectionFactory"
+  // );
 
-  const factoryProxy = await upgrades.deployProxy(
-    BasedSeaCollectionFactory,
-    [DEFAULT_FEE, deployer.address],
-    {
-      initializer: "initialize",
-      kind: "uups",
-      //   txOverrides: {
-      //     gasPrice: 9,
-      //     gasLimit: 3000000,
-      //   },
-    }
-  );
+  // const factoryProxy = await upgrades.deployProxy(
+  //   BasedSeaCollectionFactory,
+  //   [DEFAULT_FEE, deployer.address],
+  //   {
+  //     initializer: "initialize",
+  //     kind: "uups",
+  //     txOverrides: {
+  //       gasPrice: 9,
+  //       gasLimit: 3000000,
+  //     },
+  //   }
+  // );
 
-  await factoryProxy.waitForDeployment();
+  // await factoryProxy.waitForDeployment();
 
-  const factoryProxyAddress = await factoryProxy.getAddress();
-  console.log(
-    "BasedSeaCollectionFactory proxy deployed to:",
-    factoryProxyAddress
-  );
+  // const factoryProxyAddress = await factoryProxy.getAddress();
+  // console.log(
+  //   "BasedSeaCollectionFactory proxy deployed to:",
+  //   factoryProxyAddress
+  // );
 
   // Get the implementation address
-  const factoryImplementationAddress =
-    await upgrades.erc1967.getImplementationAddress(factoryProxyAddress);
-  console.log(
-    "BasedSeaCollectionFactory implementation deployed to:",
-    factoryImplementationAddress
-  );
+  // const factoryImplementationAddress =
+  //   await upgrades.erc1967.getImplementationAddress(factoryProxyAddress);
+  // console.log(
+  //   "BasedSeaCollectionFactory implementation deployed to:",
+  //   factoryImplementationAddress
+  // );
 
   // Get the admin address
-  const factoryAdminAddress = await upgrades.erc1967.getAdminAddress(
-    factoryProxyAddress
-  );
-  console.log("ProxyAdmin deployed to:", factoryAdminAddress);
+  // const factoryAdminAddress = await upgrades.erc1967.getAdminAddress(
+  //   factoryProxyAddress
+  // );
+  // console.log("ProxyAdmin deployed to:", factoryAdminAddress);
 
   // 2. Deploy Upgradeable BasedSeaMarketplaceStorage
-  console.log("\n2. Deploying upgradeable BasedSeaMarketplaceStorage...");
-  const BasedSeaMarketplaceStorage = await ethers.getContractFactory(
-    "BasedSeaMarketplaceStorage"
-  );
+  // console.log("\n2. Deploying upgradeable BasedSeaMarketplaceStorage...");
+  // const BasedSeaMarketplaceStorage = await ethers.getContractFactory(
+  //   "BasedSeaMarketplaceStorage"
+  // );
 
   // Initialize with fee recipient (deployer address)
-  const storageProxy = await upgrades.deployProxy(
-    BasedSeaMarketplaceStorage,
-    [deployer.address], // Pass fee recipient
-    {
-      initializer: "initialize",
-      kind: "uups",
-      //   txOverrides: {
-      //     gasPrice: 9,
-      //     gasLimit: 3000000,
-      //   },
-    }
-  );
+  // const storageProxy = await upgrades.deployProxy(
+  //   BasedSeaMarketplaceStorage,
+  //   [deployer.address], // Pass fee recipient
+  //   {
+  //     initializer: "initialize",
+  //     kind: "uups",
+  //     txOverrides: {
+  //       gasPrice: 9,
+  //       gasLimit: 3000000,
+  //     },
+  //   }
+  // );
 
-  await storageProxy.waitForDeployment();
+  // await storageProxy.waitForDeployment();
 
-  const storageAddress = await storageProxy.getAddress();
+  const storageAddress = "0xCDe09C6858085c94416879E9d33E2fe97b9F9841"; //await storageProxy.getAddress();
   console.log("BasedSeaMarketplaceStorage proxy deployed to:", storageAddress);
+
+  const storageProxy = await ethers.getContractAt(
+    "BasedSeaMarketplaceStorage",
+    storageAddress
+  );
 
   // Get the implementation address
   const storageImplementationAddress =
@@ -115,35 +104,40 @@ async function main() {
 
   // 3. Deploy Upgradeable BasedSeaMarketplace
   console.log("\n3. Deploying upgradeable BasedSeaMarketplace...");
-  const BasedSeaMarketplace = await ethers.getContractFactory(
-    "BasedSeaMarketplace"
-  );
+  // const BasedSeaMarketplace = await ethers.getContractFactory(
+  //   "BasedSeaMarketplace"
+  // );
 
-  const marketplaceProxy = await upgrades.deployProxy(
-    BasedSeaMarketplace,
-    [storageAddress], // Pass storage address
-    {
-      initializer: "initialize",
-      kind: "uups",
-      //   txOverrides: {
-      //     gasPrice: 9,
-      //     gasLimit: 3000000,
-      //   },
-    }
-  );
+  console.log("got marketplace contract");
+  console.log("storage address", storageAddress);
 
-  await marketplaceProxy.waitForDeployment();
+  // const marketplaceProxy = await upgrades.deployProxy(
+  //   BasedSeaMarketplace,
+  //   [storageAddress], // Pass storage address
+  //   {
+  //     initializer: "initialize",
+  //     kind: "uups",
+  //     txOverrides: {
+  //       gasPrice: 9,
+  //       gasLimit: 5000000,
+  //     },
+  //   }
+  // );
 
-  const marketplaceAddress = await marketplaceProxy.getAddress();
+  // console.log("deployed marketplace proxy", marketplaceProxy);
+
+  // await marketplaceProxy.waitForDeployment();
+
+  const marketplaceAddress = "0xD64bD7b4B6caA2bFA91035d85feF965416e67f2E"; //await marketplaceProxy.getAddress();
   console.log("BasedSeaMarketplace proxy deployed to:", marketplaceAddress);
 
   // Get the implementation address
-  const marketplaceImplementationAddress =
-    await upgrades.erc1967.getImplementationAddress(marketplaceAddress);
-  console.log(
-    "BasedSeaMarketplace implementation deployed to:",
-    marketplaceImplementationAddress
-  );
+  // const marketplaceImplementationAddress =
+  //   await upgrades.erc1967.getImplementationAddress(marketplaceAddress);
+  // console.log(
+  //   "BasedSeaMarketplace implementation deployed to:",
+  //   marketplaceImplementationAddress
+  // );
 
   // 4. Configure marketplace storage directly from the deployer
   // console.log("\n4. Configuring marketplace storage values...");
@@ -159,7 +153,10 @@ async function main() {
 
   // 5. Transfer ownership of storage to marketplace
   console.log("\n5. Transferring ownership of storage to marketplace...");
-  await storageProxy.transferOwnership(marketplaceAddress);
+  await storageProxy.transferOwnership(marketplaceAddress, {
+    gasPrice: 9,
+    gasLimit: 5000000,
+  });
   console.log("Storage ownership transferred to marketplace");
 
   // 6. Create a sample collection (optional)
@@ -182,21 +179,21 @@ async function main() {
   // Summary
   console.log("\nDeployment Summary:");
   console.log("===================");
-  console.log("BasedCollectionFactory Proxy: ", factoryProxyAddress);
-  console.log(
-    "BasedSeaCollectionFactory Implementation: ",
-    factoryImplementationAddress
-  );
+  // console.log("BasedCollectionFactory Proxy: ", factoryProxyAddress);
+  // console.log(
+  //   "BasedSeaCollectionFactory Implementation: ",
+  //   factoryImplementationAddress
+  // );
   console.log("BasedSeaMarketplaceStorage Proxy: ", storageAddress);
   console.log(
     "BasedSeaMarketplaceStorage Implementation: ",
     storageImplementationAddress
   );
   console.log("BasedSeaMarketplace Proxy: ", marketplaceAddress);
-  console.log(
-    "BasedSeaMarketplace Implementation: ",
-    marketplaceImplementationAddress
-  );
+  // console.log(
+  //   "BasedSeaMarketplace Implementation: ",
+  //   marketplaceImplementationAddress
+  // );
   console.log("\nDeployment completed successfully");
 
   // Update .env file with new addresses
@@ -211,7 +208,7 @@ async function main() {
 
   // Update or add each address
   const updates = {
-    FACTORY_PROXY_ADDRESS: factoryProxyAddress,
+    FACTORY_PROXY_ADDRESS: "0xEC6CAA8b24d96f0aD4dcC72Cf9DFF5e47F520eA0", //factoryProxyAddress,
     MARKETPLACE_ADDRESS: marketplaceAddress,
     MARKETPLACE_STORAGE_ADDRESS: storageAddress,
   };
