@@ -1528,9 +1528,9 @@ export function useCollectionNFTs(
         console.log(`Current page: ${page}, Page size: ${pageSize}`);
 
         // Calculate token IDs for the current page
-        // Assuming sequential IDs from 0 to totalSupply-1
         const startIndex = page * pageSize;
         const endIndex = Math.min(startIndex + pageSize + 1, tokensCount);
+        console.log(`Start index: ${startIndex}, End index: ${endIndex}`);
 
         if (startIndex >= tokensCount) {
           // Invalid page, reset to page 0
@@ -1619,17 +1619,23 @@ export function useCollectionNFTs(
 
         // Generate the page token IDs, making sure we don't double-include NFTs that are for sale
         const pageTokenIds = Array.from(
-          { length: endIndex - startIndex },
+          { length: endIndex + 1 - startIndex },
           (_, i) => startIndex + i
         ).filter((id) => !activeListingsMap.has(id));
+
+        console.log(`Page token IDs: ${pageTokenIds}`);
+        console.log(`Page size: ${pageSize}`);
+        console.log(`Fetched listings: ${fetchedListings.length}`);
 
         // Adjust the array length to ensure we have pageSize tokens in total
         const remainingCount = Math.max(
           0,
-          pageSize -
+          pageSize +
+            1 -
             (prioritizeSales ? Math.min(pageSize, fetchedListings.length) : 0)
         );
         const regularTokenIds = pageTokenIds.slice(0, remainingCount);
+        console.log(`Regular token IDs: ${regularTokenIds}`);
 
         console.log(
           `Fetching regular tokens ${startIndex} to ${
