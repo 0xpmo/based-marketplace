@@ -1530,7 +1530,7 @@ export function useCollectionNFTs(
         // Calculate token IDs for the current page
         // Assuming sequential IDs from 0 to totalSupply-1
         const startIndex = page * pageSize;
-        const endIndex = Math.min(startIndex + pageSize, tokensCount);
+        const endIndex = Math.min(startIndex + pageSize + 1, tokensCount);
 
         if (startIndex >= tokensCount) {
           // Invalid page, reset to page 0
