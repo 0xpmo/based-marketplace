@@ -14,7 +14,7 @@ npx hardhat test
 
 ## Deployment Options
 
-### Option 1: DOESTN WOR NOT UPDATED: Deploy using Ignition (for local development)
+### Option 1: DOESNT WORK NOT UPDATED: Deploy using Ignition (for local development)
 
 Deploy the contracts locally using Ignition:
 
@@ -38,7 +38,7 @@ npx hardhat run scripts/newest-deploy-marketplace.ts --network localhost
 
 This deploys:
 
-- BasedCollectionFactory as upgradeable (Transparent Proxy)
+- BasedCollectionFactory as upgradeable (UUPS)
 - BasedMarketplaceStorage as upgradeable (UUPS)
 - BasedMarketplace as upgradeable (UUPS)
 
