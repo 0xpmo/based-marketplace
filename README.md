@@ -79,10 +79,6 @@ npx ts-node scripts/copy-abis.ts
 
 npx ts-node scripts/update-frontend-contracts.ts
 
-# Step 7: Update frontend .env.local with testnet details
-
-echo "NEXT_PUBLIC_RPC_URL=https://testnet.basedai.blockchain" >> ../frontend/.env.local
-
 # Step 8: Build and start the frontend
 
 cd ../frontend
