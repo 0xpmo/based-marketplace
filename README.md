@@ -1,86 +1,127 @@
-# Deployment process (TESTING LOCALLY)
+# Based Sea NFT Marketplace
 
-# Step 1: Start a local Hardhat node (in a separate terminal)
+This is an NFT marketplace built on the Based AI blockchain. The marketplace allows users to:
 
-# This command starts a local Ethereum node with 20 pre-funded accounts
+- Create and list NFTs for sale
+- Buy and sell NFTs
+- View NFT collections and individual items
+- Manage their NFT inventory
 
+## Deployment Instructions
+
+### Local Development
+
+1. Start a local Hardhat node (in a separate terminal)
+
+```bash
 npx hardhat node
+```
 
-# Step 2: Compile contracts
+2. Compile contracts
 
+```bash
 npx hardhat compile
+```
 
-# Step 3: Run tests to ensure everything works properly
+3. Run tests
 
+```bash
 npx hardhat test
+```
 
-# Step 4: Deploy contracts (choose one of the following options)
+4. Deploy contracts (choose one option)
 
-# Option A: Deploy using Ignition (simpler, good for local testing)
+Option A: Deploy using Ignition (simpler, good for local testing)
 
+```bash
 npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
+```
 
-# Option B: Deploy using upgradeable script (recommended for production-like testing)
+Option B: Deploy using upgradeable script (recommended for production-like testing)
 
+```bash
 npx hardhat run scripts/deploy-marketplace.ts --network localhost
+```
 
-# After deployment, load the contract addresses into your environment:
+5. Load contract addresses into environment
 
+```bash
 export $(cat contracts/.env.deployment | grep -v '#' | xargs)
+```
 
-# Step 5: Verify deployment
+6. Verify deployment
 
+```bash
 npx ts-node scripts/verify-deployment.ts --network localhost
+```
 
-# Step 6: Copy ABIs to frontend
+7. Copy ABIs to frontend
 
+```bash
 npx ts-node scripts/copy-abis.ts
+```
 
-# Step 7: Update frontend contract addresses
+8. Update frontend contract addresses
 
+```bash
 npx ts-node scripts/update-frontend-contracts.ts
+```
 
-# Step 8: Start frontend development server (in a separate terminal)
+9. Start frontend development server (in a separate terminal)
 
+```bash
 cd ../frontend
 npm run dev
+```
 
-# Now you can access the marketplace at http://localhost:3000
+Access the marketplace at http://localhost:3000
 
-# Deployment process (TO BASED MAINNET)
+### Production Deployment to Based AI Mainnet
 
-# Step 1: Update .env file with your private key and RPC URL
+1. Update .env file with your private key and RPC URL
 
-# Make sure BASED_AI_RPC_URL and BASED_AI_PRIVATE_KEY are set in .env
+   - Set `BASED_AI_RPC_URL` and `BASED_AI_PRIVATE_KEY` in .env
 
-# Step 2: Compile contracts
+2. Compile contracts
 
+```bash
 npx hardhat compile
+```
 
-# Step 3: Deploy contracts to Based AI testnet
+3. Deploy contracts to Based AI mainnet
 
-# (use upgradeable script for production deployments)
-
+```bash
 npx hardhat run scripts/deploy-marketplace.ts --network basedai
+```
 
-# After deployment, load the contract addresses into your environment:
+4. Load contract addresses into environment
 
+```bash
 export $(cat contracts/.env.deployment | grep -v '#' | xargs)
+```
 
-# Step 4: Verify deployment
+5. Verify deployment
 
+```bash
 npx ts-node scripts/verify-deployment.ts --network basedai
+```
 
-# Step 5: Copy ABIs to frontend
+6. Copy ABIs to frontend
 
+```bash
 npx ts-node scripts/copy-abis.ts
+```
 
-# Step 6: Update frontend contract addresses
+7. Update frontend contract addresses
 
+```bash
 npx ts-node scripts/update-frontend-contracts.ts
+```
 
-# Step 8: Build and start the frontend
+8. Build and start the frontend
 
+```bash
 cd ../frontend
 npm run build
 npm run start
+```
