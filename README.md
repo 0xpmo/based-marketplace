@@ -7,7 +7,7 @@ This is an NFT marketplace built on the Based AI blockchain. The marketplace all
 - View NFT collections and individual items
 - Manage their NFT inventory
 
-## Deployment Instructions
+## Deployment Instructions (in contracts/ directory)
 
 ### Local Development
 
@@ -29,31 +29,31 @@ npx hardhat compile
 npx hardhat test
 ```
 
-4. Deploy contracts (choose one option)
+4. Deploy all contracts as upgradeable (except BasedNFTCollection):
 
-Option A: Deploy using Ignition (simpler, good for local testing)
-
-```bash
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
+```shell
+npx hardhat run scripts/newest-deploy-marketplace.ts --network localhost
 ```
 
-Option B: Deploy using upgradeable script (recommended for production-like testing)
+This deploys:
 
-```bash
-npx hardhat run scripts/deploy-marketplace.ts --network localhost
-```
+- BasedCollectionFactory as upgradeable (UUPS)
+- BasedMarketplaceStorage as upgradeable (UUPS)
+- BasedMarketplace as upgradeable (UUPS)
 
-5. Load contract addresses into environment
+## After Deployment
 
-```bash
-export $(cat contracts/.env.deployment | grep -v '#' | xargs)
-```
+### Important
+
+Env vars (address updates) should automatically be copied into .env in (/contracts directory), but if it isn't manually copy them.
+
+````
 
 6. Verify deployment
 
 ```bash
 npx ts-node scripts/verify-deployment.ts --network localhost
-```
+````
 
 7. Copy ABIs to frontend
 
@@ -78,9 +78,9 @@ Access the marketplace at http://localhost:3000
 
 ### Production Deployment to Based AI Mainnet
 
-1. Update .env file with your private key and RPC URL
+1. Update .env file in contracts/ directory with your private key and RPC URL
 
-   - Set `BASED_AI_RPC_URL` and `BASED_AI_PRIVATE_KEY` in .env
+   - Set `BASED_AI_MAINNET_RPC_URL` and `BASED_AI_MAINNET_PRIVATE_KEY` in .env
 
 2. Compile contracts
 
@@ -96,9 +96,7 @@ npx hardhat run scripts/deploy-marketplace.ts --network basedai
 
 4. Load contract addresses into environment
 
-```bash
-export $(cat contracts/.env.deployment | grep -v '#' | xargs)
-```
+Env vars (address updates) should automatically be copied into .env in (/contracts directory), but if it isn't manually copy them.
 
 5. Verify deployment
 
@@ -118,10 +116,10 @@ npx ts-node scripts/copy-abis.ts
 npx ts-node scripts/update-frontend-contracts.ts
 ```
 
-8. Build and start the frontend
+8. Build and start the frontend (deployment handled by Vercel)
 
 ```bash
-cd ../frontend
+cd ./frontend
 npm run build
 npm run start
 ```

@@ -14,19 +14,7 @@ npx hardhat test
 
 ## Deployment Options
 
-### Option 1: DOESNT WORK NOT UPDATED: Deploy using Ignition (for local development)
-
-Deploy the contracts locally using Ignition:
-
-```shell
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost
-```
-
-If need to reset:
-
-```shell
-npx hardhat ignition deploy ./ignition/modules/deploy.ts --network localhost --reset
-```
+````
 
 ### Option 2: Deploy using Upgradeable Script (recommended for production)
 
@@ -34,7 +22,7 @@ Deploy all contracts as upgradeable (except BasedNFTCollection):
 
 ```shell
 npx hardhat run scripts/newest-deploy-marketplace.ts --network localhost
-```
+````
 
 This deploys:
 
@@ -46,7 +34,7 @@ This deploys:
 
 ### Important
 
-Env vars (address updates) should automatically be copied into .env in (/contracts directory), but if it isn't manually them.
+Env vars (address updates) should automatically be copied into .env in (/contracts directory), but if it isn't manually copy them.
 
 Verify the deployment:
 
@@ -67,21 +55,3 @@ Start the frontend development server:
 cd ../frontend
 npm run dev
 ```
-
-## Upgrading Contracts
-
-To upgrade the contracts in the future, use the appropriate script:
-
-```shell
-# For BasedCollectionFactory
-npx hardhat run scripts/upgrade-factory-to-v2.ts --network localhost
-
-# For BasedMarketplace and BasedMarketplaceStorage
-npx hardhat run scripts/upgrade-marketplace.ts --network localhost
-```
-
-Make sure to set the required environment variables before running upgrade scripts:
-
-- FACTORY_PROXY_ADDRESS
-- MARKETPLACE_ADDRESS
-- MARKETPLACE_STORAGE_ADDRESS
